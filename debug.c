@@ -18,6 +18,15 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset) {
   return offset + 2; // OP_CONSTANT is 2 bytes - one for opcode and one for operand
 }
 
+static int constantLongInstruction(const char* name, Chunk* chunk, int offset) {
+  // to find the total 24 bit index we shift the later bits by 8 and then 16 and take their OR to fit all 24 bits stored at different offsets in the same number
+  uint32_t constantIndex = chunk->code[offset + 1] | (chunk->code[offset + 2] << 8) | (chunk->code[offset + 3] << 16);
+  printf("%-16s %14d '", name, constantIndex);
+  printValue(chunk->constants.values[constantIndex]);
+  printf("'\n");
+  return offset + 4;
+}
+
 static int simpleInstruction(const char* name, int offset) {
   printf("%s\n", name);
   return offset + 1;
@@ -38,6 +47,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
   switch(instruction) {
     case OP_CONSTANT:
       return constantInstruction("OP_CONSTANT", chunk, offset);
+    case OP_CONSTANT_LONG:
+      return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
     case OP_RETURN:
       return simpleInstruction("OP_RETURN", offset);
     default:
