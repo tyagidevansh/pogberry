@@ -9,10 +9,10 @@ CFLAGS = -Wall -Wextra -std=c11
 EXEC = main
 
 # Source files
-SRC = main.c value.c memory.c chunk.c debug.c
+SRC = main.c value.c memory.c chunk.c debug.c vm.c
 
 # Object files
-OBJ = main.o value.o memory.o chunk.o debug.o
+OBJ = main.o value.o memory.o chunk.o debug.o vm.o
 
 # Default target
 all: $(EXEC)

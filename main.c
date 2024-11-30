@@ -1,8 +1,11 @@
 #include "common.h"
 #include "chunk.h"
 #include "debug.h"
+#include "vm.h"
 
 int main(int argc, const char* argv[]) {
+  initVM();  
+
   Chunk chunk;
   initChunk(&chunk);
 
@@ -14,6 +17,7 @@ int main(int argc, const char* argv[]) {
 
   writeConstant(&chunk, 3.5, 124);
   disassembleChunk(&chunk, "test chunk");
-
+  interpret(&chunk); // vm is commanded to interpret a chunk of bytecode
+  freeVM();
   freeChunk(&chunk);
 }

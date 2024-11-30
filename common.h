@@ -5,4 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define DEBUG_TRANCE_EXECUTION
+
 #endif
