@@ -21,7 +21,7 @@ typedef enum {
 
 void initVM();
 void freeVM();
-InterpretResult interpret(Chunk* chunk); //run the chunk and respond with a value from enum declared above
+InterpretResult interpret(const char* source); //run the chunk and respond with a value from enum declared above
 void push(Value value);
 Value pop();
 
