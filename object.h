@@ -24,6 +24,7 @@ struct ObjString {
   Obj obj;
   int length;
   char* chars;
+  uint32_t hash; //each string stores its own hash so we dont have to calculate it everytime we have to look something up in the hashmap
 };
 
 ObjString* takeString(char* chars, int length);
