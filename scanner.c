@@ -140,7 +140,16 @@ static TokenType identifierType()
   case 'a':
     return checkKeyword(1, 2, "nd", TOKEN_AND);
   case 'c':
-    return checkKeyword(1, 4, "lass", TOKEN_CLASS);
+    if (scanner.current - scanner.start > 1) {
+      switch(scanner.start[1]) {
+        case 'l':
+          return checkKeyword(1, 4, "lass", TOKEN_CLASS);
+        case 'a':
+        return checkKeyword(1, 3, 'ase', TOKEN_CASE);
+      }
+    }
+  case 'd':
+    return checkKeyword(1, 6, 'efault', TOKEN_DEFAULT);  
   case 'e':
     return checkKeyword(1, 3, "lse", TOKEN_ELSE);
   // here we do check multiple branching paths
@@ -169,7 +178,7 @@ static TokenType identifierType()
   case 'r':
     return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
   case 's':
-    return checkKeyword(1, 4, "uper", TOKEN_SUPER);
+    return checkKeyword(1, 5, "witch", TOKEN_SWITCH);
   case 't':
     if (scanner.current - scanner.start > 1)
     {
