@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -11,6 +12,10 @@
 
 // global declaration of VM so we dont have to pass it around everywhere, theres only going to be one VM so its ok
 VM vm;
+
+static Value clockNative(int argCount, Value* args) {
+  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
 
 static void resetStack() {
   vm.stackTop = vm.stack;
@@ -36,8 +41,15 @@ static void runtimeError(const char* format, ...) { //variadic function
       fprintf(stderr, "%s()\n", function->name->chars);
     }
   }
-
   resetStack();
+}
+
+static void defineNative(const char* name, NativeFn function) {
+  push(OBJ_VAL(copyString(name, (int)strlen(name))));
+  push(OBJ_VAL(newNative(function)));
+  tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
+  pop();
+  pop();
 }
 
 void initVM() {
@@ -46,6 +58,8 @@ void initVM() {
 
   initTable(&vm.globals);
   initTable(&vm.strings);
+
+  defineNative("clock", clockNative);
 }
 
 void freeVM() {
@@ -70,7 +84,8 @@ static Value peek(int distance) {
 
 static bool call(ObjFunction* function, int argCount) {
   if (argCount != function->arity) {
-    runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+    runtimeError("Expected %d arguments but got %d.",
+        function->arity, argCount);
     return false;
   }
 
@@ -89,13 +104,20 @@ static bool call(ObjFunction* function, int argCount) {
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
-      case OBJ_FUNCTION:
+      case OBJ_FUNCTION: 
         return call(AS_FUNCTION(callee), argCount);
+      case OBJ_NATIVE: {
+        NativeFn native = AS_NATIVE(callee);
+        Value result = native(argCount, vm.stackTop - argCount);
+        vm.stackTop -= argCount + 1;
+        push(result);
+        return true;
+      }
       default:
-        break;
+        break; // Non-callable object type.
     }
   }
-  runtimeError("Can only call functions and classes");
+  runtimeError("Can only call functions and classes.");
   return false;
 }
 
@@ -119,7 +141,8 @@ static void concatenate() {
 }
 
 static InterpretResult run() {
-  CallFrame* frame = &vm.frames[vm.frameCount - 1]; // current topmost callframe
+  CallFrame* frame = &vm.frames[vm.frameCount - 1];
+
 #define READ_BYTE() (*frame->ip++)
 
 #define READ_SHORT() \
@@ -128,34 +151,33 @@ static InterpretResult run() {
 
 #define READ_CONSTANT() \
     (frame->function->chunk.constants.values[READ_BYTE()])
-    
-#define READ_STRING() AS_STRING(READ_CONSTANT())
 
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 //awkward do-while and then while(false) just to run it once so that this preprocessor can be defined at all. this faux loop is a workaround allowing preprocessor to take multiple statements 
 //really pushing macros to the limit here
-#define BINARY_OP(ValueType, op) \   
-  do { \
-    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
-      runtimeError("Operands must be numbers."); \
-      return INTERPRET_RUNTIME_ERROR; \
-    } \
-    double b = AS_NUMBER(pop()); \
-    double a = AS_NUMBER(pop()); \
-    push(ValueType(a op b)); \
-  } while (false)
+#define BINARY_OP(valueType, op) \
+    do { \
+      if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+        runtimeError("Operands must be numbers."); \
+        return INTERPRET_RUNTIME_ERROR; \
+      } \
+      double b = AS_NUMBER(pop()); \
+      double a = AS_NUMBER(pop()); \
+      push(valueType(a op b)); \
+    } while (false)
 
   for (;;) {
-#ifdef DEBUG_TRACE_EXECUTION
-    printf("        ");
-    for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-      printf("[ ");
-      printValue(*slot);
-      printf(" ]");
-    }
-    printf("\n");
-    disassembleInstruction(&frame->function->chunk,
-        (int)(frame->ip - frame->function->chunk.code));
-#endif
+// #ifdef DEBUG_TRACE_EXECUTION
+//     printf("        ");
+//     for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+//       printf("[ ");
+//       printValue(*slot);
+//       printf(" ]");
+//     }
+//     printf("\n");
+  // disassembleInstruction(&frame->function->chunk,
+        // (int)(frame->ip - frame->function->chunk.code));
+// #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
       case OP_CONSTANT: {
@@ -240,6 +262,16 @@ static InterpretResult run() {
         printValue(pop());
         printf("\n");
         break;
+      case OP_JUMP: {
+        uint16_t offset = READ_SHORT();
+        frame->ip += offset;
+        break;
+      }
+      case OP_JUMP_IF_FALSE: {
+        uint16_t offset = READ_SHORT();
+        if (isFalsey(peek(0))) frame->ip += offset;
+        break;
+      }
       case OP_LOOP: {
         uint16_t offset = READ_SHORT();
         frame->ip -= offset;
@@ -266,16 +298,6 @@ static InterpretResult run() {
         frame = &vm.frames[vm.frameCount - 1];
         break;
       }
-      case OP_JUMP: {
-        uint16_t offset = READ_SHORT();
-        frame->ip += offset;
-        break;
-      }
-      case OP_JUMP_IF_FALSE: {
-        uint16_t offset = READ_SHORT();
-        if (isFalsey(peek(0))) frame->ip += offset;
-        break;
-      }
     }
   }
 #undef BINARY_OP
@@ -291,10 +313,6 @@ InterpretResult interpret(const char* source) {
 
   push(OBJ_VAL(function));
   call(function, 0);
-  // CallFrame* frame = &vm.frames[vm.frameCount++];
-  // frame->function = function;
-  // frame->ip = function->chunk.code;
-  // frame->slots = vm.stack;
 
   return run();
 }
