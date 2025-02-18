@@ -176,9 +176,20 @@ static TokenType identifierType()
   case 'p':
     return checkKeyword(1, 4, "rint", TOKEN_PRINT);
   case 'r':
-    return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
+    if (scanner.current - scanner.start > 1) {
+      switch (scanner.start[1]) {
+      case 'e':
+        return checkKeyword(2, 4, "turn", TOKEN_RETURN);
+      case 'i':
+        return checkKeyword(2, 2, "zz", TOKEN_RETURN);
+      }
+    }
+    break;
+    
+  // case 's':
+  //   return checkKeyword(1, 5, "witch", TOKEN_SWITCH);
   case 's':
-    return checkKeyword(1, 5, "witch", TOKEN_SWITCH);
+    return checkKeyword(1, 4, "igma", TOKEN_FUN);
   case 't':
     if (scanner.current - scanner.start > 1)
     {
@@ -195,6 +206,8 @@ static TokenType identifierType()
     return checkKeyword(1, 2, "ar", TOKEN_VAR);
   case 'w':
     return checkKeyword(1, 4, "hile", TOKEN_WHILE);
+  case 'y':
+    return checkKeyword(1, 2, "ap", TOKEN_PRINT);
   }
   return TOKEN_IDENTIFIER;
 }
@@ -245,7 +258,7 @@ Token scanToken()
 {
   skipWhitespace(); // ignore spaces, tabs, newlines, comments all that stuff before looking at tokens
   // set the start of current lexeme, useful in knowing the length of the lexeme
-  scanner.start = scanner.current;
+  scanner.start = scanner.current; 
 
   // if we've reached null terminator bing bang boom the string is over and our work here is done, point that compiler to an End Of File token
   if (isAtEnd())
