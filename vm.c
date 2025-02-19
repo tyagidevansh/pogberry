@@ -82,24 +82,36 @@ static Value peek(int distance) {
   return vm.stackTop[-1 - distance];
 }
 
-static bool call(ObjFunction* function, int argCount) {
+bool call(ObjFunction* function, int argCount) {
   if (argCount != function->arity) {
-    runtimeError("Expected %d arguments but got %d.",
-        function->arity, argCount);
-    return false;
+      runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+      return false;
   }
 
   if (vm.frameCount == FRAMES_MAX) {
-    runtimeError("Stack overflow.");
-    return false;
+      runtimeError("Stack overflow.");
+      return false;
   }
 
   CallFrame* frame = &vm.frames[vm.frameCount++];
   frame->function = function;
   frame->ip = function->chunk.code;
+
   frame->slots = vm.stackTop - argCount - 1;
+
+  printf("CALL: Function '%s' at ip %p with %d arguments\n",
+         function->name ? function->name->chars : "<script>", function->chunk.code, argCount);
+
+  printf("Stack before function execution: ");
+  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+      printValue(*slot);
+      printf(" | ");
+  }
+  printf("\n");
+
   return true;
 }
+
 
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
@@ -167,17 +179,17 @@ static InterpretResult run() {
     } while (false)
 
   for (;;) {
-// #ifdef DEBUG_TRACE_EXECUTION
-//     printf("        ");
-//     for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-//       printf("[ ");
-//       printValue(*slot);
-//       printf(" ]");
-//     }
-//     printf("\n");
-  // disassembleInstruction(&frame->function->chunk,
-        // (int)(frame->ip - frame->function->chunk.code));
-// #endif
+#ifdef DEBUG_TRACE_EXECUTION
+  printf("        ");
+  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+    printf("[ ");
+    printValue(*slot);
+    printf(" ]");
+  }
+  printf("\n");
+  disassembleInstruction(&frame->function->chunk,
+    (int)(frame->ip - frame->function->chunk.code));
+#endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
       case OP_CONSTANT: {

@@ -445,6 +445,7 @@ static void binary(bool canAssign)
 static void call(bool canAssign)
 {
   uint8_t argCount = argumentList();
+  printf("ARGUMENTS: %d \n", argCount);
   emitBytes(OP_CALL, argCount);
 }
 
@@ -765,8 +766,8 @@ static void namedVariable(Token name, bool canAssign)
   int arg = resolveLocal(current, &name);
   if (arg != -1)
   {
-    getOp = OP_GET_GLOBAL;
-    setOp = OP_SET_GLOBAL;
+    getOp = OP_GET_LOCAL;
+    setOp = OP_SET_LOCAL;
   }
   else
   {
@@ -815,6 +816,8 @@ ParseRule rules[] = {
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
     [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LEFT_BRACKET] = {NULL, NULL, PREC_NONE},
+    [TOKEN_RIGHT_BRACKET] = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},

@@ -127,6 +127,7 @@ static TokenType checkKeyword(int start, int length, const char *rest, TokenType
     return type;
   }
 
+  //its an identifier if we cant match it to any keyword
   return TOKEN_IDENTIFIER;
 }
 
@@ -145,11 +146,12 @@ static TokenType identifierType()
         case 'l':
           return checkKeyword(1, 4, "lass", TOKEN_CLASS);
         case 'a':
-        return checkKeyword(1, 3, 'ase', TOKEN_CASE);
+        return checkKeyword(1, 3, "ase", TOKEN_CASE);
       }
     }
+    break;
   case 'd':
-    return checkKeyword(1, 6, 'efault', TOKEN_DEFAULT);  
+    return checkKeyword(1, 6, "efault", TOKEN_DEFAULT);  
   case 'e':
     return checkKeyword(1, 3, "lse", TOKEN_ELSE);
   // here we do check multiple branching paths
@@ -281,6 +283,10 @@ Token scanToken()
     return makeToken(TOKEN_LEFT_BRACE);
   case '}':
     return makeToken(TOKEN_RIGHT_BRACE);
+  case '[':
+    return makeToken(TOKEN_LEFT_BRACKET);
+  case ']':
+    return makeToken(TOKEN_RIGHT_BRACKET);
   case ';':
     return makeToken(TOKEN_SEMICOLON);
   case ',':
