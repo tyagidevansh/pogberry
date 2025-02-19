@@ -2,6 +2,8 @@
 #define clox_common_h
 
 #include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
 
