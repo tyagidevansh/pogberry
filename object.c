@@ -24,9 +24,6 @@ ObjFunction* newFunction() {
   function->name = NULL;
   initChunk(&function->chunk);
 
-  printf("newFunction: Created function at %p, code starts at %p\n", 
-         function, function->chunk.constants.values);
-
   return function;
 }
 

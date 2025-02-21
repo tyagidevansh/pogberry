@@ -168,17 +168,6 @@ bool call(ObjFunction *function, int argCount)
 
   frame->slots = vm.stackTop - argCount - 1;
 
-  printf("CALL: Function '%s' at ip %p with %d arguments\n",
-         function->name ? function->name->chars : "<script>", function->chunk.code, argCount);
-
-  printf("Stack before function execution: ");
-  for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
-  {
-    printValue(*slot);
-    printf(" | ");
-  }
-  printf("\n");
-
   return true;
 }
 
@@ -431,23 +420,53 @@ static InterpretResult run()
       break;
     }
     case OP_GET_INDEX: {
-      Value indexVal = pop();
-      Value listVal = pop();
+      Value index = pop();
+      Value list = pop();
   
-      if (!IS_LIST(listVal) || !IS_NUMBER(indexVal)) {
+      if (!IS_LIST(list)) {
+          runtimeError("Can only index into lists.");
+          return INTERPRET_RUNTIME_ERROR;
+      }
+      
+      ObjList* objList = AS_LIST(list);
+      if (!IS_NUMBER(index)) {
           runtimeError("List index must be a number.");
           return INTERPRET_RUNTIME_ERROR;
       }
   
-      ObjList* list = AS_LIST(listVal);
-      int index = (int)AS_NUMBER(indexVal);
-  
-      if (index < 0 || index >= list->items.count) {
+      int i = (int)AS_NUMBER(index);
+      if (i < 0 || i >= objList->items.count) {
           runtimeError("List index out of bounds.");
           return INTERPRET_RUNTIME_ERROR;
       }
   
-      push(list->items.values[index]);
+      push(objList->items.values[i]);
+      break;
+    }
+  
+    case OP_SET_INDEX: {
+      Value value = pop();
+      Value index = pop();
+      Value list = pop();
+  
+      if (!IS_LIST(list)) {
+          runtimeError("Can only index into lists.");
+          return INTERPRET_RUNTIME_ERROR;
+      }
+  
+      ObjList* objList = AS_LIST(list);
+      if (!IS_NUMBER(index)) {
+          runtimeError("List index must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+      }
+  
+      int i = (int)AS_NUMBER(index);
+      if (i < 0 || i >= objList->items.count) {
+          runtimeError("List index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+      }
+  
+      objList->items.values[i] = value;  // Set the indexed value
       break;
     }
     case OP_NEW_LIST: {

@@ -31,6 +31,7 @@ typedef enum {
   OP_LOOP,
   OP_CALL,
   OP_GET_INDEX,
+  OP_SET_INDEX,
   OP_NEW_LIST,
   OP_LIST_APPEND,
   OP_RETURN,

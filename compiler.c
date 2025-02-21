@@ -437,10 +437,6 @@ static void binary(bool canAssign)
   case TOKEN_SLASH:
     emitByte(OP_DIVIDE);
     break;
-  case TOKEN_LEFT_BRACKET:
-    expression();
-    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after index.");
-    emitByte(OP_GET_INDEX);
   default:
     return; // unreachable
   }
@@ -449,7 +445,6 @@ static void binary(bool canAssign)
 static void call(bool canAssign)
 {
   uint8_t argCount = argumentList();
-  printf("ARGUMENTS: %d \n", argCount);
   emitBytes(OP_CALL, argCount);
 }
 
@@ -665,17 +660,29 @@ static void whileStatement()
 
 static void list(bool canAssign) {
   int itemCount = 0;
-  emitByte(OP_NEW_LIST);  // Create empty list on stack
+  emitByte(OP_NEW_LIST);  
 
-  if (!check(TOKEN_RIGHT_BRACKET)) {  // If not an empty list
+  if (!check(TOKEN_RIGHT_BRACKET)) { 
       do {
-          expression();  // Parse an element
-          emitByte(OP_LIST_APPEND);  // Append to list
+          expression(); 
+          emitByte(OP_LIST_APPEND); 
           itemCount++;
-      } while (match(TOKEN_COMMA));  // Handle multiple elements
+      } while (match(TOKEN_COMMA));  
   }
 
   consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
+}
+
+static void listIndex(bool canAssign) {
+  expression();
+  consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list index.");
+
+  if (canAssign && match(TOKEN_EQUAL)) {
+      expression();
+      emitByte(OP_SET_INDEX);
+  } else {
+      emitByte(OP_GET_INDEX);
+  }
 }
 
 static void synchronize()
@@ -750,9 +757,10 @@ static void statement()
     block();
     endScope();
   }
-  // else if (match(TOKEN_LEFT_BRACKET)) {
-  //   parseList();
-  // }
+  else if (match(TOKEN_LEFT_BRACKET)) {
+    printf("left bracket detected");
+    consume(TOKEN_RIGHT_BRACKET, "expect ']'");
+  }
   else
   {
     expressionStatement();
@@ -782,30 +790,26 @@ static void string(bool canAssign)
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
-static void namedVariable(Token name, bool canAssign)
-{
+static void namedVariable(Token name, bool canAssign) {
   uint8_t getOp, setOp;
   int arg = resolveLocal(current, &name);
-  if (arg != -1)
-  {
-    getOp = OP_GET_LOCAL;
-    setOp = OP_SET_LOCAL;
-  }
-  else
-  {
-    arg = identifierConstant(&name);
-    getOp = OP_GET_GLOBAL;
-    setOp = OP_SET_GLOBAL;
+  if (arg != -1) {
+      getOp = OP_GET_LOCAL;
+      setOp = OP_SET_LOCAL;
+  } else {
+      arg = identifierConstant(&name);
+      getOp = OP_GET_GLOBAL;
+      setOp = OP_SET_GLOBAL;
   }
 
-  if (canAssign && match(TOKEN_EQUAL))
-  {
-    expression();
-    emitBytes(setOp, (uint8_t)arg);
-  }
-  else
-  {
-    emitBytes(getOp, (uint8_t)arg);
+  if (match(TOKEN_LEFT_BRACKET)) {
+      emitBytes(getOp, (uint8_t)arg);
+      listIndex(canAssign);
+  } else if (canAssign && match(TOKEN_EQUAL)) {
+      expression();
+      emitBytes(setOp, (uint8_t)arg);
+  } else {
+      emitBytes(getOp, (uint8_t)arg);
   }
 }
 
@@ -836,10 +840,10 @@ static void unary()
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, call, PREC_CALL},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_CALL},
     [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_LEFT_BRACKET] = {list, NULL, PREC_CALL},
-    [TOKEN_RIGHT_BRACKET] = {NULL, binary, PREC_NONE},
+    [TOKEN_RIGHT_BRACKET] = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},
