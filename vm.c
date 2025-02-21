@@ -13,37 +13,6 @@
 // global declaration of VM so we dont have to pass it around everywhere, theres only going to be one VM so its ok
 VM vm;
 
-static Value clockNative(int argCount, Value *args)
-{
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
-
-static Value randNative(int argCount, Value *args)
-{
-  if (argCount > 0 && IS_NUMBER(args[0])) {
-    int max = (int)AS_NUMBER(args[0]);
-    return NUMBER_VAL(rand() % max);
-  } else {
-    return NUMBER_VAL(rand() / (double)RAND_MAX);
-  }
-}
-
-static Value strInputNative(int argCount, Value *args)
-{
-  if (argCount > 0 && IS_STRING(args[0])) {
-    printf("%s", AS_CSTRING(args[0]));
-  } else {
-    printf("Enter input: ");
-  }
-  char buffer[256];
-  if (!fgets(buffer, sizeof(buffer), stdin))
-  {
-    return NIL_VAL;
-  }
-  buffer[strcspn(buffer, "\n")] = 0;
-  return OBJ_VAL(copyString(buffer, strlen(buffer)));
-}
-
 static void resetStack()
 {
   vm.stackTop = vm.stack;
@@ -77,6 +46,59 @@ static void runtimeError(const char *format, ...)
   resetStack();
 }
 
+static Value clockNative(int argCount, Value *args)
+{
+  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
+static Value randNative(int argCount, Value *args)
+{
+  if (argCount > 0 && IS_NUMBER(args[0]))
+  {
+    int max = (int)AS_NUMBER(args[0]);
+    return NUMBER_VAL(rand() % max);
+  }
+  else
+  {
+    return NUMBER_VAL(rand() / (double)RAND_MAX);
+  }
+}
+
+static Value strInputNative(int argCount, Value *args)
+{
+  if (argCount > 0 && IS_STRING(args[0]))
+  {
+    printf("%s", AS_CSTRING(args[0]));
+  }
+  else
+  {
+    printf("Enter input: ");
+  }
+  char buffer[256];
+  if (!fgets(buffer, sizeof(buffer), stdin))
+  {
+    return NIL_VAL;
+  }
+  buffer[strcspn(buffer, "\n")] = 0;
+  return OBJ_VAL(copyString(buffer, strlen(buffer)));
+}
+
+static Value sqrtNative(int argCount, Value* args) {
+  if (argCount != 1 || !IS_NUMBER(args[0])) {
+    runtimeError("sqrt expects a single number.");
+    return NIL_VAL;
+  }
+  return NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
+}
+
+static Value absNative(int argCount, Value* args) {
+  if (argCount != 1 || !IS_NUMBER(args[0])) {
+    runtimeError("abs expects a single value.");
+    return NIL_VAL;
+  }
+  return NUMBER_VAL(abs(AS_NUMBER(args[0])));
+}
+
 static void defineNative(const char *name, NativeFn function)
 {
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
@@ -98,6 +120,8 @@ void initVM()
   defineNative("clock", clockNative);
   defineNative("rand", randNative);
   defineNative("strInput", strInputNative);
+  defineNative("sqrt", sqrtNative);
+  defineNative("abs", absNative);
 }
 
 void freeVM()
@@ -188,15 +212,27 @@ static bool isFalsey(Value value)
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
+static char *formatNumber(Value value)
+{
+  if (!IS_NUMBER(value))
+    return "NaN";
+  char *buffer = ALLOCATE(char, 32);
+  snprintf(buffer, 32, "%g", AS_NUMBER(value));
+  return buffer;
+}
+
 static void concatenate()
 {
-  ObjString *b = AS_STRING(pop());
-  ObjString *a = AS_STRING(pop());
+  Value b = pop();
+  Value a = pop();
 
-  int length = a->length + b->length;
+  ObjString *strA = IS_STRING(a) ? AS_STRING(a) : copyString(formatNumber(a), strlen(formatNumber(a)));
+  ObjString *strB = IS_STRING(b) ? AS_STRING(b) : copyString(formatNumber(b), strlen(formatNumber(b)));
+
+  int length = strA->length + strB->length;
   char *chars = ALLOCATE(char, length + 1);
-  memcpy(chars, a->chars, a->length);
-  memcpy(chars + a->length, b->chars, b->length);
+  memcpy(chars, strA->chars, strA->length);
+  memcpy(chars + strA->length, strB->chars, strB->length);
   chars[length] = '\0';
 
   ObjString *result = takeString(chars, length);
@@ -234,18 +270,18 @@ static InterpretResult run()
 
   for (;;)
   {
-// #ifdef DEBUG_TRACE_EXECUTION
-//     printf("        ");
-//     for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
-//     {
-//       printf("[ ");
-//       printValue(*slot);
-//       printf(" ]");
-//     }
-//     printf("\n");
-//     disassembleInstruction(&frame->function->chunk,
-//                            (int)(frame->ip - frame->function->chunk.code));
-// #endif
+    // #ifdef DEBUG_TRACE_EXECUTION
+    //     printf("        ");
+    //     for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
+    //     {
+    //       printf("[ ");
+    //       printValue(*slot);
+    //       printf(" ]");
+    //     }
+    //     printf("\n");
+    //     disassembleInstruction(&frame->function->chunk,
+    //                            (int)(frame->ip - frame->function->chunk.code));
+    // #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE())
     {
@@ -324,7 +360,7 @@ static InterpretResult run()
       break;
     case OP_ADD:
     {
-      if (IS_STRING(peek(0)) && IS_STRING(peek(1)))
+      if (IS_STRING(peek(0)) || IS_STRING(peek(1)))
       {
         concatenate();
       }
@@ -394,6 +430,46 @@ static InterpretResult run()
       frame = &vm.frames[vm.frameCount - 1];
       break;
     }
+    case OP_GET_INDEX: {
+      Value indexVal = pop();
+      Value listVal = pop();
+  
+      if (!IS_LIST(listVal) || !IS_NUMBER(indexVal)) {
+          runtimeError("List index must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+      }
+  
+      ObjList* list = AS_LIST(listVal);
+      int index = (int)AS_NUMBER(indexVal);
+  
+      if (index < 0 || index >= list->items.count) {
+          runtimeError("List index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+      }
+  
+      push(list->items.values[index]);
+      break;
+    }
+    case OP_NEW_LIST: {
+      push(OBJ_VAL(newList()));  // Push an empty list onto the stack
+      break;
+    }
+    
+    case OP_LIST_APPEND: {
+        Value item = pop();  // Get value to append
+        Value listVal = pop();
+    
+        if (!IS_LIST(listVal)) {
+            runtimeError("Can only append to a list.");
+            return INTERPRET_RUNTIME_ERROR;
+        }
+    
+        ObjList* list = AS_LIST(listVal);
+        writeValueArray(&list->items, item);
+        push(OBJ_VAL(list));  // Push updated list back
+        break;
+    }
+  
     case OP_RETURN:
     {
       Value result = pop();

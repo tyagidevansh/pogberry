@@ -1,4 +1,3 @@
-
 # Compiler
 CC = gcc
 
@@ -25,6 +24,5 @@ $(EXEC): $(OBJ)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean up object files and the executable
 clean:
-	rm -f $(OBJ) $(EXEC)
+	del /Q $(OBJ)

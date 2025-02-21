@@ -10,17 +10,20 @@
 #define IS_FUNCTION(value)     isObjType(value, OBJ_FUNCTION)
 #define IS_NATIVE(value)       isObjType(value, OBJ_NATIVE)
 #define IS_STRING(value)     isObjType(value, OBJ_STRING)
+#define IS_LIST(value)        isObjType(value, OBJ_LIST)
 
 #define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
 #define AS_NATIVE(value) \
     (((ObjNative*)AS_OBJ(value))->function)
 #define AS_STRING(value)     ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value)    (((ObjString*)AS_OBJ(value))->chars)
+#define AS_LIST(value)        ((ObjList*)AS_OBJ(value))
 
 typedef enum {
   OBJ_FUNCTION,
   OBJ_NATIVE,
   OBJ_STRING,
+  OBJ_LIST,
 } ObjType;
 
 struct Obj {
@@ -50,10 +53,17 @@ struct ObjString {
   uint32_t hash; //each string stores its own hash so we dont have to calculate it everytime we have to look something up in the hashmap
 };
 
+typedef struct {
+  Obj obj;
+  // int length;
+  ValueArray items;
+} ObjList;
+
 ObjFunction* newFunction();
 ObjNative* newNative(NativeFn function);
 ObjString* takeString(char* chars, int length);
 ObjString* copyString(const char* chars, int length);
+ObjList* newList();
 void printObject(Value value);
 
 // function rather than just putting it in the macro coz this uses a value twice, that would cause the macro to be evaluated twice
@@ -61,4 +71,4 @@ static inline bool isObjType(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
 
-#endif // !clox_object_h
+#endif 

@@ -76,12 +76,28 @@ ObjString* copyString(const char* chars, int length) {
   return allocateString(heapChars, length, hash);
 }
 
+ObjList* newList() {
+  ObjList* list = ALLOCATE_OBJ(ObjList, OBJ_LIST);
+  // list->length = 0;
+  initValueArray(&list->items);
+  return list;
+}
+
 static void printFunction(ObjFunction* function) {
   if (function->name == NULL) {
     printf("<script>");
     return;
   }
   printf("<fn %s>", function->name->chars);
+}
+
+static void printList(ObjList* list) {
+  printf("[");
+  for (int i = 0; i < list->items.count; i++) {
+    if (i > 0) printf(", ");
+    printValue(list->items.values[i]);
+  }
+  printf("]");
 }
 
 void printObject(Value value) {
@@ -94,6 +110,9 @@ void printObject(Value value) {
       break;
     case OBJ_STRING:
       printf("%s", AS_CSTRING(value));
+      break;
+    case OBJ_LIST:
+      printList(AS_LIST(value));
       break;
   }
 }

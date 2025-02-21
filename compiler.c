@@ -437,6 +437,10 @@ static void binary(bool canAssign)
   case TOKEN_SLASH:
     emitByte(OP_DIVIDE);
     break;
+  case TOKEN_LEFT_BRACKET:
+    expression();
+    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after index.");
+    emitByte(OP_GET_INDEX);
   default:
     return; // unreachable
   }
@@ -659,6 +663,21 @@ static void whileStatement()
   emitByte(OP_POP);
 }
 
+static void list(bool canAssign) {
+  int itemCount = 0;
+  emitByte(OP_NEW_LIST);  // Create empty list on stack
+
+  if (!check(TOKEN_RIGHT_BRACKET)) {  // If not an empty list
+      do {
+          expression();  // Parse an element
+          emitByte(OP_LIST_APPEND);  // Append to list
+          itemCount++;
+      } while (match(TOKEN_COMMA));  // Handle multiple elements
+  }
+
+  consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
+}
+
 static void synchronize()
 {
   parser.panicMode = false;
@@ -731,6 +750,9 @@ static void statement()
     block();
     endScope();
   }
+  // else if (match(TOKEN_LEFT_BRACKET)) {
+  //   parseList();
+  // }
   else
   {
     expressionStatement();
@@ -816,8 +838,8 @@ ParseRule rules[] = {
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
     [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LEFT_BRACKET] = {NULL, NULL, PREC_NONE},
-    [TOKEN_RIGHT_BRACKET] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LEFT_BRACKET] = {list, NULL, PREC_CALL},
+    [TOKEN_RIGHT_BRACKET] = {NULL, binary, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},
