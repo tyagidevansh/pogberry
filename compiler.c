@@ -685,6 +685,38 @@ static void listIndex(bool canAssign) {
   }
 }
 
+static void handleDot(bool canAssign) {
+  consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+  if (parser.previous.length == 4 && memcmp(parser.previous.start, "push", 4) == 0) {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'push'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after value.");
+    emitByte(OP_LIST_APPEND);
+  } else if (parser.previous.length == 3 && memcmp(parser.previous.start, "add", 3) == 0) {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'add'.");
+    expression();
+    consume(TOKEN_COMMA, "Expect two parameters: value and index.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'index'.");
+    emitByte(OP_LIST_ADD);
+  } else if (parser.previous.length == 6 && memcmp(parser.previous.start, "remove", 6) == 0) {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'remove'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after index.");
+    emitByte(OP_LIST_REMOVE);
+  } else if (parser.previous.length == 3 && memcmp(parser.previous.start, "pop", 3) == 0) {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'pop'.");
+    consume(TOKEN_RIGHT_PAREN, "Expect ')', 'pop' does not accept any parameters.");
+    emitByte(OP_LIST_POP);
+  } else if (parser.previous.length == 4 && memcmp(parser.previous.start, "size", 4) == 0) {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'size'.");
+    consume(TOKEN_RIGHT_PAREN, "Expect ')', 'size' does not accept any parameters.");
+    emitByte(OP_SIZE);
+  } else {
+    error("Unknown property name.");
+  }
+}
+ 
 static void synchronize()
 {
   parser.panicMode = false;
@@ -805,6 +837,9 @@ static void namedVariable(Token name, bool canAssign) {
   if (match(TOKEN_LEFT_BRACKET)) {
       emitBytes(getOp, (uint8_t)arg);
       listIndex(canAssign);
+  } else if (match(TOKEN_DOT)) {
+      emitBytes(getOp, (uint8_t)arg);
+      handleDot(canAssign);
   } else if (canAssign && match(TOKEN_EQUAL)) {
       expression();
       emitBytes(setOp, (uint8_t)arg);

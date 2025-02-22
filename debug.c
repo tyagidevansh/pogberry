@@ -123,6 +123,20 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return jumpInstruction("OP_LOOP", -1, chunk, offset);
   case OP_CALL:
     return byteInstruction("OP_CALL", chunk, offset);
+  case OP_GET_INDEX:
+    return simpleInstruction("OP_GET_INDEX", offset);
+  case OP_SET_INDEX:
+    return simpleInstruction("OP_SET_INDEX", offset);
+  case OP_NEW_LIST:
+    return simpleInstruction("OP_NEW_LIST", offset);
+  case OP_LIST_APPEND:
+    return simpleInstruction("OP_LIST_APPEND", offset);
+  case OP_LIST_ADD:
+    return simpleInstruction("OP_LIST_ADD", offset);
+  case OP_LIST_REMOVE:
+    return simpleInstruction("OP_LIST_REMOVE", offset);
+  case OP_SIZE:
+    return simpleInstruction("OP_SIZE", offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   default:

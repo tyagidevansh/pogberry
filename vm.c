@@ -83,20 +83,77 @@ static Value strInputNative(int argCount, Value *args)
   return OBJ_VAL(copyString(buffer, strlen(buffer)));
 }
 
-static Value sqrtNative(int argCount, Value* args) {
-  if (argCount != 1 || !IS_NUMBER(args[0])) {
+static Value sqrtNative(int argCount, Value *args)
+{
+  if (argCount != 1 || !IS_NUMBER(args[0]))
+  {
     runtimeError("sqrt expects a single number.");
     return NIL_VAL;
   }
   return NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
 }
 
-static Value absNative(int argCount, Value* args) {
-  if (argCount != 1 || !IS_NUMBER(args[0])) {
+static Value absNative(int argCount, Value *args)
+{
+  if (argCount != 1 || !IS_NUMBER(args[0]))
+  {
     runtimeError("abs expects a single value.");
     return NIL_VAL;
   }
   return NUMBER_VAL(abs(AS_NUMBER(args[0])));
+}
+
+static Value listAdd(int argCount, Value *args)
+{
+  if (argCount != 2 || !IS_LIST(args[0]))
+  {
+    runtimeError("Expected a list and a value");
+    return NIL_VAL;
+  }
+
+  ObjList *list = AS_LIST(args[0]);
+  Value value = args[1];
+
+  if (list->items.count + 1 > list->items.capacity)
+  {
+    int oldCapacity = list->items.capacity;
+    list->items.capacity = GROW_CAPACITY(oldCapacity);
+    list->items.values = GROW_ARRAY(Value, list->items.values, oldCapacity, list->items.capacity);
+  }
+
+  list->items.values[list->items.count] = value;
+  list->items.count++;
+
+  return NIL_VAL;
+}
+
+static Value listRemove(int argCount, Value *args)
+{
+  if (argCount != 2 || !IS_LIST(args[0]) || !IS_NUMBER(args[1]))
+  {
+    runtimeError("Expect a list and an index");
+    return NIL_VAL;
+  }
+
+  ObjList *list = AS_LIST(args[0]);
+  int index = AS_NUMBER(args[1]);
+
+  if (index < 0 || index >= list->items.count)
+  {
+    runtimeError("Index out of bounds");
+    return NIL_VAL;
+  }
+
+  Value removedVal = list->items.values[index];
+
+  for (int i = index; i < list->items.count - 1; i++)
+  {
+    list->items.values[i] = list->items.values[i + 1];
+  }
+
+  list->items.count--;
+
+  return removedVal;
 }
 
 static void defineNative(const char *name, NativeFn function)
@@ -122,6 +179,8 @@ void initVM()
   defineNative("strInput", strInputNative);
   defineNative("sqrt", sqrtNative);
   defineNative("abs", absNative);
+  defineNative("add", listAdd);
+  defineNative("remove", listRemove);
 }
 
 void freeVM()
@@ -419,76 +478,183 @@ static InterpretResult run()
       frame = &vm.frames[vm.frameCount - 1];
       break;
     }
-    case OP_GET_INDEX: {
+    case OP_GET_INDEX:
+    {
       Value index = pop();
       Value list = pop();
-  
-      if (!IS_LIST(list)) {
-          runtimeError("Can only index into lists.");
-          return INTERPRET_RUNTIME_ERROR;
+
+      if (!IS_LIST(list))
+      {
+        runtimeError("Can only index into lists.");
+        return INTERPRET_RUNTIME_ERROR;
       }
-      
-      ObjList* objList = AS_LIST(list);
-      if (!IS_NUMBER(index)) {
-          runtimeError("List index must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
+
+      ObjList *objList = AS_LIST(list);
+      if (!IS_NUMBER(index))
+      {
+        runtimeError("List index must be a number.");
+        return INTERPRET_RUNTIME_ERROR;
       }
-  
+
       int i = (int)AS_NUMBER(index);
-      if (i < 0 || i >= objList->items.count) {
-          runtimeError("List index out of bounds.");
-          return INTERPRET_RUNTIME_ERROR;
+      if (i < 0 || i >= objList->items.count)
+      {
+        runtimeError("List index out of bounds.");
+        return INTERPRET_RUNTIME_ERROR;
       }
-  
+
       push(objList->items.values[i]);
       break;
     }
-  
-    case OP_SET_INDEX: {
+
+    case OP_SET_INDEX:
+    {
       Value value = pop();
       Value index = pop();
       Value list = pop();
-  
-      if (!IS_LIST(list)) {
-          runtimeError("Can only index into lists.");
-          return INTERPRET_RUNTIME_ERROR;
+
+      if (!IS_LIST(list))
+      {
+        runtimeError("Can only index into lists.");
+        return INTERPRET_RUNTIME_ERROR;
       }
-  
-      ObjList* objList = AS_LIST(list);
-      if (!IS_NUMBER(index)) {
-          runtimeError("List index must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
+
+      ObjList *objList = AS_LIST(list);
+      if (!IS_NUMBER(index))
+      {
+        runtimeError("List index must be a number.");
+        return INTERPRET_RUNTIME_ERROR;
       }
-  
+
       int i = (int)AS_NUMBER(index);
-      if (i < 0 || i >= objList->items.count) {
-          runtimeError("List index out of bounds.");
-          return INTERPRET_RUNTIME_ERROR;
+      if (i < 0 || i >= objList->items.count)
+      {
+        runtimeError("List index out of bounds.");
+        return INTERPRET_RUNTIME_ERROR;
       }
-  
-      objList->items.values[i] = value;  // Set the indexed value
+
+      objList->items.values[i] = value;
       break;
     }
-    case OP_NEW_LIST: {
-      push(OBJ_VAL(newList()));  // Push an empty list onto the stack
+    case OP_NEW_LIST:
+    {
+      push(OBJ_VAL(newList()));
       break;
     }
-    
-    case OP_LIST_APPEND: {
-        Value item = pop();  // Get value to append
-        Value listVal = pop();
-    
-        if (!IS_LIST(listVal)) {
-            runtimeError("Can only append to a list.");
-            return INTERPRET_RUNTIME_ERROR;
-        }
-    
-        ObjList* list = AS_LIST(listVal);
-        writeValueArray(&list->items, item);
-        push(OBJ_VAL(list));  // Push updated list back
-        break;
+    case OP_LIST_APPEND:
+    {
+      Value item = pop();
+      Value listVal = pop();
+
+      if (!IS_LIST(listVal))
+      {
+        runtimeError("Can only append to a list.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      ObjList *list = AS_LIST(listVal);
+      writeValueArray(&list->items, item);
+      push(OBJ_VAL(list));
+      break;
     }
-  
+    case OP_LIST_ADD:
+    {
+      Value indexVal = pop();
+      Value item = pop();
+      Value listVal = pop();
+
+      if (!IS_LIST(listVal))
+      {
+        runtimeError("Can only append to a list.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      ObjList *list = AS_LIST(listVal);
+      int index = AS_NUMBER(indexVal);
+
+      if (index < 0 || index >= list->items.count)
+      {
+        runtimeError("List index out of bounds.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      if (list->items.count + 1 > list->items.capacity)
+      {
+        int oldCapacity = list->items.capacity;
+        list->items.capacity = GROW_CAPACITY(oldCapacity);
+        list->items.values = GROW_ARRAY(Value, list->items.values, oldCapacity, list->items.capacity);
+      }
+
+      for (int i = list->items.count - 1; i >= index; i--)
+      {
+        list->items.values[i + 1] = list->items.values[i];
+      }
+
+      list->items.values[index] = item;
+      list->items.count++;
+      push(OBJ_VAL(list));
+      break;
+    }
+    case OP_LIST_REMOVE:
+    {
+      Value indexVal = pop();
+      Value listVal = pop();
+
+      if (!IS_LIST(listVal))
+      {
+        runtimeError("Can only append to a list.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      ObjList *list = AS_LIST(listVal);
+      int index = AS_NUMBER(indexVal);
+
+      Value removedVal = list->items.values[index];
+
+      for (int i = index; i < list->items.count - 1; i++)
+      {
+        list->items.values[i] = list->items.values[i + 1];
+      }
+
+      list->items.count--;
+      push(OBJ_VAL(list));
+      break;
+    }
+    case OP_LIST_POP:
+    {
+      Value listVal = pop();
+      if (!IS_LIST(listVal))
+      {
+        runtimeError("Can only append to a list.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      ObjList *list = AS_LIST(listVal);
+      list->items.count--;
+      push(OBJ_VAL(list));
+      break;
+    }
+    case OP_SIZE:
+    {
+      Value item = pop();
+      if (IS_LIST(item))
+      {
+        ObjList *list = AS_LIST(item);
+        int size = list->items.count;
+        push(NUMBER_VAL(size));
+      } else if (IS_STRING(item)) 
+      {
+        ObjString* string = AS_STRING(item);
+        int size = string->length;
+        push(NUMBER_VAL(size));
+      }
+      else
+      {
+        runtimeError("Size does not exist for this datatype.");
+        push(NIL_VAL);
+      }
+      break;
+    }
     case OP_RETURN:
     {
       Value result = pop();

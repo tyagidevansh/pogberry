@@ -34,6 +34,10 @@ typedef enum {
   OP_SET_INDEX,
   OP_NEW_LIST,
   OP_LIST_APPEND,
+  OP_LIST_ADD,
+  OP_LIST_REMOVE,
+  OP_LIST_POP,
+  OP_SIZE,
   OP_RETURN,
 } OpCode;
 
