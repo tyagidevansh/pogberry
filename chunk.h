@@ -39,6 +39,7 @@ typedef enum {
   OP_LIST_POP,
   OP_NEW_HASHMAP,
   OP_HASHMAP_APPEND,
+  OP_HASHMAP_DELETE,
   OP_SIZE,
   OP_RETURN,
 } OpCode;

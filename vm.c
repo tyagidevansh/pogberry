@@ -49,7 +49,8 @@ static void runtimeError(const char *format, ...)
 
 static Value clockNative(int argCount, Value *args)
 {
-  if (argCount > 0) {
+  if (argCount > 0)
+  {
     runtimeError("Clock does not accept any arguments");
     return NIL_VAL;
   }
@@ -323,18 +324,18 @@ static InterpretResult run()
 
   for (;;)
   {
-    #ifdef DEBUG_TRACE_EXECUTION
-        printf("        ");
-        for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
-        {
-          printf("[ ");
-          printValue(*slot);
-          printf(" ]");
-        }
-        printf("\n");
-        disassembleInstruction(&frame->function->chunk,
-                               (int)(frame->ip - frame->function->chunk.code));
-    #endif
+    // #ifdef DEBUG_TRACE_EXECUTION
+    //     printf("        ");
+    //     for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
+    //     {
+    //       printf("[ ");
+    //       printValue(*slot);
+    //       printf(" ]");
+    //     }
+    //     printf("\n");
+    //     disassembleInstruction(&frame->function->chunk,
+    //                            (int)(frame->ip - frame->function->chunk.code));
+    // #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE())
     {
@@ -485,60 +486,111 @@ static InterpretResult run()
     }
     case OP_GET_INDEX:
     {
-      Value index = pop();
-      Value list = pop();
+      Value key = pop();
+      Value container = pop();
 
-      if (!IS_LIST(list))
+      if (IS_LIST(container))
       {
-        runtimeError("Can only index into lists.");
+        ObjList *objList = AS_LIST(container);
+        if (!IS_NUMBER(key))
+        {
+          runtimeError("List index must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        int i = (int)AS_NUMBER(key);
+        if (i < 0 || i >= objList->items.count)
+        {
+          runtimeError("List index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        push(objList->items.values[i]);
+      }
+      else if (IS_HASHMAP(container))
+      {
+        ObjHashmap *hashmap = AS_HASHMAP(container);
+
+        if (!IS_STRING(key))
+        {
+          runtimeError("Hashmap key must be a string");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjString *keyStr = AS_STRING(key);
+        Value value;
+
+        if (tableGet(&hashmap->items, keyStr, &value))
+        {
+          push(value);
+        }
+        else
+        {
+          push(NIL_VAL);
+          //runtimeError("This key does not exist in this hashmap.");
+        }
+      }
+      else if (IS_STRING(container))
+      {
+        ObjString *string = AS_STRING(container);
+        int i = (int)AS_NUMBER(key);
+        if (i < 0 || i >= string->length)
+        {
+          runtimeError("String index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        char chars[2] = {string->chars[i], '\0'};
+        push(OBJ_VAL(copyString(chars, 1)));
+      }
+      else
+      {
+        runtimeError("Can only index into lists, strings and hashmaps.");
         return INTERPRET_RUNTIME_ERROR;
       }
-
-      ObjList *objList = AS_LIST(list);
-      if (!IS_NUMBER(index))
-      {
-        runtimeError("List index must be a number.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      int i = (int)AS_NUMBER(index);
-      if (i < 0 || i >= objList->items.count)
-      {
-        runtimeError("List index out of bounds.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      push(objList->items.values[i]);
       break;
     }
-
     case OP_SET_INDEX:
     {
       Value value = pop();
-      Value index = pop();
-      Value list = pop();
+      Value key = pop();
+      Value container = pop();
 
-      if (!IS_LIST(list))
+      if (IS_LIST(container))
       {
-        runtimeError("Can only index into lists.");
+        ObjList *objList = AS_LIST(container);
+        if (!IS_NUMBER(key))
+        {
+          runtimeError("List index must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        int i = (int)AS_NUMBER(key);
+        if (i < 0 || i >= objList->items.count)
+        {
+          runtimeError("List index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        objList->items.values[i] = value;
+      }
+      else if (IS_HASHMAP(container))
+      {
+        ObjHashmap *hashmap = AS_HASHMAP(container);
+        if (!IS_STRING(key))
+        {
+          runtimeError("Hashmap key must be a string");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjString *keyStr = AS_STRING(key);
+        !tableSet(&hashmap->items, keyStr, value);
+      }
+      else
+      {
+        runtimeError("Can only index into lists and hashmaps.");
         return INTERPRET_RUNTIME_ERROR;
       }
-
-      ObjList *objList = AS_LIST(list);
-      if (!IS_NUMBER(index))
-      {
-        runtimeError("List index must be a number.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      int i = (int)AS_NUMBER(index);
-      if (i < 0 || i >= objList->items.count)
-      {
-        runtimeError("List index out of bounds.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      objList->items.values[i] = value;
       break;
     }
     case OP_NEW_LIST:
@@ -648,15 +700,40 @@ static InterpretResult run()
       Value keyVal = pop();
       Value hashmapVal = pop();
 
-      if (!IS_HASHMAP(hashmapVal)) {
+      if (!IS_HASHMAP(hashmapVal))
+      {
         runtimeError("Expect a hashmap.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjHashmap* hashmap = AS_HASHMAP(hashmapVal);
-      ObjString* key = AS_STRING(keyVal);
+      ObjHashmap *hashmap = AS_HASHMAP(hashmapVal);
+      ObjString *key = AS_STRING(keyVal);
       tableSet(&hashmap->items, key, value);
       push(OBJ_VAL(hashmap));
+      break;
+    }
+    case OP_HASHMAP_DELETE:
+    {
+      Value keyVal = pop();
+      Value hashmapVal = pop();
+
+      if (!IS_HASHMAP(hashmapVal))
+      {
+        runtimeError("Expect a hashmap.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      ObjHashmap *hashmap = AS_HASHMAP(hashmapVal);
+      ObjString *keyStr = AS_STRING(keyVal);
+
+      if (tableDelete(&hashmap->items, keyStr))
+      {
+        push(BOOL_VAL(true));
+      }
+      else
+      {
+        runtimeError("This key does not exist in the hashmap.");
+      }
       break;
     }
     case OP_SIZE:
@@ -667,10 +744,17 @@ static InterpretResult run()
         ObjList *list = AS_LIST(item);
         int size = list->items.count;
         push(NUMBER_VAL(size));
-      } else if (IS_STRING(item)) 
+      }
+      else if (IS_STRING(item))
       {
-        ObjString* string = AS_STRING(item);
+        ObjString *string = AS_STRING(item);
         int size = string->length;
+        push(NUMBER_VAL(size));
+      }
+      else if (IS_HASHMAP(item))
+      {
+        ObjHashmap *hashmap = AS_HASHMAP(item);
+        int size = hashmap->items.count;
         push(NUMBER_VAL(size));
       }
       else

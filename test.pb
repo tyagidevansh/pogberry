@@ -29,3 +29,23 @@
 
 var h = {"animal" : "lion", "plant" : "orchid" };
 print h;
+print h["animal"];
+h["animal"] = "tiger";
+print h;
+
+print h.size();
+
+var a = "hello";
+print "First letter of hello is: " + a[0];
+
+if (h["anial"]) {
+  print "exists";
+} else {
+  print "doesnt exist";
+}
+
+if (h.find("animal")) {
+  h.delete("animal");
+}
+
+print h;

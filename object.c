@@ -105,11 +105,16 @@ static void printList(ObjList* list) {
 
 static void printHashmap(ObjHashmap* hashmap) {
   printf("{");
+  bool first = true;
   for (int i = 0; i < hashmap->items.capacity; i++) {
     Entry* entry = &hashmap->items.entries[i];
     if (entry->key != NULL) {
+      if (!first) {
+        printf(", ");
+      }
+      first = false;
       printf("%s : ", entry->key->chars);
-      printf("%s, ", AS_CSTRING(entry->value));
+      printf("%s", AS_CSTRING(entry->value));
     }
   }
   printf("}");

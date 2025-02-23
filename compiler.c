@@ -701,7 +701,7 @@ static void hashmap(bool canAssign)
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after hashmap elements.");
 }
 
-static void listIndex(bool canAssign)
+static void containerIndex(bool canAssign)
 {
   expression();
   consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list index.");
@@ -709,7 +709,7 @@ static void listIndex(bool canAssign)
   if (canAssign && match(TOKEN_EQUAL))
   {
     expression();
-    emitByte(OP_SET_INDEX);
+    emitByte(OP_SET_INDEX); //also works with hashmap keys
   }
   else
   {
@@ -754,6 +754,20 @@ static void handleDot(bool canAssign)
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'size'.");
     consume(TOKEN_RIGHT_PAREN, "Expect ')', 'size' does not accept any parameters.");
     emitByte(OP_SIZE);
+  }
+  else if (parser.previous.length == 4 && memcmp(parser.previous.start, "find", 4) == 0)
+  {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'find'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'find'.");
+    emitByte(OP_GET_INDEX);
+  }
+  else if (parser.previous.length == 6 && memcmp(parser.previous.start, "delete", 6) == 0)
+  {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'find'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'find'.");
+    emitByte(OP_HASHMAP_DELETE);
   }
   else
   {
@@ -888,7 +902,7 @@ static void namedVariable(Token name, bool canAssign)
   if (match(TOKEN_LEFT_BRACKET))
   {
     emitBytes(getOp, (uint8_t)arg);
-    listIndex(canAssign);
+    containerIndex(canAssign);
   }
   else if (match(TOKEN_DOT))
   {
