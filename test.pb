@@ -1,0 +1,26 @@
+var a = [1, 2, 5, 6, "text"];
+print a; 
+print "The first element of the list is: " + a[0];
+print "Changed the first element: ";
+a[1] = 0;
+a.push("more text");
+print "Pushed an element :";
+print a;
+a.add("9", 3);
+print "Added an element at index 3: ";
+print a;
+a.remove(3);
+print "Removed the element at index 3: ";
+print a;
+a.pop();
+print "Popped an element from the list: ";
+print a;
+print "Size of the list is: " + a.size();
+var sampleStr = "hello world";
+print "Size of the string: " + sampleStr.size();
+var a = -5.2;
+print "variables can be freely reassigned lesgooo: " + a;
+
+//comment
+
+print abs(a);

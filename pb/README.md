@@ -1,0 +1,1 @@
+!!This is a basic extension to enable syntax highlighting for .pb files.

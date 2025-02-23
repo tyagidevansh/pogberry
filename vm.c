@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -48,6 +49,10 @@ static void runtimeError(const char *format, ...)
 
 static Value clockNative(int argCount, Value *args)
 {
+  if (argCount > 0) {
+    runtimeError("Clock does not accept any arguments");
+    return NIL_VAL;
+  }
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
@@ -100,7 +105,7 @@ static Value absNative(int argCount, Value *args)
     runtimeError("abs expects a single value.");
     return NIL_VAL;
   }
-  return NUMBER_VAL(abs(AS_NUMBER(args[0])));
+  return NUMBER_VAL(fabs(AS_NUMBER(args[0])));
 }
 
 static Value listAdd(int argCount, Value *args)
@@ -602,14 +607,12 @@ static InterpretResult run()
 
       if (!IS_LIST(listVal))
       {
-        runtimeError("Can only append to a list.");
+        runtimeError("Can only remove from a list.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
       ObjList *list = AS_LIST(listVal);
       int index = AS_NUMBER(indexVal);
-
-      Value removedVal = list->items.values[index];
 
       for (int i = index; i < list->items.count - 1; i++)
       {

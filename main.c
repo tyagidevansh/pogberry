@@ -52,7 +52,6 @@ static char* readFile(const char* path) {
   return buffer; // return the string to runFile 
 }
 
-
 static void runFile(const char* path) {
   char* source = readFile(path); // dynamically allocates and passes ownership to caller, so need to free the source
   InterpretResult result = interpret(source);

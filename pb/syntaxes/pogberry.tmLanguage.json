@@ -1,0 +1,26 @@
+{
+  "name": "pogberry",
+  "scopeName": "source.pb",
+  "patterns": [
+    {
+      "match": "\\b(var|fun|if|else|while|for|return|print|class|super|this|and|or|break|continue)\\b",
+      "name": "keyword.control.pogberry"
+    },
+    {
+      "match": "\\b(true|false|nil)\\b",
+      "name": "constant.language.pogberry"
+    },
+    {
+      "match": "\"(?:\\\\.|[^\"])*\"",
+      "name": "string.quoted.double.pogberry"
+    },
+    {
+      "match": "//.*$",
+      "name": "comment.line.double-slash.pogberry"
+    },
+    {
+      "match": "\\b([0-9]+)\\b",
+      "name": "constant.numeric.pogberry"
+    }
+  ]
+}

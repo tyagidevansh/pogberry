@@ -39,7 +39,7 @@ typedef struct
 {
   ParseFn prefix;
   ParseFn infix;
-  ParseFn precedence;
+  Precedence precedence;
 } ParseRule;
 
 typedef struct
@@ -853,7 +853,7 @@ static void variable(bool canAssign)
   namedVariable(parser.previous, canAssign);
 }
 
-static void unary()
+static void unary(bool canAssign)
 {
   TokenType operatorType = parser.previous.type;
 

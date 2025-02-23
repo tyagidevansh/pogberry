@@ -1,0 +1,25 @@
+{
+  "name": "pb",
+  "displayName": "pogberry",
+  "description": "pogberry ",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.97.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "pogberry",
+      "aliases": ["PogBerry", "pogberry"],
+      "extensions": [".pb"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "pogberry",
+      "scopeName": "source.pb",
+      "path": "./syntaxes/pogberry.tmLanguage.json"
+    }]
+  }
+}
