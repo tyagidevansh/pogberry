@@ -628,14 +628,19 @@ static void printStatement()
   emitByte(OP_PRINT);
 }
 
-static void returnStatement() {
-  if (current->type == TYPE_SCRIPT) {
+static void returnStatement()
+{
+  if (current->type == TYPE_SCRIPT)
+  {
     error("Can't return from top-level code.");
   }
-  
-  if (match(TOKEN_SEMICOLON)) {
+
+  if (match(TOKEN_SEMICOLON))
+  {
     emitReturn();
-  } else {
+  }
+  else
+  {
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
     emitByte(OP_RETURN);
@@ -658,65 +663,104 @@ static void whileStatement()
   emitByte(OP_POP);
 }
 
-static void list(bool canAssign) {
+static void list(bool canAssign)
+{
   int itemCount = 0;
-  emitByte(OP_NEW_LIST);  
+  emitByte(OP_NEW_LIST);
 
-  if (!check(TOKEN_RIGHT_BRACKET)) { 
-      do {
-          expression(); 
-          emitByte(OP_LIST_APPEND); 
-          itemCount++;
-      } while (match(TOKEN_COMMA));  
+  if (!check(TOKEN_RIGHT_BRACKET))
+  {
+    do
+    {
+      expression();
+      emitByte(OP_LIST_APPEND);
+      itemCount++;
+    } while (match(TOKEN_COMMA));
   }
 
   consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
 }
 
-static void listIndex(bool canAssign) {
+static void hashmap(bool canAssign)
+{ 
+  int itemCount = 0;
+  emitByte(OP_NEW_HASHMAP);
+
+  if (!check(TOKEN_RIGHT_BRACE))
+  {
+    do
+    {
+      expression();
+      consume(TOKEN_COLON, "Expect ':' between key and value.");
+      expression();
+      emitByte(OP_HASHMAP_APPEND);
+      itemCount++;
+    } while (match(TOKEN_COMMA));
+  }
+
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after hashmap elements.");
+}
+
+static void listIndex(bool canAssign)
+{
   expression();
   consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list index.");
 
-  if (canAssign && match(TOKEN_EQUAL)) {
-      expression();
-      emitByte(OP_SET_INDEX);
-  } else {
-      emitByte(OP_GET_INDEX);
+  if (canAssign && match(TOKEN_EQUAL))
+  {
+    expression();
+    emitByte(OP_SET_INDEX);
+  }
+  else
+  {
+    emitByte(OP_GET_INDEX);
   }
 }
 
-static void handleDot(bool canAssign) {
+static void handleDot(bool canAssign)
+{
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-  if (parser.previous.length == 4 && memcmp(parser.previous.start, "push", 4) == 0) {
+  if (parser.previous.length == 4 && memcmp(parser.previous.start, "push", 4) == 0)
+  {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'push'.");
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after value.");
     emitByte(OP_LIST_APPEND);
-  } else if (parser.previous.length == 3 && memcmp(parser.previous.start, "add", 3) == 0) {
+  }
+  else if (parser.previous.length == 3 && memcmp(parser.previous.start, "add", 3) == 0)
+  {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'add'.");
     expression();
     consume(TOKEN_COMMA, "Expect two parameters: value and index.");
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'index'.");
     emitByte(OP_LIST_ADD);
-  } else if (parser.previous.length == 6 && memcmp(parser.previous.start, "remove", 6) == 0) {
+  }
+  else if (parser.previous.length == 6 && memcmp(parser.previous.start, "remove", 6) == 0)
+  {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'remove'.");
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after index.");
     emitByte(OP_LIST_REMOVE);
-  } else if (parser.previous.length == 3 && memcmp(parser.previous.start, "pop", 3) == 0) {
+  }
+  else if (parser.previous.length == 3 && memcmp(parser.previous.start, "pop", 3) == 0)
+  {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'pop'.");
     consume(TOKEN_RIGHT_PAREN, "Expect ')', 'pop' does not accept any parameters.");
     emitByte(OP_LIST_POP);
-  } else if (parser.previous.length == 4 && memcmp(parser.previous.start, "size", 4) == 0) {
+  }
+  else if (parser.previous.length == 4 && memcmp(parser.previous.start, "size", 4) == 0)
+  {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'size'.");
     consume(TOKEN_RIGHT_PAREN, "Expect ')', 'size' does not accept any parameters.");
     emitByte(OP_SIZE);
-  } else {
+  }
+  else
+  {
     error("Unknown property name.");
   }
 }
- 
+
 static void synchronize()
 {
   parser.panicMode = false;
@@ -772,7 +816,9 @@ static void statement()
   else if (match(TOKEN_IF))
   {
     ifStatement();
-  } else if (match(TOKEN_RETURN)) {
+  }
+  else if (match(TOKEN_RETURN))
+  {
     returnStatement();
   }
   else if (match(TOKEN_WHILE))
@@ -789,7 +835,8 @@ static void statement()
     block();
     endScope();
   }
-  else if (match(TOKEN_LEFT_BRACKET)) {
+  else if (match(TOKEN_LEFT_BRACKET))
+  {
     printf("left bracket detected");
     consume(TOKEN_RIGHT_BRACKET, "expect ']'");
   }
@@ -822,29 +869,40 @@ static void string(bool canAssign)
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
-static void namedVariable(Token name, bool canAssign) {
+static void namedVariable(Token name, bool canAssign)
+{
   uint8_t getOp, setOp;
   int arg = resolveLocal(current, &name);
-  if (arg != -1) {
-      getOp = OP_GET_LOCAL;
-      setOp = OP_SET_LOCAL;
-  } else {
-      arg = identifierConstant(&name);
-      getOp = OP_GET_GLOBAL;
-      setOp = OP_SET_GLOBAL;
+  if (arg != -1)
+  {
+    getOp = OP_GET_LOCAL;
+    setOp = OP_SET_LOCAL;
+  }
+  else
+  {
+    arg = identifierConstant(&name);
+    getOp = OP_GET_GLOBAL;
+    setOp = OP_SET_GLOBAL;
   }
 
-  if (match(TOKEN_LEFT_BRACKET)) {
-      emitBytes(getOp, (uint8_t)arg);
-      listIndex(canAssign);
-  } else if (match(TOKEN_DOT)) {
-      emitBytes(getOp, (uint8_t)arg);
-      handleDot(canAssign);
-  } else if (canAssign && match(TOKEN_EQUAL)) {
-      expression();
-      emitBytes(setOp, (uint8_t)arg);
-  } else {
-      emitBytes(getOp, (uint8_t)arg);
+  if (match(TOKEN_LEFT_BRACKET))
+  {
+    emitBytes(getOp, (uint8_t)arg);
+    listIndex(canAssign);
+  }
+  else if (match(TOKEN_DOT))
+  {
+    emitBytes(getOp, (uint8_t)arg);
+    handleDot(canAssign);
+  }
+  else if (canAssign && match(TOKEN_EQUAL))
+  {
+    expression();
+    emitBytes(setOp, (uint8_t)arg);
+  }
+  else
+  {
+    emitBytes(getOp, (uint8_t)arg);
   }
 }
 
@@ -875,7 +933,7 @@ static void unary(bool canAssign)
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, call, PREC_CALL},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_CALL},
+    [TOKEN_LEFT_BRACE] = {hashmap, NULL, PREC_CALL},
     [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_LEFT_BRACKET] = {list, NULL, PREC_CALL},
     [TOKEN_RIGHT_BRACKET] = {NULL, NULL, PREC_NONE},

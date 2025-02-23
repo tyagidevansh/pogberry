@@ -80,6 +80,12 @@ ObjList* newList() {
   return list;
 }
 
+ObjHashmap* newHashmap() {
+  ObjHashmap* hashmap = ALLOCATE_OBJ(ObjHashmap, OBJ_HASHMAP);
+  initTable(&hashmap->items);
+  return hashmap;
+}
+
 static void printFunction(ObjFunction* function) {
   if (function->name == NULL) {
     printf("<script>");
@@ -97,6 +103,18 @@ static void printList(ObjList* list) {
   printf("]");
 }
 
+static void printHashmap(ObjHashmap* hashmap) {
+  printf("{");
+  for (int i = 0; i < hashmap->items.capacity; i++) {
+    Entry* entry = &hashmap->items.entries[i];
+    if (entry->key != NULL) {
+      printf("%s : ", entry->key->chars);
+      printf("%s, ", AS_CSTRING(entry->value));
+    }
+  }
+  printf("}");
+}
+
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
     case OBJ_FUNCTION:
@@ -110,6 +128,9 @@ void printObject(Value value) {
       break;
     case OBJ_LIST:
       printList(AS_LIST(value));
+      break;
+    case OBJ_HASHMAP:
+      printHashmap(AS_HASHMAP(value));
       break;
   }
 }

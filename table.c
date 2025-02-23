@@ -26,7 +26,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
   for (;;) {
     Entry* entry = &entries[index];
     if (entry->key == NULL) {
-      // return tomstone's bucket if we've passed one before, otherwise return the empty bucket when searching
+      // return tombstone's bucket if we've passed one before, otherwise return the empty bucket when searching
     if (IS_NIL(entry->value)) {
       // empty entry
       return tombstone != NULL ? tombstone : entry; // here we end up reusing tombstones if they are at the end of a chunk of same hashes

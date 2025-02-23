@@ -37,6 +37,12 @@ static void freeObject(Obj* object) {
       FREE(ObjList, object);
       break;
     }
+    case OBJ_HASHMAP: {
+      ObjHashmap* hashmap = (ObjHashmap*)object;
+      freeTable(&hashmap->items);
+      FREE(ObjHashmap, object);
+      break;
+    }
   }
 }
 

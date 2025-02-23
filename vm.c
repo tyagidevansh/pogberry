@@ -323,18 +323,18 @@ static InterpretResult run()
 
   for (;;)
   {
-    // #ifdef DEBUG_TRACE_EXECUTION
-    //     printf("        ");
-    //     for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
-    //     {
-    //       printf("[ ");
-    //       printValue(*slot);
-    //       printf(" ]");
-    //     }
-    //     printf("\n");
-    //     disassembleInstruction(&frame->function->chunk,
-    //                            (int)(frame->ip - frame->function->chunk.code));
-    // #endif
+    #ifdef DEBUG_TRACE_EXECUTION
+        printf("        ");
+        for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
+        {
+          printf("[ ");
+          printValue(*slot);
+          printf(" ]");
+        }
+        printf("\n");
+        disassembleInstruction(&frame->function->chunk,
+                               (int)(frame->ip - frame->function->chunk.code));
+    #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE())
     {
@@ -635,6 +635,28 @@ static InterpretResult run()
       ObjList *list = AS_LIST(listVal);
       list->items.count--;
       push(OBJ_VAL(list));
+      break;
+    }
+    case OP_NEW_HASHMAP:
+    {
+      push(OBJ_VAL(newHashmap()));
+      break;
+    }
+    case OP_HASHMAP_APPEND:
+    {
+      Value value = pop();
+      Value keyVal = pop();
+      Value hashmapVal = pop();
+
+      if (!IS_HASHMAP(hashmapVal)) {
+        runtimeError("Expect a hashmap.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      ObjHashmap* hashmap = AS_HASHMAP(hashmapVal);
+      ObjString* key = AS_STRING(keyVal);
+      tableSet(&hashmap->items, key, value);
+      push(OBJ_VAL(hashmap));
       break;
     }
     case OP_SIZE:
