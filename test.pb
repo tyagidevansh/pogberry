@@ -27,25 +27,33 @@
 
 
 
-var h = {"animal" : "lion", "plant" : "orchid" };
-print h;
-print h["animal"];
-h["animal"] = "tiger";
-print h;
+// var h = {"animal" : "lion", "plant" : "orchid" };
+// print h;
+// print h["animal"];
+// h["animal"] = "tiger";
+// print h;
 
-print h.size();
+// print h.size();
 
-var a = "hello";
-print "First letter of hello is: " + a[0];
+// var a = "hello";
+// print "First letter of hello is: " + a[0];
 
-if (h["anial"]) {
-  print "exists";
-} else {
-  print "doesnt exist";
-}
+// if (h["anial"]) {
+//   print "exists";
+// } else {
+//   print "doesnt exist";
+// }
 
-if (h.find("animal")) {
-  h.delete("animal");
-}
+// if (h.find("animal")) {
+//   h.delete("animal");
+// }
 
-print h;
+// print h;
+
+
+var list = [1, 4, -2.5, 20];
+sort(list);
+var str1 = "hello world";
+sort(str1);
+print list;
+print str1;

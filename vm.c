@@ -109,6 +109,55 @@ static Value absNative(int argCount, Value *args)
   return NUMBER_VAL(fabs(AS_NUMBER(args[0])));
 }
 
+int Valuecomp (const void* elem1, const void* elem2)
+{
+  Value f = *((Value*)elem1);
+  Value s = *((Value*)elem2);
+  if (!IS_NUMBER(f) || !IS_NUMBER(s)) return 0;
+  double df = AS_NUMBER(f);
+  double ds = AS_NUMBER(s);
+  if (df > ds) return 1;
+  if (ds > df) return -1;
+  return 0;
+}
+
+int Strcomp (const void* elem1, const void* elem2)
+{
+  char f = *((char*)elem1);
+  char s = *((char*)elem2);
+
+  if (f > s) return 1;
+  if (f < s) return -1;
+  return 0;
+}
+
+static Value sortNative(int argCount, Value* args)
+{
+  if (argCount < 1)
+  {
+    runtimeError("Expect at least one argument.");
+    return NIL_VAL;
+  }
+  if (argCount > 2) 
+  {
+    runtimeError("Function cannot take more than two arguments [Container, Reverse = True | False]");
+    return NIL_VAL;
+  }
+
+  if (IS_LIST(args[0]))
+  {
+    ObjList* list = AS_LIST(args[0]);
+    qsort(list->items.values, list->items.count, sizeof(Value), Valuecomp);
+    return NIL_VAL;
+  } 
+  else if (IS_STRING(args[0])) 
+  {
+    ObjString* str = AS_STRING(args[0]);
+    qsort(str->chars, str->length, sizeof(char), Strcomp);
+    return NIL_VAL;
+  }
+}
+
 static Value listAdd(int argCount, Value *args)
 {
   if (argCount != 2 || !IS_LIST(args[0]))
@@ -187,6 +236,7 @@ void initVM()
   defineNative("abs", absNative);
   defineNative("add", listAdd);
   defineNative("remove", listRemove);
+  defineNative("sort", sortNative);
 }
 
 void freeVM()
