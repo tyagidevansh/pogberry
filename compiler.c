@@ -666,16 +666,25 @@ static void whileStatement()
 static void list(bool canAssign)
 {
   int itemCount = 0;
-  emitByte(OP_NEW_LIST);
+  emitByte(OP_NEW_LIST); 
 
   if (!check(TOKEN_RIGHT_BRACKET))
   {
     do
     {
-      expression();
-      emitByte(OP_LIST_APPEND);
+      if (match(TOKEN_LEFT_BRACKET)) 
+      {
+        list(canAssign); 
+      } 
+      else 
+      {
+        expression();
+      }
+      
+      emitByte(OP_LIST_APPEND); 
       itemCount++;
-    } while (match(TOKEN_COMMA));
+      
+    } while (match(TOKEN_COMMA)); 
   }
 
   consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
@@ -703,18 +712,21 @@ static void hashmap(bool canAssign)
 
 static void containerIndex(bool canAssign)
 {
-  expression();
-  consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list index.");
-
-  if (canAssign && match(TOKEN_EQUAL))
-  {
+  do {
     expression();
-    emitByte(OP_SET_INDEX); //also works with hashmap keys
-  }
-  else
-  {
-    emitByte(OP_GET_INDEX);
-  }
+    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list index.");
+
+    if (canAssign && match(TOKEN_EQUAL))
+    {
+      expression();
+      emitByte(OP_SET_INDEX); //also works with hashmap keys
+      break;
+    }
+    else
+    {
+      emitByte(OP_GET_INDEX);
+    }
+  } while (match(TOKEN_LEFT_BRACKET));
 }
 
 static void handleDot(bool canAssign)

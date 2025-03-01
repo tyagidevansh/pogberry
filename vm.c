@@ -109,51 +109,94 @@ static Value absNative(int argCount, Value *args)
   return NUMBER_VAL(fabs(AS_NUMBER(args[0])));
 }
 
-int Valuecomp (const void* elem1, const void* elem2)
+int Valuecomp(const void *elem1, const void *elem2)
 {
-  Value f = *((Value*)elem1);
-  Value s = *((Value*)elem2);
-  if (!IS_NUMBER(f) || !IS_NUMBER(s)) return 0;
-  double df = AS_NUMBER(f);
-  double ds = AS_NUMBER(s);
-  if (df > ds) return 1;
-  if (ds > df) return -1;
+  Value f = *((Value *)elem1);
+  Value s = *((Value *)elem2);
+
+  if (IS_NUMBER(f) && IS_NUMBER(s))
+  {
+    double df = AS_NUMBER(f);
+    double ds = AS_NUMBER(s);
+    if (df > ds)
+      return 1;
+    if (ds > df)
+      return -1;
+    return 0;
+  }
+  else if (IS_STRING(f) && IS_STRING(s))
+  {
+    ObjString *strF = AS_STRING(f);
+    ObjString *strS = AS_STRING(s);
+    return strcmp(strF->chars, strS->chars);
+  }
+  else
+  {
+    return 0; 
+  }
+}
+
+int ValuecompReverse(const void *elem1, const void *elem2)
+{
+  return Valuecomp(elem2, elem1);
+}
+
+int Strcomp(const void *elem1, const void *elem2)
+{
+  char f = *((char *)elem1);
+  char s = *((char *)elem2);
+
+  if (f > s)
+    return 1;
+  if (f < s)
+    return -1;
   return 0;
 }
 
-int Strcomp (const void* elem1, const void* elem2)
+int StrcompReverse(const void *elem1, const void *elem2)
 {
-  char f = *((char*)elem1);
-  char s = *((char*)elem2);
-
-  if (f > s) return 1;
-  if (f < s) return -1;
-  return 0;
+  return Strcomp(elem2, elem1);
 }
 
-static Value sortNative(int argCount, Value* args)
+static Value sortNative(int argCount, Value *args)
 {
   if (argCount < 1)
   {
     runtimeError("Expect at least one argument.");
     return NIL_VAL;
   }
-  if (argCount > 2) 
+  if (argCount > 2)
   {
     runtimeError("Function cannot take more than two arguments [Container, Reverse = True | False]");
     return NIL_VAL;
   }
 
+  bool reverse = false;
+  if (argCount == 2)
+  {
+    if (!IS_BOOL(args[1]))
+    {
+      runtimeError("Second argument must be a boolean.");
+      return NIL_VAL;
+    }
+    reverse = AS_BOOL(args[1]);
+  }
+
   if (IS_LIST(args[0]))
   {
-    ObjList* list = AS_LIST(args[0]);
-    qsort(list->items.values, list->items.count, sizeof(Value), Valuecomp);
+    ObjList *list = AS_LIST(args[0]);
+    qsort(list->items.values, list->items.count, sizeof(Value), reverse ? ValuecompReverse : Valuecomp);
     return NIL_VAL;
-  } 
-  else if (IS_STRING(args[0])) 
+  }
+  else if (IS_STRING(args[0]))
   {
-    ObjString* str = AS_STRING(args[0]);
-    qsort(str->chars, str->length, sizeof(char), Strcomp);
+    ObjString *str = AS_STRING(args[0]);
+    qsort(str->chars, str->length, sizeof(char), reverse ? StrcompReverse : Strcomp);
+    return NIL_VAL;
+  }
+  else
+  {
+    runtimeError("First argument must be a list or a string.");
     return NIL_VAL;
   }
 }
@@ -536,29 +579,26 @@ static InterpretResult run()
     }
     case OP_GET_INDEX:
     {
-      Value key = pop();
-      Value container = pop();
+      if (IS_NUMBER(peek(0)) && IS_STRING(peek(1))) {
+        Value key = pop();
+        Value container = pop();
 
-      if (IS_LIST(container))
-      {
-        ObjList *objList = AS_LIST(container);
-        if (!IS_NUMBER(key))
-        {
-          runtimeError("List index must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-
+        ObjString *string = AS_STRING(container);
         int i = (int)AS_NUMBER(key);
-        if (i < 0 || i >= objList->items.count)
+        if (i < 0 || i >= string->length)
         {
-          runtimeError("List index out of bounds.");
+          runtimeError("String index out of bounds.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        push(objList->items.values[i]);
+        char chars[2] = {string->chars[i], '\0'};
+        push(OBJ_VAL(copyString(chars, 1)));
       }
-      else if (IS_HASHMAP(container))
+      else if (IS_STRING(peek(0)) && IS_HASHMAP(peek(1)))
       {
+        Value key = pop();
+        Value container = pop();
+
         ObjHashmap *hashmap = AS_HASHMAP(container);
 
         if (!IS_STRING(key))
@@ -579,19 +619,48 @@ static InterpretResult run()
           push(NIL_VAL);
           //runtimeError("This key does not exist in this hashmap.");
         }
-      }
-      else if (IS_STRING(container))
-      {
-        ObjString *string = AS_STRING(container);
-        int i = (int)AS_NUMBER(key);
-        if (i < 0 || i >= string->length)
-        {
-          runtimeError("String index out of bounds.");
-          return INTERPRET_RUNTIME_ERROR;
+      } else if (IS_NUMBER(peek(0))) {
+        int keyCount = 0;
+
+        while (IS_NUMBER(peek(keyCount))) {
+          keyCount++;
         }
 
-        char chars[2] = {string->chars[i], '\0'};
-        push(OBJ_VAL(copyString(chars, 1)));
+        Value container = peek(keyCount);
+
+        if (!IS_LIST(container)) {
+          if (keyCount == 1) {
+            runtimeError("Can only index into lists, strings and hashmaps.");
+            return INTERPRET_RUNTIME_ERROR;
+          } else {
+            runtimeError("Multi-level indexing is only supported in lists.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+        }
+
+        for (int i = keyCount - 1; i >= 0; i--) {
+          if (!IS_LIST(container)) {
+            runtimeError("Cannot index non-list value.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+
+          ObjList* objList = AS_LIST(container);
+          int index = (int)AS_NUMBER(peek(i));
+
+          if (index < 0 || index >= objList->items.count) {
+            runtimeError("List index out of bounds.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+
+          container = objList->items.values[index];
+        }
+
+        for (int i = 0; i <= keyCount; i++) {
+          pop();
+        }
+
+        push(container);
+        break;
       }
       else
       {
@@ -600,8 +669,10 @@ static InterpretResult run()
       }
       break;
     }
+    
     case OP_SET_INDEX:
     {
+      printf("im here \n");
       Value value = pop();
       Value key = pop();
       Value container = pop();
@@ -623,18 +694,22 @@ static InterpretResult run()
         }
 
         objList->items.values[i] = value;
+        push(value);
       }
       else if (IS_HASHMAP(container))
       {
+        printf("it is a hashmap \n");
         ObjHashmap *hashmap = AS_HASHMAP(container);
         if (!IS_STRING(key))
         {
+          printf("key is not string");
           runtimeError("Hashmap key must be a string");
           return INTERPRET_RUNTIME_ERROR;
         }
-
+        printf("here now");
         ObjString *keyStr = AS_STRING(key);
         !tableSet(&hashmap->items, keyStr, value);
+        push(OBJ_VAL(keyStr));
       }
       else
       {
