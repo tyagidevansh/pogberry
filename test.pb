@@ -53,3 +53,13 @@ print h;
 var list = [["a", "c", [5, 4], 5, 3], ["bd", "b"]];
 print list;
 print list[0][2][1];
+
+var numHash = {1 : "hello", 4: "world", 2: "ohayo"};
+print numHash;
+print numHash[4];
+
+if (numHash.find(3)) {
+  print "exists";
+} else {
+  print "doesnt exist";
+}
