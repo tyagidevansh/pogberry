@@ -4,6 +4,9 @@ CC = gcc
 # Compiler flags
 CFLAGS = -Wall -Wextra -std=c11
 
+# Linker flags
+LIBS = -lm
+
 # Executable name
 EXEC = main
 
@@ -18,7 +21,7 @@ all: $(EXEC)
 
 # Link object files to create the executable
 $(EXEC): $(OBJ)
-	$(CC) $(OBJ) -o $(EXEC)
+	$(CC) $(OBJ) $(LIBS) -o $(EXEC)
 
 # Compile each source file into an object file
 %.o: %.c
