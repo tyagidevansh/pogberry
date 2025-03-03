@@ -267,6 +267,12 @@ void initVM()
 {
   resetStack();
   vm.objects = NULL;
+  vm.bytesAllocated = 0;
+  vm.nextGC = 1024 * 1024;
+
+  vm.grayCount = 0;
+  vm.grayCapacity = 0;
+  vm.grayStack = NULL;
 
   initTable(&vm.globals);
   initTable(&vm.strings);
@@ -375,7 +381,7 @@ static void concatenate()
 
   ObjString *strA = IS_STRING(a) ? AS_STRING(a) : copyString(formatNumber(a), strlen(formatNumber(a)));
   ObjString *strB = IS_STRING(b) ? AS_STRING(b) : copyString(formatNumber(b), strlen(formatNumber(b)));
-
+  
   int length = strA->length + strB->length;
   char *chars = ALLOCATE(char, length + 1);
   memcpy(chars, strA->chars, strA->length);
