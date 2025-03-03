@@ -5,7 +5,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 
 # Linker flags
-LIBS = -lm
+LIBS = -lm -lreadline
 
 # Executable name
 EXEC = main
