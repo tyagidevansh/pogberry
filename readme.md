@@ -219,7 +219,7 @@ To get started with the Pogberry interpreter, follow these steps:
 
    Run the REPL by simply typing:
    ```sh
-  ./main
+   ./main
    ```
 
 Happy coding with Pogberry!

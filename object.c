@@ -82,7 +82,7 @@ ObjString* copyString(const char* chars, int length) {
 
 ObjList* newList() {
   ObjList* list = ALLOCATE_OBJ(ObjList, OBJ_LIST);
-  // list->length = 0;
+  push(OBJ_VAL(list));
   initValueArray(&list->items);
   return list;
 }
