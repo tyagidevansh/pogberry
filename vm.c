@@ -11,7 +11,7 @@
 #include "memory.h"
 #include "vm.h"
 
-// global declaration of VM so we dont have to pass it around everywhere, theres only going to be one VM so its ok
+// global declaration of VM (fuck it we ball)
 VM vm;
 
 static void resetStack()
@@ -132,7 +132,7 @@ int Valuecomp(const void *elem1, const void *elem2)
   }
   else
   {
-    return 0; 
+    return 0;
   }
 }
 
@@ -376,17 +376,23 @@ static char *formatNumber(Value value)
 
 static void concatenate()
 {
-  Value b = pop();
-  Value a = pop();
+  Value b = peek(0);
+  Value a = peek(1);
 
   ObjString *strA = IS_STRING(a) ? AS_STRING(a) : copyString(formatNumber(a), strlen(formatNumber(a)));
   ObjString *strB = IS_STRING(b) ? AS_STRING(b) : copyString(formatNumber(b), strlen(formatNumber(b)));
-  
+
+  push(OBJ_VAL(strA));
+  push(OBJ_VAL(strB));
+
   int length = strA->length + strB->length;
   char *chars = ALLOCATE(char, length + 1);
   memcpy(chars, strA->chars, strA->length);
   memcpy(chars + strA->length, strB->chars, strB->length);
   chars[length] = '\0';
+
+  // the gc makes you do weird shit man
+  pop(); pop(); pop(); pop();
 
   ObjString *result = takeString(chars, length);
   push(OBJ_VAL(result));
@@ -423,18 +429,18 @@ static InterpretResult run()
 
   for (;;)
   {
-    // #ifdef DEBUG_TRACE_EXECUTION
-    //     printf("        ");
-    //     for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
-    //     {
-    //       printf("[ ");
-    //       printValue(*slot);
-    //       printf(" ]");
-    //     }
-    //     printf("\n");
-    //     disassembleInstruction(&frame->function->chunk,
-    //                            (int)(frame->ip - frame->function->chunk.code));
-    // #endif
+    #ifdef DEBUG_TRACE_EXECUTION
+        printf("        ");
+        for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
+        {
+          printf("[ ");
+          printValue(*slot);
+          printf(" ]");
+        }
+        printf("\n");
+        disassembleInstruction(&frame->function->chunk,
+                               (int)(frame->ip - frame->function->chunk.code));
+    #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE())
     {
@@ -551,7 +557,8 @@ static InterpretResult run()
       push(NUMBER_VAL(-AS_NUMBER(pop())));
       break;
     case OP_PRINT:
-      printValue(pop());
+      printValue(peek(0));
+      pop();
       printf("\n");
       break;
     case OP_JUMP:
@@ -585,159 +592,175 @@ static InterpretResult run()
     }
     case OP_GET_INDEX:
     {
-      if (IS_NUMBER(peek(0)) && IS_STRING(peek(1))) {
-      Value key = pop();
-      Value container = pop();
-
-      ObjString *string = AS_STRING(container);
-      int i = (int)AS_NUMBER(key);
-      if (i < 0 || i >= string->length)
+      if (IS_NUMBER(peek(0)) && IS_STRING(peek(1)))
       {
-        runtimeError("String index out of bounds.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
+        Value key = peek(0); // do NOT change to pop, this is important for the gc
+        Value container = peek(1);
 
-      char chars[2] = {string->chars[i], '\0'};
-      push(OBJ_VAL(copyString(chars, 1)));
+        ObjString *string = AS_STRING(container);
+        int i = (int)AS_NUMBER(key);
+        if (i < 0 || i >= string->length)
+        {
+          runtimeError("String index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        
+        pop(); pop(); 
+
+        char chars[2] = {string->chars[i], '\0'};
+        push(OBJ_VAL(copyString(chars, 1)));
       }
       else if ((IS_STRING(peek(0)) || IS_NUMBER(peek(0))) && IS_HASHMAP(peek(1)))
       {
-      Value key = pop();
-      Value container = pop();
+        Value key = peek(0);
+        Value container = peek(1);
 
-      ObjHashmap *hashmap = AS_HASHMAP(container);
+        ObjHashmap *hashmap = AS_HASHMAP(container);
 
-      if (!IS_STRING(key) && !IS_NUMBER(key))
-      {
-        runtimeError("Hashmap key must be a string or a number");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!IS_STRING(key) && !IS_NUMBER(key))
+        {
+          runtimeError("Hashmap key must be a string or a number");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjString *keyStr;
+        if (IS_STRING(key))
+        {
+          keyStr = AS_STRING(key);
+        }
+        else
+        {
+          char keyBuffer[32];
+          snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(key));
+          keyStr = copyString(keyBuffer, strlen(keyBuffer));
+        }
+
+        pop(); pop();
+
+        Value value;
+        if (tableGet(&hashmap->items, keyStr, &value))
+        {
+          push(value);
+        }
+        else
+        {
+          push(NIL_VAL);
+        }
       }
-
-      ObjString *keyStr;
-      if (IS_STRING(key))
+      else if (IS_NUMBER(peek(0)))
       {
-        keyStr = AS_STRING(key);
+        int keyCount = 0;
+
+        while (IS_NUMBER(peek(keyCount)))
+        {
+          keyCount++;
+        }
+
+        Value container = peek(keyCount);
+
+        if (!IS_LIST(container))
+        {
+          if (keyCount == 1)
+          {
+            runtimeError("Can only index into lists, strings and hashmaps.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+          else
+          {
+            runtimeError("Multi-level indexing is only supported in lists.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+        }
+
+        for (int i = keyCount - 1; i >= 0; i--)
+        {
+          if (!IS_LIST(container))
+          {
+            runtimeError("Cannot index non-list value.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+
+          ObjList *objList = AS_LIST(container);
+          int index = (int)AS_NUMBER(peek(i));
+
+          if (index < 0 || index >= objList->items.count)
+          {
+            runtimeError("List index out of bounds.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+
+          container = objList->items.values[index];
+        }
+
+        for (int i = 0; i <= keyCount; i++)
+        {
+          pop();
+        }
+
+        push(container);
+        break;
       }
       else
       {
-        char keyBuffer[32];
-        snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(key));
-        keyStr = copyString(keyBuffer, strlen(keyBuffer));
-      }
-
-      Value value;
-      if (tableGet(&hashmap->items, keyStr, &value))
-      {
-        push(value);
-      }
-      else
-      {
-        push(NIL_VAL);
-      }
-      } else if (IS_NUMBER(peek(0))) {
-      int keyCount = 0;
-
-      while (IS_NUMBER(peek(keyCount))) {
-        keyCount++;
-      }
-
-      Value container = peek(keyCount);
-
-      if (!IS_LIST(container)) {
-        if (keyCount == 1) {
         runtimeError("Can only index into lists, strings and hashmaps.");
         return INTERPRET_RUNTIME_ERROR;
-        } else {
-        runtimeError("Multi-level indexing is only supported in lists.");
-        return INTERPRET_RUNTIME_ERROR;
-        }
-      }
-
-      for (int i = keyCount - 1; i >= 0; i--) {
-        if (!IS_LIST(container)) {
-        runtimeError("Cannot index non-list value.");
-        return INTERPRET_RUNTIME_ERROR;
-        }
-
-        ObjList* objList = AS_LIST(container);
-        int index = (int)AS_NUMBER(peek(i));
-
-        if (index < 0 || index >= objList->items.count) {
-        runtimeError("List index out of bounds.");
-        return INTERPRET_RUNTIME_ERROR;
-        }
-
-        container = objList->items.values[index];
-      }
-
-      for (int i = 0; i <= keyCount; i++) {
-        pop();
-      }
-
-      push(container);
-      break;
-      }
-      else
-      {
-      runtimeError("Can only index into lists, strings and hashmaps.");
-      return INTERPRET_RUNTIME_ERROR;
       }
       break;
     }
-    
+
     case OP_SET_INDEX:
     {
-      Value value = pop();
+      Value value = pop();  // think this is fine because it wont ever be a part of any other expression
       Value key = pop();
       Value container = pop();
 
       if (IS_LIST(container))
       {
-      ObjList *objList = AS_LIST(container);
-      if (!IS_NUMBER(key))
-      {
-        runtimeError("List index must be a number.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
+        ObjList *objList = AS_LIST(container);
+        if (!IS_NUMBER(key))
+        {
+          runtimeError("List index must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
 
-      int i = (int)AS_NUMBER(key);
-      if (i < 0 || i >= objList->items.count)
-      {
-        runtimeError("List index out of bounds.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
+        int i = (int)AS_NUMBER(key);
+        if (i < 0 || i >= objList->items.count)
+        {
+          runtimeError("List index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
 
-      objList->items.values[i] = value;
-      push(value);
+        objList->items.values[i] = value;
+        push(value);
       }
       else if (IS_HASHMAP(container))
       {
-      ObjHashmap *hashmap = AS_HASHMAP(container);
-      if (!IS_STRING(key) && !IS_NUMBER(key))
+        ObjHashmap *hashmap = AS_HASHMAP(container);
+        if (!IS_STRING(key) && !IS_NUMBER(key))
+        {
+          runtimeError("Hashmap key must be a string or a number");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjString *keyStr;
+        if (IS_STRING(key))
+        {
+          keyStr = AS_STRING(key);
+        }
+        else
+        {
+          char keyBuffer[32];
+          snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(key));
+          keyStr = copyString(keyBuffer, strlen(keyBuffer));
+        }
+
+        tableSet(&hashmap->items, keyStr, value);
+        push(value);
+      }
+      else
       {
-        runtimeError("Hashmap key must be a string or a number");
+        runtimeError("Can only index into lists and hashmaps.");
         return INTERPRET_RUNTIME_ERROR;
-      }
-
-      ObjString *keyStr;
-      if (IS_STRING(key))
-      {
-        keyStr = AS_STRING(key);
-      }
-      else
-      {
-        char keyBuffer[32];
-        snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(key));
-        keyStr = copyString(keyBuffer, strlen(keyBuffer));
-      }
-
-      tableSet(&hashmap->items, keyStr, value);
-      push(value);
-      }
-      else
-      {
-      runtimeError("Can only index into lists and hashmaps.");
-      return INTERPRET_RUNTIME_ERROR;
       }
       break;
     }
@@ -758,7 +781,9 @@ static InterpretResult run()
       }
 
       ObjList *list = AS_LIST(listVal);
+      push(OBJ_VAL(list));
       writeValueArray(&list->items, item);
+      pop();
       push(OBJ_VAL(list));
       break;
     }
@@ -844,37 +869,38 @@ static InterpretResult run()
     }
     case OP_HASHMAP_APPEND:
     {
-      Value value = pop();
-      Value keyVal = pop();
-      Value hashmapVal = pop();
+      Value value = peek(0);
+      Value keyVal = peek(1);
+      Value hashmapVal = peek(2);
 
       if (!IS_HASHMAP(hashmapVal))
       {
-      runtimeError("Expect a hashmap.");
-      return INTERPRET_RUNTIME_ERROR;
+        runtimeError("Expect a hashmap.");
+        return INTERPRET_RUNTIME_ERROR;
       }
 
       ObjHashmap *hashmap = AS_HASHMAP(hashmapVal);
 
       if (!IS_STRING(keyVal) && !IS_NUMBER(keyVal))
       {
-      runtimeError("Hashmap key must be a string or a number.");
-      return INTERPRET_RUNTIME_ERROR;
+        runtimeError("Hashmap key must be a string or a number.");
+        return INTERPRET_RUNTIME_ERROR;
       }
 
       if (IS_STRING(keyVal))
       {
-      ObjString *key = AS_STRING(keyVal);
-      tableSet(&hashmap->items, key, value);
+        ObjString *key = AS_STRING(keyVal);
+        tableSet(&hashmap->items, key, value);
       }
       else if (IS_NUMBER(keyVal))
       {
-      char keyStr[32];
-      snprintf(keyStr, sizeof(keyStr), "%g", AS_NUMBER(keyVal));
-      ObjString *key = copyString(keyStr, strlen(keyStr));
-      tableSet(&hashmap->items, key, value);
+        char keyStr[32];
+        snprintf(keyStr, sizeof(keyStr), "%g", AS_NUMBER(keyVal));
+        ObjString *key = copyString(keyStr, strlen(keyStr));
+        tableSet(&hashmap->items, key, value);
       }
-
+      
+      pop(); pop(); pop();
       push(OBJ_VAL(hashmap));
       break;
     }
@@ -885,39 +911,39 @@ static InterpretResult run()
 
       if (!IS_HASHMAP(hashmapVal))
       {
-      runtimeError("Expect a hashmap.");
-      return INTERPRET_RUNTIME_ERROR;
+        runtimeError("Expect a hashmap.");
+        return INTERPRET_RUNTIME_ERROR;
       }
 
       ObjHashmap *hashmap = AS_HASHMAP(hashmapVal);
 
       if (!IS_STRING(keyVal) && !IS_NUMBER(keyVal))
       {
-      runtimeError("Hashmap key must be a string or a number.");
-      return INTERPRET_RUNTIME_ERROR;
+        runtimeError("Hashmap key must be a string or a number.");
+        return INTERPRET_RUNTIME_ERROR;
       }
 
       bool deleted = false;
       if (IS_STRING(keyVal))
       {
-      ObjString *keyStr = AS_STRING(keyVal);
-      deleted = tableDelete(&hashmap->items, keyStr);
+        ObjString *keyStr = AS_STRING(keyVal);
+        deleted = tableDelete(&hashmap->items, keyStr);
       }
       else if (IS_NUMBER(keyVal))
       {
-      char keyStr[32];
-      snprintf(keyStr, sizeof(keyStr), "%g", AS_NUMBER(keyVal));
-      ObjString *key = copyString(keyStr, strlen(keyStr));
-      deleted = tableDelete(&hashmap->items, key);
+        char keyStr[32];
+        snprintf(keyStr, sizeof(keyStr), "%g", AS_NUMBER(keyVal));
+        ObjString *key = copyString(keyStr, strlen(keyStr));
+        deleted = tableDelete(&hashmap->items, key);
       }
 
       if (deleted)
       {
-      push(BOOL_VAL(true));
+        push(BOOL_VAL(true));
       }
       else
       {
-      runtimeError("This key does not exist in the hashmap.");
+        runtimeError("This key does not exist in the hashmap.");
       }
       break;
     }

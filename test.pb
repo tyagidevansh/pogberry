@@ -1,32 +1,35 @@
-var a = [1, 2, 5, 6];
-print a; 
+// var a = [1, 2, 5, 6, "text"];
+// print a; 
+// var test = "test";
+// print "indexing : " + test[0];
+// print test[0];
+// print "The first element of the list is: " + a[0];
+// print a;
+// print "Changed the first " + "element: ";
+// a[0] = 0;
+// print a;
+// a.push("more text");
+// print "Pushed an element :";
+// print a;
+// a.add("9", 3);
+// print "Added an element at index 3: ";
+// print a;
+// a.remove(3);
+// print "Removed the element at index 3: ";
+// print a;
+// a.pop();
+// print "Popped an element from the list: ";
+// print a;
 
-print "The first element of the list is: " + a[0];
-print "Changed the first element: ";
-a[1] = 0;
-a.push("more text");
-print "Pushed an element :";
-print a;
-a.add("9", 3);
-print "Added an element at index 3: ";
-print a;
-a.remove(3);
-print "Removed the element at index 3: ";
-print a;
-a.pop();
-print "Popped an element from the list: ";
-print a;
-print "Size of the list is: " + a.size();
-var sampleStr = "hello world";
-print "Size of the string: " + sampleStr.size();
-var a = -5.2;
-print "variables can be freely reassigned lesgooo: " + a;
+// print "Size of the list is: " + a.size();
+// var sampleStr = "hello world";
+// print "Size of the string: " + sampleStr.size();
+// var a = -5.2;
+// print "variables can be freely reassigned lesgooo: " + a;
 
-//comment
+// //comment
 
-print abs(a);
-
-
+// print abs(a);
 
 // var h = {"animal" : "lion", "plant" : "orchid" };
 // print h;
@@ -65,5 +68,22 @@ print abs(a);
 //   print "doesnt exist";
 // }
 
-var a = 1;
-print a;
+// // var a = 1;
+// // print a;
+
+
+fun fizzbuzz(n) {
+    for (var i = 1; i <= n; i = i + 1) {
+        if (i % 3 == 0 and i % 5 == 0) {
+            print "FizzBuzz";
+        } else if (i % 3 == 0) {
+            print "Fizz";
+        } else if (i % 5 == 0) {
+            print "Buzz";
+        } else {
+            print i;
+        }
+    }
+}
+
+fizzbuzz(20);

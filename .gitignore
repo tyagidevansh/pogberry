@@ -1,4 +1,5 @@
 .vscode
 *.o
 *.exe
-test.txt
+test.pb
+examples/

@@ -79,8 +79,8 @@ static void blackenObject(Obj* object) {
       markArray(&list->items);
       break;
     case OBJ_HASHMAP:
-      //ObjHashmap* map = (ObjHashmap*)object;
-      //markTable(&map->items);
+      ObjHashmap* map = (ObjHashmap*)object;
+      markTable(&map->items);
       break;
       case OBJ_NATIVE:
     case OBJ_STRING:
