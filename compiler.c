@@ -435,6 +435,9 @@ static void binary(bool canAssign)
   case TOKEN_STAR:
     emitByte(OP_MULTIPLY);
     break;
+  case TOKEN_MODULO:
+    emitByte(OP_MODULO);
+    break;
   case TOKEN_SLASH:
     emitByte(OP_DIVIDE);
     break;
@@ -624,8 +627,43 @@ static void ifStatement()
 
 static void printStatement()
 {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'print'.");
   expression();
+
+  bool newline = true;
+  if (match(TOKEN_COMMA))
+  {
+    consume(TOKEN_IDENTIFIER, "Expect 'newline' after comma.");
+    if (strncmp(parser.previous.start, "newline", parser.previous.length) == 0)
+    {
+      consume(TOKEN_EQUAL, "Expect '=' after 'newline'.");
+      if (match(TOKEN_TRUE))
+      {
+        newline = true;
+      }
+      else if (match(TOKEN_FALSE))
+      {
+        newline = false;
+      }
+      else
+      {
+        error("Expect 'true' or 'false' after 'newline='.");
+      }
+    }
+    else
+    {
+      error("Expect 'newline' after comma.");
+    }
+  }
+
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
   consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+
+  if (!newline)
+  {
+    emitByte(OP_PRINT_NO_NEWLINE);
+    return;
+  }
   emitByte(OP_PRINT);
 }
 
@@ -971,6 +1009,7 @@ ParseRule rules[] = {
     [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
     [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
     [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
+    [TOKEN_MODULO] = {NULL, binary, PREC_FACTOR},
     [TOKEN_BANG] = {unary, NULL, PREC_NONE},
     [TOKEN_BANG_EQUAL] = {NULL, binary, PREC_EQUALITY},
     [TOKEN_EQUAL] = {NULL, NULL, PREC_NONE},

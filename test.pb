@@ -1,89 +1,71 @@
-// var a = [1, 2, 5, 6, "text"];
-// print a; 
-// var test = "test";
-// print "indexing : " + test[0];
-// print test[0];
-// print "The first element of the list is: " + a[0];
-// print a;
-// print "Changed the first " + "element: ";
-// a[0] = 0;
-// print a;
-// a.push("more text");
-// print "Pushed an element :";
-// print a;
-// a.add("9", 3);
-// print "Added an element at index 3: ";
-// print a;
-// a.remove(3);
-// print "Removed the element at index 3: ";
-// print a;
-// a.pop();
-// print "Popped an element from the list: ";
-// print a;
+var a = [1, 2, 5, 6, "text"];
+print(a); 
+var test = "test";
+print("indexing : " + test[0]);
+print("The first element of the list is: " + a[0]);
 
-// print "Size of the list is: " + a.size();
-// var sampleStr = "hello world";
-// print "Size of the string: " + sampleStr.size();
-// var a = -5.2;
-// print "variables can be freely reassigned lesgooo: " + a;
+a[0] = 0;
+print("Changed the first " + "element: ", newline = false);
+print(a);
 
-// //comment
+a.push("more text");
+print("Pushed an element :", newline= false);
+print(a);
 
-// print abs(a);
+a.add("9", 3);
+print("Added an element at index 3: ", newline= false);
+print(a);
 
-// var h = {"animal" : "lion", "plant" : "orchid" };
-// print h;
-// print h["animal"];
-// h["animal"] = "tiger";
+a.remove(3);
+print("Removed the element at index 3: ", newline= false);
+print(a);
 
-// print h.size();
+a.pop();
+print("Popped an element from the list: ", newline= false);
+print(a);
 
-// var a = "hello";
-// print "First letter of hello is: " + a[0];
+print("Size of the list is: " + a.size());
+var sampleStr = "hello world";
+print("Size of the string: " + sampleStr.size());
+var a = -5.2;
+print("variables can be freely reassigned lesgooo: " + a);
 
-// if (h["anial"]) {
-//   print "exists";
-// } else {
-//   print "doesnt exist";
-// }
+//comment
 
-// if (h.find("animal")) {
-//   h.delete("animal");
-// }
+print(abs(a));
 
-// print h;
+var h = {"animal" : "lion", "plant" : "orchid" };
+print(h);
+print(h["animal"]);
+h["animal"] = "tiger";
 
+print(h.size());
 
-// var list = [["a", "c", [5, 4], 5, 3], ["bd", "b"]];
-// print list;
-// print list[0][2][1];
+var a = "hello";
+print("First letter of hello is: " + a[0]);
 
-// var numHash = {1 : "hello", 4: "world", 2: "ohayo"};
-// print numHash;
-// print numHash[4];
-
-// if (numHash.find(3)) {
-//   print "exists";
-// } else {
-//   print "doesnt exist";
-// }
-
-// // var a = 1;
-// // print a;
-
-
-fun fizzbuzz(n) {
-    for (var i = 1; i <= n; i = i + 1) {
-        if (i % 3 == 0 and i % 5 == 0) {
-            print "FizzBuzz";
-        } else if (i % 3 == 0) {
-            print "Fizz";
-        } else if (i % 5 == 0) {
-            print "Buzz";
-        } else {
-            print i;
-        }
-    }
+if (h["anial"]) {
+  print("exists");
+} else {
+  print("doesnt exist");
 }
 
-fizzbuzz(20);
+if (h.find("animal")) {
+  h.delete("animal");
+}
+
+print(h);
+
+var list = [["a", "c", [5, 4], 5, 3], ["bd", "b"]];
+print(list);
+print(list[0][2][1]);
+
+var numHash = {1 : "hello", 4: "world", 2: "ohayo"};
+print(numHash);
+print(numHash[4]);
+
+if (numHash.find(3)) {
+  print("exists");
+} else {
+  print("doesnt exist");
+}

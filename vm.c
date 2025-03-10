@@ -70,6 +70,16 @@ static Value randNative(int argCount, Value *args)
   }
 }
 
+static Value floorNative(int argCount, Value *args)
+{
+  if (argCount != 1 || !IS_NUMBER(args[0]))
+  {
+    runtimeError("floor expects a single number.");
+    return NIL_VAL;
+  }
+  return NUMBER_VAL(floor(AS_NUMBER(args[0])));
+}
+
 static Value strInputNative(int argCount, Value *args)
 {
   if (argCount > 0 && IS_STRING(args[0]))
@@ -280,6 +290,7 @@ void initVM()
   srand(time(NULL)); // for the native function
   defineNative("clock", clockNative);
   defineNative("rand", randNative);
+  defineNative("floor", floorNative);
   defineNative("strInput", strInputNative);
   defineNative("sqrt", sqrtNative);
   defineNative("abs", absNative);
@@ -545,6 +556,25 @@ static InterpretResult run()
     case OP_DIVIDE:
       BINARY_OP(NUMBER_VAL, /);
       break;
+    case OP_MODULO:
+      if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {
+        runtimeError("Operands must be numbers.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      double b = AS_NUMBER(pop());
+      double a = AS_NUMBER(pop());
+
+      if (floor(b) != b || floor(a) != a) { // integer check
+        runtimeError("Modulo only accepts integer operands.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      int intA = (int)a;
+      int intB = (int)b;
+      
+      push(NUMBER_VAL(intA % intB));
+      break;
     case OP_NOT:
       push(BOOL_VAL(isFalsey(pop())));
       break;
@@ -560,6 +590,10 @@ static InterpretResult run()
       printValue(peek(0));
       pop();
       printf("\n");
+      break;
+    case OP_PRINT_NO_NEWLINE:
+      printValue(peek(0));
+      pop();
       break;
     case OP_JUMP:
     {
