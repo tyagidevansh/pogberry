@@ -2,13 +2,13 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -Wall -Wextra -std=c11
+CFLAGS = -Wall -std=c11
 
 # Linker flags
 LIBS = -lm -lreadline
 
 # Executable name
-EXEC = main
+EXEC = pogberry
 
 # Source files
 SRC = main.c value.c memory.c chunk.c debug.c vm.c scanner.c compiler.c object.c table.c

@@ -130,9 +130,11 @@ if (person.find(name)) {
 
 Pogberry includes several built-in native functions:
 
-- `print(value)`: Outputs the value to the console.
+- `print(value, newline = true)`: Outputs the value to the console.
   ```pogberry
-  print "Hello, Pogberry!"; // Outputs: Hello, Pogberry!
+  print("Hello, Pogberry!"); // Outputs: Hello, Pogberry!
+  print("Hello ", newline = false);
+  print("again!); // Outputs: Hello again! (single line)
   ```
 
 - `clock()`: Returns the current time in seconds since the program started.
@@ -212,14 +214,14 @@ To get started with the Pogberry interpreter, follow these steps:
    ```
 4. Run your first Pogberry program:
    ```sh
-   ./main test.pg
+   ./pogberry examples/fizzbuzz.pg
    ```
 
    OR
 
    Run the REPL by simply typing:
    ```sh
-   ./main
+   ./pogberry
    ```
 
 Happy coding with Pogberry!
