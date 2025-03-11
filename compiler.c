@@ -69,9 +69,23 @@ typedef struct Compiler
 Parser parser;
 Compiler *current = NULL;
 
+const char* src;
+
 static Chunk *currentChunk()
 {
   return &current->function->chunk;
+}
+
+void print_line(const char *s, int n) {
+    int i = 0, j = 1;
+    while (s[i]) {
+        if (j == n) {
+            while (s[i] && s[i] != '\n') putchar(s[i++]);
+            putchar('\n');
+            return;
+        }
+        if (s[i++] == '\n') j++;
+    }
 }
 
 static void errorAt(Token *token, const char *message)
@@ -80,6 +94,8 @@ static void errorAt(Token *token, const char *message)
   if (parser.panicMode)
     return;
   parser.panicMode = true;
+  print_line(src, token->line);
+  fprintf(stderr, "%*s^\n", token->column - token->length - 2, "");
   fprintf(stderr, "[line %d] Error", token->line);
 
   if (token->type == TOKEN_EOF)
@@ -1076,6 +1092,7 @@ static ParseRule *getRule(TokenType type)
 // single-pass compiler - it only has a peephole view into the user's program so only works if the language requires very little context around the code that its parsing (and producing bytecode both at once)
 ObjFunction *compile(const char *source)
 {
+    src = source;
   initScanner(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);

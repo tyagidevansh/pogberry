@@ -9,6 +9,7 @@ typedef struct
   const char *start;   // marks the beginning of current lexeme being scanned
   const char *current; // current character being scanned
   int line;            // line number for error reporting
+  int column;            // line number for error reporting
 } Scanner;
 
 Scanner scanner;
@@ -18,6 +19,7 @@ void initScanner(const char *source)
   scanner.start = source;
   scanner.current = source;
   scanner.line = 1;
+  scanner.column = 0;
 }
 
 static bool isAlpha(char c)
@@ -40,6 +42,7 @@ static bool isAtEnd()
 static char advance()
 {
   scanner.current++;
+  scanner.column++;
   return scanner.current[-1]; // immediate previous element
 }
 
@@ -62,6 +65,7 @@ static bool match(char expected)
   if (*scanner.current != expected)
     return false;
   scanner.current++;
+  scanner.column++;
   return true;
 }
 
@@ -72,6 +76,7 @@ static Token makeToken(TokenType type)
   token.start = scanner.start;
   token.length = (int)(scanner.current - scanner.start);
   token.line = scanner.line;
+  token.column = scanner.column;
   return token;
 }
 
@@ -82,6 +87,7 @@ static Token errorToken(const char *message)
   token.start = message;
   token.length = (int)strlen(message);
   token.line = scanner.line;
+  token.column = scanner.column;
   return token;
 }
 
@@ -99,6 +105,7 @@ static void skipWhitespace()
       break;
     case '\n':
       scanner.line++;
+      scanner.column = 1;
       advance();
       break;
     case '/':
@@ -243,8 +250,10 @@ static Token string()
 {
   while (peek() != '"' && !isAtEnd())
   {
-    if (peek() == '\n')
-      scanner.line++;
+    if (peek() == '\n'){
+        scanner.line++;
+        scanner.column = 1;
+    }
     advance();
   }
 
