@@ -497,6 +497,20 @@ static void literal(bool canAssign)
   }
 }
 
+// NOT necessary, will just handle classes in namedVariable
+
+// static void dot(bool canAssign) {
+//   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+//   uint8_t name = identifierConstant(&parser.previous);
+
+//   if (canAssign && match(TOKEN_EQUAL)) {
+//     expression();
+//     emitBytes(OP_SET_PROPERTY, name);
+//   } else {
+//     emitBytes(OP_GET_PROPERTY, name);
+//   }
+// }
+
 static void grouping(bool canAssign)
 {
   expression();
@@ -569,6 +583,18 @@ static void varDeclaration()
   consume(TOKEN_SEMICOLON, "Expect ';' after declaration");
 
   defineVariable(global);
+}
+
+static void classDeclaration() {
+  consume(TOKEN_IDENTIFIER, "Expect class name.");
+  uint8_t nameConstant = identifierConstant(&parser.previous);
+  declareVariable();
+
+  emitBytes(OP_CLASS, nameConstant);
+  defineVariable(nameConstant);
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
 }
 
 static void expressionStatement()
@@ -850,7 +876,14 @@ static void handleDot(bool canAssign)
   }
   else
   {
-    error("Unknown property name.");
+    uint8_t name = identifierConstant(&parser.previous);
+
+    if (canAssign && match(TOKEN_EQUAL)) {
+      expression();
+      emitBytes(OP_SET_PROPERTY, name);
+    } else {
+      emitBytes(OP_GET_PROPERTY, name);
+    }
   }
 }
 
@@ -890,6 +923,9 @@ static void declaration()
   else if (match(TOKEN_VAR))
   {
     varDeclaration();
+  } else if (match(TOKEN_CLASS))
+  {
+    classDeclaration();
   }
   else
   {

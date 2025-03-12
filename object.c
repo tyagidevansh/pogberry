@@ -93,6 +93,19 @@ ObjHashmap* newHashmap() {
   return hashmap;
 }
 
+ObjClass* newClass(ObjString* name) {
+  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  klass->name = name;
+  return klass;
+}
+
+ObjInstance* newInstance(ObjClass* klass) {
+  ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+  instance->klass = klass;
+  initTable(&instance->fields);
+  return instance;
+}
+
 static void printFunction(ObjFunction* function) {
   if (function->name == NULL) {
     printf("<script>");
@@ -142,7 +155,12 @@ void printObject(Value value) {
       printList(AS_LIST(value));
       break;
     case OBJ_HASHMAP:
-      printHashmap(AS_HASHMAP(value));
+      printHashmap(AS_HASHMAP(value));  
       break;
+    case OBJ_CLASS:
+      printf("%s", AS_CLASS(value)->name->chars);
+      break;
+    case OBJ_INSTANCE:
+      printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
   }
 }

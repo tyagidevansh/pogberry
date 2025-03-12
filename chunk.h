@@ -16,6 +16,8 @@ typedef enum {
   OP_GET_GLOBAL,
   OP_DEFINE_GLOBAL,
   OP_SET_GLOBAL,
+  OP_SET_PROPERTY,
+  OP_GET_PROPERTY,
   OP_EQUAL,
   OP_GREATER,
   OP_LESS,
@@ -44,6 +46,7 @@ typedef enum {
   OP_HASHMAP_DELETE,
   OP_SIZE,
   OP_RETURN,
+  OP_CLASS,
 } OpCode;
 
 // unit of bytecode, essentially the entire AST class from JLOX

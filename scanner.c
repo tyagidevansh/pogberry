@@ -75,7 +75,6 @@ static Token makeToken(TokenType type)
   token.type = type;
   token.start = scanner.start;
   token.length = (int)(scanner.current - scanner.start);
-  printf("token length: %d \n", token.length);
   token.line = scanner.line;
   token.column = (int)(scanner.start - scanner.current) + scanner.column;
   return token;
