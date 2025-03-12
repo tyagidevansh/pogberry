@@ -15,6 +15,7 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
   vm.bytesAllocated += newSize - oldSize;
   if (newSize > oldSize) {
     #ifdef DEBUG_STRESS_GC
+      printf("Total memory allocated: %d", vm.bytesAllocated);
       collectGarbage();
     #endif
     if (vm.bytesAllocated > vm.nextGC) {
@@ -82,7 +83,8 @@ static void blackenObject(Obj* object) {
       ObjHashmap* map = (ObjHashmap*)object;
       markTable(&map->items);
       break;
-      case OBJ_NATIVE:
+    case OBJ_NATIVE:
+      break;
     case OBJ_STRING:
       break;
   }

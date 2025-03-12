@@ -69,44 +69,55 @@ typedef struct Compiler
 Parser parser;
 Compiler *current = NULL;
 
-const char* src;
+const char *src;
 
 static Chunk *currentChunk()
 {
   return &current->function->chunk;
 }
 
-void print_line(const char *s, int n) {
-    int i = 0, j = 1;
-    while (s[i]) {
-        if (j == n) {
-            while (s[i] && s[i] != '\n') putchar(s[i++]);
-            putchar('\n');
-            return;
-        }
-        if (s[i++] == '\n') j++;
+void print_line(const char *s, int n)
+{
+  int i = 0, j = 1;
+  while (s[i])
+  {
+    if (j == n)
+    {
+      while (s[i] && s[i] != '\n')
+        putchar(s[i++]);
+      putchar('\n');
+      return;
     }
+    if (s[i++] == '\n')
+      j++;
+  }
+}
+
+static void printErrorMarker(int column)
+{
+  for (int i = 0; i < column - 2; i++)
+  {
+    putchar(' '); 
+  }
+  printf("^\n"); 
 }
 
 static void errorAt(Token *token, const char *message)
 {
-  // avoid any knock-on errors that may occur if we keep parsing half-sensible code once compiler has already detected an error
   if (parser.panicMode)
-    return;
+    return; 
   parser.panicMode = true;
+
   print_line(src, token->line);
-  fprintf(stderr, "%*s^\n", token->column - token->length - 2, "");
+  printErrorMarker(token->column);
+
   fprintf(stderr, "[line %d] Error", token->line);
 
   if (token->type == TOKEN_EOF)
   {
     fprintf(stderr, " at end");
   }
-  else if (token->type == TOKEN_ERROR)
-  {
-    // nothing
-  }
-  else
+  else if (token->type != TOKEN_ERROR)
   {
     fprintf(stderr, " at '%.*s'", token->length, token->start);
   }
@@ -721,32 +732,32 @@ static void whileStatement()
 static void list(bool canAssign)
 {
   int itemCount = 0;
-  emitByte(OP_NEW_LIST); 
+  emitByte(OP_NEW_LIST);
 
   if (!check(TOKEN_RIGHT_BRACKET))
   {
     do
     {
-      if (match(TOKEN_LEFT_BRACKET)) 
+      if (match(TOKEN_LEFT_BRACKET))
       {
-        list(canAssign); 
-      } 
-      else 
+        list(canAssign);
+      }
+      else
       {
         expression();
       }
-      
-      emitByte(OP_LIST_APPEND); 
+
+      emitByte(OP_LIST_APPEND);
       itemCount++;
-      
-    } while (match(TOKEN_COMMA)); 
+
+    } while (match(TOKEN_COMMA));
   }
 
   consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
 }
 
 static void hashmap(bool canAssign)
-{ 
+{
   int itemCount = 0;
   emitByte(OP_NEW_HASHMAP);
 
@@ -767,14 +778,15 @@ static void hashmap(bool canAssign)
 
 static void containerIndex(bool canAssign)
 {
-  do {
+  do
+  {
     expression();
     consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list index.");
 
     if (canAssign && match(TOKEN_EQUAL))
     {
       expression();
-      emitByte(OP_SET_INDEX); //also works with hashmap keys
+      emitByte(OP_SET_INDEX); // also works with hashmap keys
       break;
     }
     else
@@ -1092,7 +1104,7 @@ static ParseRule *getRule(TokenType type)
 // single-pass compiler - it only has a peephole view into the user's program so only works if the language requires very little context around the code that its parsing (and producing bytecode both at once)
 ObjFunction *compile(const char *source)
 {
-    src = source;
+  src = source;
   initScanner(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
@@ -1111,10 +1123,12 @@ ObjFunction *compile(const char *source)
   return parser.hadError ? NULL : function;
 }
 
-void markCompilerRoots() {
-  Compiler* compiler = current;
-  while (compiler != NULL) {
-    markObject((Obj*)compiler->function);
+void markCompilerRoots()
+{
+  Compiler *compiler = current;
+  while (compiler != NULL)
+  {
+    markObject((Obj *)compiler->function);
     compiler = compiler->enclosing;
   }
 }

@@ -9,7 +9,7 @@ typedef struct
   const char *start;   // marks the beginning of current lexeme being scanned
   const char *current; // current character being scanned
   int line;            // line number for error reporting
-  int column;            // line number for error reporting
+  int column;          // column number for error reporting
 } Scanner;
 
 Scanner scanner;
@@ -75,8 +75,9 @@ static Token makeToken(TokenType type)
   token.type = type;
   token.start = scanner.start;
   token.length = (int)(scanner.current - scanner.start);
+  printf("token length: %d \n", token.length);
   token.line = scanner.line;
-  token.column = scanner.column;
+  token.column = (int)(scanner.start - scanner.current) + scanner.column;
   return token;
 }
 
@@ -102,6 +103,7 @@ static void skipWhitespace()
     case '\r':
     case '\t':
       advance();
+      // scanner.column++;
       break;
     case '\n':
       scanner.line++;
@@ -134,7 +136,7 @@ static TokenType checkKeyword(int start, int length, const char *rest, TokenType
     return type;
   }
 
-  //its an identifier if we cant match it to any keyword
+  // its an identifier if we cant match it to any keyword
   return TOKEN_IDENTIFIER;
 }
 
@@ -252,7 +254,7 @@ static Token string()
   {
     if (peek() == '\n'){
         scanner.line++;
-        scanner.column = 1;
+        scanner.column = 0;
     }
     advance();
   }

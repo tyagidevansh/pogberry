@@ -3,6 +3,7 @@
 Welcome to the Pogberry Interpreter! This project is an interpreter for the Pogberry language, based on the CLOX interpreter from the book "Crafting Interpreters" by Robert Nystrom.
 
 ## Table of Contents
+
 - [Introduction](#introduction)
 - [How It Works](#how-it-works)
 - [Syntax](#syntax)
@@ -12,9 +13,10 @@ Welcome to the Pogberry Interpreter! This project is an interpreter for the Pogb
 
 ## Introduction
 
-Pogberry is a simple programming language designed for learning and experimentation. My future plans for this language remain unknown. This interpreter allows you to execute Pogberry code and explore its features (more features coming soon!). 
+Pogberry is a simple programming language designed for learning and experimentation. My future plans for this language remain unknown. This interpreter allows you to execute Pogberry code and explore its features (more features coming soon!).
 
 ## How It Works
+
 Here's what happens when you run Pogberry code:
 
 1. **Tokenization**: First, the interpreter reads your code character by character and groups them into meaningful "words" (tokens) - like how you'd recognize words in a sentence.
@@ -60,7 +62,8 @@ for (var i = 0; i < 10; i = i + 1) {
 ```
 
 ### Strings
-All strings are interned in pogberry! This means that if two strings have the same value, they MUST reside at the same address. Whenever you allocate a new string, the string pool is first checked if the same string exists in memory already. If it does, reference to the other string is returned. 
+
+All strings are interned in pogberry! This means that if two strings have the same value, they MUST reside at the same address. Whenever you allocate a new string, the string pool is first checked if the same string exists in memory already. If it does, reference to the other string is returned.
 Concatenation makes new strings. "+" is the supported concatenation operator. Numbers are coerced into strings when using concatenation.
 
 ```pogberry
@@ -92,7 +95,7 @@ numbers.pop();
 print numbers; //Outputs: [1, 2, 3, 9, 4, 5]
 
 numbers.remove(3) // provide index
-print numbers; //Outputs: [1, 2, 3, 4, 5] 
+print numbers; //Outputs: [1, 2, 3, 4, 5]
 
 numbers.sort();
 print numbers; // Outputs: [1, 2, 3, 4, 5, 6]
@@ -131,6 +134,7 @@ if (person.find(name)) {
 Pogberry includes several built-in native functions:
 
 - `print(value, newline = true)`: Outputs the value to the console.
+
   ```pogberry
   print("Hello, Pogberry!"); // Outputs: Hello, Pogberry!
   print("Hello ", newline = false);
@@ -138,36 +142,42 @@ Pogberry includes several built-in native functions:
   ```
 
 - `clock()`: Returns the current time in seconds since the program started.
+
   ```pogberry
   var time = clock();
   print time; // Outputs: time in seconds
   ```
 
 - `rand()`: Generates a random number.
+
   ```pogberry
   var randomNum = rand();
   print randomNum; // Outputs: a random double-precision float between 0 and 1
   ```
 
 - `strInput()`: Reads user input as a string from the console.
+
   ```pogberry
   var input = strInput();
   print input; // Outputs: user input
   ```
 
 - `sqrt(number)`: Calculates the square root of a number.
+
   ```pogberry
   var result = sqrt(16);
   print result; // Outputs: 4
   ```
 
 - `abs(number)`: Returns the absolute value of a number.
+
   ```pogberry
   var absolute = abs(-5);
   print absolute; // Outputs: 5
   ```
 
 - `add(array, value, index)`: Adds a value at the specified index in an array.
+
   ```pogberry
   var numbers = [1, 2, 3];
   add(numbers, 4, 1);
@@ -175,6 +185,7 @@ Pogberry includes several built-in native functions:
   ```
 
 - `remove(array, index)`: Removes the element at the specified index from an array.
+
   ```pogberry
   var numbers = [1, 2, 3];
   remove(numbers, 1);
@@ -182,11 +193,12 @@ Pogberry includes several built-in native functions:
   ```
 
 - `sort(array)`: Sorts the elements of an array in ascending order. Implements quicksort, so it is not stable. Sorts by casting everything to the type of the first element, so sorting behaviour may be unexpected when array elements are of mixed types. Can also sort strings and hashmaps.
+
   ```pogberry
   var numbers = [3, 1, 2];
   sort(numbers);
   print numbers; // Outputs: [1, 2, 3]
-  
+
   sort(numbers, True); //reverse = True
   print numbers; // Outputs: [3, 2, 1]
 
@@ -194,7 +206,6 @@ Pogberry includes several built-in native functions:
   sort(str);
   print str; // Outputs: ehllo
   ```
-
 
 ## Getting Started
 
@@ -209,10 +220,26 @@ To get started with the Pogberry interpreter, follow these steps:
    cd pogberry
    ```
 3. Build the interpreter:
+   If you have makefile installed, run:
+
    ```sh
    make
    ```
+
+   Or if you would rather rely on just gcc:
+
+   ```sh
+   gcc  -std=c11 -c main.c value.c memory.c chunk.c debug.c vm.c scanner.c compiler.c object.c table.c
+   ```
+
+   ```sh
+   gcc -std=c11 main.o value.o memory.o chunk.o debug.o vm.o scanner.o compiler.o object.o table.o -lm -lreadline -o pogberry
+   ```
+
+   Or use any other build system
+
 4. Run your first Pogberry program:
+
    ```sh
    ./pogberry examples/fizzbuzz.pg
    ```
@@ -220,6 +247,7 @@ To get started with the Pogberry interpreter, follow these steps:
    OR
 
    Run the REPL by simply typing:
+
    ```sh
    ./pogberry
    ```
