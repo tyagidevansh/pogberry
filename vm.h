@@ -22,7 +22,8 @@ typedef struct {
   Value* stackTop;  // pointer to the element (pointer faster than indexing) just after the last stack, so pointing to 0 index means stack empty
   Table globals;
   Table strings; // for interning strings, each unique string will only be stored once in memory, so "=" operation can be carried out fast -> just compare the memory address rather than comparing the string character by character
-  
+  ObjString* initString;
+
   size_t bytesAllocated;
   size_t nextGC;
   Obj* objects;
