@@ -70,9 +70,24 @@
 //   print("doesnt exist");
 // }
 
-class Pair {}
+// class Pair {}
 
-var pair = Pair();
-pair.first = 1;
-pair.second = 2;
-print(pair.first + pair.second);
+// var pair = Pair();
+// pair.first = 1; 
+// pair.second = 2;
+// print(pair.first);
+
+// class Brunch {
+//   bacon() {}
+//   eggs() {}
+// }
+
+
+class Scone {
+  topping(first, second) {
+    print("scone with " + first + " and " + second);
+  }
+}
+
+var scone = Scone();
+scone.topping("berries", "cream");

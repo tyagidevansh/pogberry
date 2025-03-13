@@ -15,6 +15,7 @@
 #define IS_HASHMAP(value)     isObjType(value, OBJ_HASHMAP)
 #define IS_CLASS(value)       isObjType(value, OBJ_CLASS)
 #define IS_INSTANCE(value)    isObjType(value, OBJ_INSTANCE)
+#define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 
 #define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
 #define AS_NATIVE(value) \
@@ -25,6 +26,7 @@
 #define AS_HASHMAP(value)     ((ObjHashmap*)AS_OBJ(value))
 #define AS_CLASS(value)       ((ObjClass*)AS_OBJ(value))
 #define AS_INSTANCE(value)    ((ObjInstance*)AS_OBJ(value))
+#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
 
 typedef enum {
   OBJ_FUNCTION,
@@ -34,6 +36,7 @@ typedef enum {
   OBJ_HASHMAP,
   OBJ_CLASS,
   OBJ_INSTANCE,
+  OBJ_BOUND_METHOD,
 } ObjType;
 
 struct Obj {
@@ -78,6 +81,7 @@ typedef struct {
 typedef struct {
   Obj obj;
   ObjString* name;
+  Table methods;
 } ObjClass;
 
 typedef struct {
@@ -85,6 +89,12 @@ typedef struct {
   ObjClass* klass;
   Table fields;
 } ObjInstance;
+
+typedef struct {
+  Obj obj;
+  Value receiver;
+  ObjFunction* method;
+} ObjBoundMethod;
 
 ObjFunction* newFunction();
 ObjNative* newNative(NativeFn function);
@@ -94,6 +104,7 @@ ObjList* newList();
 ObjHashmap* newHashmap();
 ObjClass* newClass(ObjString* name);
 ObjInstance* newInstance(ObjClass* klass);
+ObjBoundMethod* newBoundMethod(Value receiver, ObjFunction* method);
 void printObject(Value value);
 
 // function rather than just putting it in the macro coz this uses a value twice, that would cause the macro to be evaluated twice

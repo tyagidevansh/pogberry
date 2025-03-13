@@ -367,12 +367,29 @@ static bool callValue(Value callee, int argCount)
       vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
       return true;
     }
+    case OBJ_BOUND_METHOD: {
+      ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+      return call(bound->method, argCount);
+    }
     default:
       break; // Non-callable object type.
     }
   }
   runtimeError("Can only call functions and classes.");
   return false;
+}
+
+static bool bindMethod(ObjClass* klass, ObjString* name) {
+  Value method;
+  if (!tableGet(&klass->methods, name, &method)) {
+    runtimeError("Undefined property '%s'.", name->chars);
+    return false;
+  }
+
+  ObjBoundMethod* bound = newBoundMethod(peek(0), AS_FUNCTION(method));
+  pop();
+  push(OBJ_VAL(bound));
+  return true;
 }
 
 // only nil and false are falsey
@@ -412,6 +429,13 @@ static void concatenate()
 
   ObjString *result = takeString(chars, length);
   push(OBJ_VAL(result));
+}
+
+static void defineMethod(ObjString* name) {
+  Value method = peek(0);
+  ObjClass* klass = AS_CLASS(peek(1));
+  tableSet(&klass->methods, name, method);
+  pop();
 }
 
 static InterpretResult run()
@@ -536,8 +560,12 @@ static InterpretResult run()
         break;
       }
 
-      runtimeError("Undefined property '%s'.", name->chars);
-      return INTERPRET_RUNTIME_ERROR;
+      if (!bindMethod(instance->klass, name)) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      break;
+      // need to define a way to check if a field exists, also delete
+      // push(NIL_VAL); // if the property doesnt exist dont crash the vm just return nil
     }
     case OP_SET_PROPERTY: {
       if (!IS_INSTANCE(peek(1))) {
@@ -1065,6 +1093,10 @@ static InterpretResult run()
     {
       push(OBJ_VAL(newClass(READ_STRING())));
       break;
+    }
+    case OP_METHOD: {
+        defineMethod(READ_STRING());
+        break;
     }
     }
   }

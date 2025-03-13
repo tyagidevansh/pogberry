@@ -297,6 +297,7 @@ static void endScope()
 }
 
 static void expression();
+static void namedVariable(Token name, bool canAssign);
 static void statement();
 static void declaration();
 static ParseRule *getRule(TokenType type);
@@ -497,20 +498,6 @@ static void literal(bool canAssign)
   }
 }
 
-// NOT necessary, will just handle classes in namedVariable
-
-// static void dot(bool canAssign) {
-//   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-//   uint8_t name = identifierConstant(&parser.previous);
-
-//   if (canAssign && match(TOKEN_EQUAL)) {
-//     expression();
-//     emitBytes(OP_SET_PROPERTY, name);
-//   } else {
-//     emitBytes(OP_GET_PROPERTY, name);
-//   }
-// }
-
 static void grouping(bool canAssign)
 {
   expression();
@@ -560,6 +547,15 @@ static void function(FunctionType type)
   emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
 }
 
+static void method() {
+  consume(TOKEN_IDENTIFIER, "Expect method name.");
+  uint8_t constant = identifierConstant(&parser.previous);
+
+  FunctionType type = TYPE_FUNCTION;
+  function(type);
+  emitBytes(OP_METHOD, constant);
+}
+
 static void funDeclaration()
 {
   uint8_t global = parseVariable("Expect function name.");
@@ -587,14 +583,22 @@ static void varDeclaration()
 
 static void classDeclaration() {
   consume(TOKEN_IDENTIFIER, "Expect class name.");
+  Token className = parser.previous;
   uint8_t nameConstant = identifierConstant(&parser.previous);
   declareVariable();
 
   emitBytes(OP_CLASS, nameConstant);
   defineVariable(nameConstant);
 
+  namedVariable(className, false);
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) 
+  {
+    method();
+  }
+  
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+  emitByte(OP_POP);
 }
 
 static void expressionStatement()
@@ -1016,6 +1020,7 @@ static void namedVariable(Token name, bool canAssign)
 
   if (match(TOKEN_LEFT_BRACKET))
   {
+    printf("containerIndex: accessing indexed value\n");
     emitBytes(getOp, (uint8_t)arg);
     containerIndex(canAssign);
   }
@@ -1033,6 +1038,7 @@ static void namedVariable(Token name, bool canAssign)
   {
     emitBytes(getOp, (uint8_t)arg);
   }
+  // printf("namedVariable: %.*s, getOp=%d, setOp=%d\n", name.length, name.start, getOp, setOp);
 }
 
 static void variable(bool canAssign)
