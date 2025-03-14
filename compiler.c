@@ -451,6 +451,7 @@ static void and_(bool canAssign)
   patchJump(endJump);
 }
 
+
 static void binary(bool canAssign)
 {
   TokenType operatorType = parser.previous.type;
@@ -955,6 +956,16 @@ static void handleDot(bool canAssign)
       emitBytes(OP_GET_PROPERTY, name);
     }
   }
+
+  if (match(TOKEN_DOT)) {
+    handleDot(canAssign);
+  }
+
+  if (match(TOKEN_LEFT_BRACKET)) {
+    expression();
+    emitByte(OP_GET_INDEX);
+    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
+  }
 }
 
 static void synchronize()
@@ -1037,7 +1048,6 @@ static void statement()
   }
   else if (match(TOKEN_LEFT_BRACKET))
   {
-    printf("left bracket detected");
     consume(TOKEN_RIGHT_BRACKET, "expect ']'");
   }
   else
@@ -1087,7 +1097,6 @@ static void namedVariable(Token name, bool canAssign)
 
   if (match(TOKEN_LEFT_BRACKET))
   {
-    printf("containerIndex: accessing indexed value\n");
     emitBytes(getOp, (uint8_t)arg);
     containerIndex(canAssign);
   }
