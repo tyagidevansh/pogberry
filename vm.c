@@ -379,6 +379,7 @@ static bool callValue(Value callee, int argCount)
       return true;
     }
     case OBJ_BOUND_METHOD: {
+      printf("inside obj bound");
       ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
       vm.stackTop[-argCount - 1] = bound->receiver;
       return call(bound->method, argCount);
@@ -732,7 +733,8 @@ static InterpretResult run()
     {
       int argCount = READ_BYTE();
       if (!callValue(peek(argCount), argCount))
-      {
+      { 
+        printf("rintime errpr inside call");
         return INTERPRET_RUNTIME_ERROR;
       }
       frame = &vm.frames[vm.frameCount - 1];

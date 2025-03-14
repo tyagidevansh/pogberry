@@ -503,6 +503,22 @@ static void call(bool canAssign)
   emitBytes(OP_CALL, argCount);
 }
 
+static void dot(bool canAssign) {
+  consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+  uint8_t name = identifierConstant(&parser.previous);
+
+  if (canAssign && match(TOKEN_EQUAL)) {
+    expression();
+    emitBytes(OP_SET_PROPERTY, name);
+  } else if (match(TOKEN_LEFT_PAREN)) {
+    uint8_t argCount = argumentList();
+    emitBytes(OP_INVOKE, name);
+    emitByte(argCount);
+  } else {
+    emitBytes(OP_GET_PROPERTY, name);
+  }
+}
+
 static void literal(bool canAssign)
 {
   switch (parser.previous.type)
@@ -1082,6 +1098,9 @@ static void namedVariable(Token name, bool canAssign)
   }
   else if (canAssign && match(TOKEN_EQUAL))
   {
+    if (name.length == 4 && memcmp(name.start, "this", 4) == 0) {
+      error("Cannot assign to 'this'.");
+    }
     expression();
     emitBytes(setOp, (uint8_t)arg);
   }
@@ -1089,7 +1108,6 @@ static void namedVariable(Token name, bool canAssign)
   {
     emitBytes(getOp, (uint8_t)arg);
   }
-  // printf("namedVariable: %.*s, getOp=%d, setOp=%d\n", name.length, name.start, getOp, setOp);
 }
 
 static void variable(bool canAssign)
@@ -1105,7 +1123,7 @@ static void this_(bool canAssign)
     return;
   }
 
-  variable(false);
+  variable(canAssign);
 }
 
 static void unary(bool canAssign)
@@ -1135,7 +1153,7 @@ ParseRule rules[] = {
     [TOKEN_LEFT_BRACKET] = {list, NULL, PREC_CALL},
     [TOKEN_RIGHT_BRACKET] = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT] = {NULL, NULL, PREC_CALL},
+    [TOKEN_DOT] = {NULL, dot, PREC_CALL},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},
     [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
     [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},

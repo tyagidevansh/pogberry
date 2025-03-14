@@ -170,6 +170,7 @@ void printObject(Value value) {
       break;
     case OBJ_INSTANCE:
       printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
+      break; // vm debugger was crashing bc i forgot this, spent over an hour finding trouble elsewhere
     case OBJ_BOUND_METHOD:
       printFunction(AS_BOUND_METHOD(value)->method);
       break;

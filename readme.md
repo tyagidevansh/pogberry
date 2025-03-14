@@ -8,6 +8,7 @@ Welcome to the Pogberry Interpreter! This project is an interpreter for the Pogb
 - [How It Works](#how-it-works)
 - [Syntax](#syntax)
 - [Arrays and Hashmaps](#arrays-and-hashmaps)
+- [Classes](#classes)
 - [Native Functions](#native-functions)
 - [Getting Started](#getting-started)
 
@@ -128,6 +129,94 @@ if (person.find(name)) {
   print "does not exist";
 }
 ```
+
+## Classes
+
+Pogberry supports object-oriented programming through classes. Classes allow you to bundle data (properties) and behavior (methods) together.
+
+### Class Definition and Instantiation
+
+init() is the constructor for any class, it is not required. If defined, it does not return any value except the class instance. init() accepts arguments, like any other function. 
+
+```pogberry
+class Person {
+  init(name, age) {
+    this.name = name;
+    this.age = age;
+  }
+  
+  sayHello() {
+    print "Hello, my name is " + this.name;
+  }
+  
+  birthday() {
+    this.age = this.age + 1;
+    print this.name + " is now " + this.age;
+  }
+}
+
+var alice = Person("Alice", 30);
+alice.sayHello(); // Outputs: Hello, my name is Alice
+alice.birthday(); // Outputs: Alice is now 31
+```
+
+### Using `this` Keyword
+
+In Pogberry, the `this` keyword refers to the current instance of the class. It lets methods access and modify the object's properties:
+
+```pogberry
+class Counter {
+  init() {
+    this.count = 0;
+  }
+  
+  increment() {
+    this.count = this.count + 1;
+    return this.count;
+  }
+  
+  reset() {
+    this.count = 0;
+    print "Counter reset";
+  }
+}
+
+var counter = Counter();
+print counter.increment(); // Outputs: 1
+print counter.increment(); // Outputs: 2
+counter.reset(); // Outputs: Counter reset
+```
+
+You cannot assign directly to 'this', you can only assign to fields defined on 'this' (ie current instance).
+
+### Methods and Properties
+
+You can add methods and properties to your classes, properties need not only by defined inside the init() method, you can freely define new properties outside the class, on any instance.:
+
+```pogberry
+class Rectangle {
+  init(width, height) {
+    this.width = width;
+    this.height = height;
+  }
+  
+  area() {
+    return this.width * this.height;
+  }
+  
+  perimeter() {
+    return 2 * (this.width + this.height);
+  }
+}
+
+var rect = Rectangle(5, 10);
+rect.color = "red";
+print("Area: " + rect.area()); // Outputs: Area: 50
+print("Perimeter: " + rect.perimeter()); // Outputs: Perimeter: 30
+print("Color: " + rect.color);  // Outputs: Color: red
+```
+
+Note: Inheritance is not yet supported in Pogberry.
 
 ## Native Functions
 
