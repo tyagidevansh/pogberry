@@ -195,11 +195,8 @@ static TokenType identifierType()
       }
     }
     break;
-    
-  // case 's':
-  //   return checkKeyword(1, 5, "witch", TOKEN_SWITCH);
   case 's':
-    return checkKeyword(1, 4, "igma", TOKEN_FUN);
+    return checkKeyword(1, 4, "uper", TOKEN_SUPER);
   case 't':
     if (scanner.current - scanner.start > 1)
     {

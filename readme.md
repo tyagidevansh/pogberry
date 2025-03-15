@@ -216,7 +216,29 @@ print("Perimeter: " + rect.perimeter()); // Outputs: Perimeter: 30
 print("Color: " + rect.color);  // Outputs: Color: red
 ```
 
-Note: Inheritance is not yet supported in Pogberry.
+### Inheritance
+You can create subclasses using "<":
+
+```pogberry
+  class Animal {
+  speak() {
+    print("Some generic animal sound");
+  }
+}
+
+class Dog < Animal {  // Dog inherits from Animal
+  speak() {
+    print("Woof!");
+  }
+}
+
+var a = Animal();
+a.speak();   // Outputs: Some generic animal sound
+
+var d = Dog();
+d.speak();   // Outputs: Woof!
+
+```
 
 ## Native Functions
 

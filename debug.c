@@ -110,6 +110,10 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return constantInstruction("OP_SET_PROPERTY", chunk, offset);
   case OP_INVOKE:
     return invokeInstruction("OP_INVOKE", chunk, offset);
+  case OP_GET_SUPER:
+    return constantInstruction("OP_GET_SUPER", chunk, offset);
+  case OP_SUPER_INVOKE:
+    return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
   case OP_EQUAL:
     return simpleInstruction("OP_EQUAL", offset);
   case OP_GREATER:
@@ -164,6 +168,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_RETURN", offset);
   case OP_CLASS:
     return constantInstruction("OP_CLASS", chunk, offset);
+  case OP_INHERIT:
+    return simpleInstruction("OP_INHERIT", offset);
   case OP_METHOD:
     return constantInstruction("OP_METHOD", chunk, offset);
   default:

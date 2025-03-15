@@ -70,197 +70,215 @@
 //   print("doesnt exist");
 // }
 
-class Pair {}
+// class Pair {}
 
-var pair = Pair();
-pair.first = 1; 
-pair.second = 2;
-print(pair.first);
+// var pair = Pair();
+// pair.first = 1; 
+// pair.second = 2;
+// print(pair.first);
 
-class Brunch {
-  bacon() {}
-  eggs() {}
-}
+// class Brunch {
+//   bacon() {}
+//   eggs() {}
+// }
 
 
-class Scone {
-  topping(first, second) {
-    print("scone with " + first + " and " + second);
-  }
-}
+// class Scone {
+//   topping(first, second) {
+//     print("scone with " + first + " and " + second);
+//   }
+// }
 
-var scone = Scone();
-scone.topping("berries", "cream");
+// var scone = Scone();
+// scone.topping("berries", "cream");
 
-class CoffeeMaker {
-  init(coffee) {
-    this.coffee = coffee;
-  }
+// class CoffeeMaker {
+//   init(coffee) {
+//     this.coffee = coffee;
+//   }
 
-  brew() {
-    print("Enjoy your cup of " + this.coffee);
-    this.coffee = nil;
-  }
-}
+//   brew() {
+//     print("Enjoy your cup of " + this.coffee);
+//     this.coffee = nil;
+//   }
+// }
 
-var maker = CoffeeMaker("coffee and chicory");
-maker.brew();
-maker.coffee = "coffee";
-maker.brew();
+// var maker = CoffeeMaker("coffee and chicory");
+// maker.brew();
+// maker.coffee = "coffee";
+// maker.brew();
 
-class Coffee {
-  init(coffee) {
-    this.coffee = coffee;
-  }
+// class Coffee {
+//   init(coffee) {
+//     this.coffee = coffee;
+//   }
 
-  describe() {
-    print("This coffee is " + this.coffee);
-  }
-}
+//   describe() {
+//     print("This coffee is " + this.coffee);
+//   }
+// }
 
-var c = Coffee("strong");
-c.describe(); 
+// var c = Coffee("strong");
+// c.describe(); 
 
-class Person {
-  init(name, age) {
-    this.name = name;
-    this.age = age;
-  }
+// class Person {
+//   init(name, age) {
+//     this.name = name;
+//     this.age = age;
+//   }
 
-  greet() {
-    print("Hello, my name is " + this.name + " and I am " + this.age + " years old.");
-  }
+//   greet() {
+//     print("Hello, my name is " + this.name + " and I am " + this.age + " years old.");
+//   }
 
-  haveBirthday() {
-    this.age = this.age + 1;
-  }
-}
+//   haveBirthday() {
+//     this.age = this.age + 1;
+//   }
+// }
 
-var p = Person("Alice", 25);
-p.greet(); 
-p.haveBirthday();
-p.greet();
+// var p = Person("Alice", 25);
+// p.greet(); 
+// p.haveBirthday();
+// p.greet();
 
-class Counter {
-  init() {
-    this.count = 0;
-  }
+// class Counter {
+//   init() {
+//     this.count = 0;
+//   }
 
-  increment() {
-    this.count = this.count + 1;
-  }
+//   increment() {
+//     this.count = this.count + 1;
+//   }
 
-  getCount() {
-    return this.count;
-  }
-}
+//   getCount() {
+//     return this.count;
+//   }
+// }
 
-var c = Counter();
-c.increment();
-c.increment();
-print(c.getCount()); // Expected: 2
+// var c = Counter();
+// c.increment();
+// c.increment();
+// print(c.getCount()); // Expected: 2
 
-class Box {
-  init(value) {
-    this.value = value;
-  }
+// class Box {
+//   init(value) {
+//     this.value = value;
+//   }
 
-  setValue(newValue) {
-    this.value = newValue;
-  }
+//   setValue(newValue) {
+//     this.value = newValue;
+//   }
 
-  getValue() {
-    return this.value;
-  }
-}
+//   getValue() {
+//     return this.value;
+//   }
+// }
 
-var b = Box(10);
-print(b.getValue()); // Expected: 10
-b.setValue(42);
-print(b.getValue()); // Expected: 42
+// var b = Box(10);
+// print(b.getValue()); // Expected: 10
+// b.setValue(42);
+// print(b.getValue()); // Expected: 42
+
+// class Animal {
+//   init(name) {
+//     this.name = name;
+//   }
+
+//   speak() {
+//     print(this.name + " makes a sound.");
+//   }
+// }
+
+// var a1 = Animal("Dog");
+// var a2 = Animal("Cat");
+
+// a1.speak(); // Expected: "Dog makes a sound."
+// a2.speak(); // Expected: "Cat makes a sound."
+
+// class Printer {
+//   init(message) {
+//     this.message = message;
+//   }
+
+//   printMessage() {
+//     print(this.message);
+//   }
+
+//   duplicate() {
+//     return Printer(this.message + " " + this.message);
+//   }
+// }
+
+// var p1 = Printer("Hello");
+// p1.printMessage(); // Expected: "Hello"
+
+// var p2 = p1.duplicate();
+// p2.printMessage(); // Expected: "Hello Hello"
+
+
+// class LightSwitch {
+//   init() {
+//     this.isOn = false;
+//   }
+
+//   turnOn() {
+//     this.isOn = true;
+//   }
+
+//   turnOff() {
+//     this.isOn = false;
+//   }
+
+//   isLightOn() {
+//     return this.isOn;
+//   }
+// }
+
+// var light = LightSwitch();
+// print(light.isLightOn()); // Expected: false
+// light.turnOn();
+// print(light.isLightOn()); // Expected: true
+// light.turnOff();
+// print(light.isLightOn()); // Expected: false
+
+// class Rectangle {
+//   init(width, height) {
+//     this.width = width;
+//     this.height = height;
+//   }
+  
+//   area() {
+//     return this.width * this.height;
+//   }
+  
+//   perimeter() {
+//     return 2 * (this.width + this.height);
+//   }
+// }
+
+// var rect = Rectangle(5, 10);
+// rect.color = "red";
+// print("Area: " + rect.area()); // Outputs: Area: 50
+// print("Perimeter: " + rect.perimeter()); // Outputs: Perimeter: 30
+// print("Color " + rect.color);
 
 class Animal {
-  init(name) {
-    this.name = name;
-  }
-
   speak() {
-    print(this.name + " makes a sound.");
+    print("Some generic animal sound");
   }
 }
 
-var a1 = Animal("Dog");
-var a2 = Animal("Cat");
-
-a1.speak(); // Expected: "Dog makes a sound."
-a2.speak(); // Expected: "Cat makes a sound."
-
-class Printer {
-  init(message) {
-    this.message = message;
-  }
-
-  printMessage() {
-    print(this.message);
-  }
-
-  duplicate() {
-    return Printer(this.message + " " + this.message);
+class Dog < Animal {  // Dog inherits from Animal
+  speak() {
+    print("Woof!");
   }
 }
 
-var p1 = Printer("Hello");
-p1.printMessage(); // Expected: "Hello"
+var a = Animal();
+a.speak();  
 
-var p2 = p1.duplicate();
-p2.printMessage(); // Expected: "Hello Hello"
-
-
-class LightSwitch {
-  init() {
-    this.isOn = false;
-  }
-
-  turnOn() {
-    this.isOn = true;
-  }
-
-  turnOff() {
-    this.isOn = false;
-  }
-
-  isLightOn() {
-    return this.isOn;
-  }
-}
-
-var light = LightSwitch();
-print(light.isLightOn()); // Expected: false
-light.turnOn();
-print(light.isLightOn()); // Expected: true
-light.turnOff();
-print(light.isLightOn()); // Expected: false
-
-class Rectangle {
-  init(width, height) {
-    this.width = width;
-    this.height = height;
-  }
-  
-  area() {
-    return this.width * this.height;
-  }
-  
-  perimeter() {
-    return 2 * (this.width + this.height);
-  }
-}
-
-var rect = Rectangle(5, 10);
-rect.color = "red";
-print("Area: " + rect.area()); // Outputs: Area: 50
-print("Perimeter: " + rect.perimeter()); // Outputs: Perimeter: 30
-print("Color " + rect.color);
+var d = Dog();
+d.speak(); 
 
 // class Invalid {
 //   init() {
