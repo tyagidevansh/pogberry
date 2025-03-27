@@ -5,7 +5,7 @@ CC = gcc
 CFLAGS = -Wall -std=c11
 
 # Linker flags
-LIBS = -lm -lreadline
+LIBS = -lm -lreadline -mwindows
 
 # Executable name
 EXEC = pogberry

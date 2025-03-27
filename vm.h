@@ -8,6 +8,22 @@
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
+// pointer types for each function
+typedef void (*InitWindowFunc)(int, int, const char*);
+typedef void (*BeginDrawingFunc)();
+typedef void (*ClearBackgroundFunc)(int, int, int);
+typedef void (*DrawTextFunc)(const char*, int, int, int, int, int, int);
+typedef void (*EndDrawingFunc)();
+typedef int (*WindowShouldCloseFunc)(); 
+
+// store function pointers globally
+extern InitWindowFunc initWindow;
+extern BeginDrawingFunc beginDrawing;
+extern ClearBackgroundFunc clearBackground;
+extern DrawTextFunc drawText;
+extern EndDrawingFunc endDrawing;
+extern WindowShouldCloseFunc windowShouldClose;
+
 typedef struct {
   ObjFunction* function;
   uint8_t* ip;

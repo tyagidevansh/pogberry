@@ -3,6 +3,7 @@
 #include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <windows.h>
 
 #include "common.h"
 #include "chunk.h"
@@ -67,7 +68,19 @@ static void runFile(const char* path) {
   if (result == INTERPRET_RUNTIME_ERROR) exit(70);
 }
 
+void attachConsole() {
+  if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
+      AllocConsole();
+  }
+  freopen("CONOUT$", "w", stdout);
+  freopen("CONOUT$", "w", stderr);
+  freopen("CONIN$", "r", stdin);
+}
+
+
 int main(int argc, const char* argv[]) {
+  attachConsole();
+
   initVM();
 
   if (argc == 1) {

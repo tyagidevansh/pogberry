@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <windows.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -13,6 +14,14 @@
 
 // global declaration of VM (fuck it we ball)
 VM vm;
+
+//global defintion of all the function pointers for raylib
+InitWindowFunc initWindow = NULL;
+BeginDrawingFunc beginDrawing = NULL;
+ClearBackgroundFunc clearBackground = NULL;
+DrawTextFunc drawText = NULL;
+EndDrawingFunc endDrawing = NULL;
+WindowShouldCloseFunc windowShouldClose = NULL;
 
 static void resetStack()
 {
@@ -264,6 +273,84 @@ static Value listRemove(int argCount, Value *args)
   return removedVal;
 }
 
+static Value initWindowNative(int argCount, Value* args) {
+  if (argCount != 3 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_STRING(args[2])) {
+      fprintf(stderr, "initWindow(width, height, title) expected\n");
+      return NIL_VAL;
+  }
+  int width = AS_NUMBER(args[0]);
+  int height = AS_NUMBER(args[1]);
+  const char* title = AS_CSTRING(args[2]);
+
+  initWindow(width, height, title);
+  return NIL_VAL;
+}
+
+static Value beginDrawingNative(int argCount, Value* args) {
+  if (argCount != 0) {
+      fprintf(stderr, "beginDrawing() takes no arguments\n");
+      return NIL_VAL;
+  }
+  beginDrawing();
+  return NIL_VAL;
+}
+
+static Value clearBackgroundNative(int argCount, Value* args) {
+  if (argCount != 3 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2])) {
+      fprintf(stderr, "clearBackground(r, g, b) expected\n");
+      return NIL_VAL;
+  }
+  int r = AS_NUMBER(args[0]);
+  int g = AS_NUMBER(args[1]);
+  int b = AS_NUMBER(args[2]);
+
+  clearBackground(r, g, b);
+  return NIL_VAL;
+}
+
+static Value drawTextNative(int argCount, Value* args) {
+  if (argCount != 7 || !IS_STRING(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2]) || 
+      !IS_NUMBER(args[3]) || !IS_NUMBER(args[4]) || !IS_NUMBER(args[5])) {
+      fprintf(stderr, "drawText(text, x, y, fontSize, r, g, b) expected\n");
+      return NIL_VAL;
+  }
+
+  const char* text = AS_CSTRING(args[0]);
+  int x = AS_NUMBER(args[1]);
+  int y = AS_NUMBER(args[2]);
+  int fontSize = AS_NUMBER(args[3]);
+  int r = AS_NUMBER(args[4]);
+  int g = AS_NUMBER(args[5]);
+  int b = AS_NUMBER(args[6]);
+
+  drawText(text, x, y, fontSize, r, g, b);
+  return NIL_VAL;
+}
+
+static Value endDrawingNative(int argCount, Value* args) {
+  if (argCount != 0) {
+      fprintf(stderr, "endDrawing() takes no arguments\n");
+      return NIL_VAL;
+  }
+  endDrawing();
+  return NIL_VAL;
+}
+
+static Value windowShouldCloseNative(int argCount, Value* args) {
+  if (argCount != 0) {
+      fprintf(stderr, "windowShouldClose() takes no arguments\n");
+      return BOOL_VAL(windowShouldClose());
+  }
+
+  if (windowShouldClose()) {
+    return BOOL_VAL(true);
+  } else {
+    return BOOL_VAL(false);
+  }
+  return NIL_VAL;
+}
+
+
 static void defineNative(const char *name, NativeFn function)
 {
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
@@ -290,6 +377,19 @@ void initVM()
   vm.initString = NULL; // GC reasons (again)
   vm.initString = copyString("init", 4);
 
+  HINSTANCE dllHandle = LoadLibrary("pogberry_gui.dll");
+  if (!dllHandle) {
+      printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError()); //handle this better
+  }
+
+  initWindow = (InitWindowFunc)GetProcAddress(dllHandle, "initWindow");
+  beginDrawing = (BeginDrawingFunc)GetProcAddress(dllHandle, "beginDrawing");
+  clearBackground = (ClearBackgroundFunc)GetProcAddress(dllHandle, "clearBackground");
+  drawText = (DrawTextFunc)GetProcAddress(dllHandle, "drawText");
+  endDrawing = (EndDrawingFunc)GetProcAddress(dllHandle, "endDrawing");
+  windowShouldClose = (WindowShouldCloseFunc)GetProcAddress(dllHandle, "windowShouldClose");
+
+
   srand(time(NULL)); // for the native function
   defineNative("clock", clockNative);
   defineNative("rand", randNative);
@@ -300,6 +400,12 @@ void initVM()
   defineNative("add", listAdd);
   defineNative("remove", listRemove);
   defineNative("sort", sortNative);
+  defineNative("initWindow", initWindowNative);
+  defineNative("beginDrawing", beginDrawingNative);
+  defineNative("clearBackground", clearBackgroundNative);
+  defineNative("drawText", drawTextNative);
+  defineNative("endDrawing", endDrawingNative);
+  defineNative("windowShouldClose", windowShouldCloseNative);
 }
 
 void freeVM()
