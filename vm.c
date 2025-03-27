@@ -15,7 +15,8 @@
 // global declaration of VM (fuck it we ball)
 VM vm;
 
-//global defintion of all the function pointers for raylib
+// global defintion of all the function pointers for raylib
+HINSTANCE dllHandle = NULL;
 InitWindowFunc initWindow = NULL;
 BeginDrawingFunc beginDrawing = NULL;
 ClearBackgroundFunc clearBackground = NULL;
@@ -273,32 +274,38 @@ static Value listRemove(int argCount, Value *args)
   return removedVal;
 }
 
-static Value initWindowNative(int argCount, Value* args) {
-  if (argCount != 3 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_STRING(args[2])) {
-      fprintf(stderr, "initWindow(width, height, title) expected\n");
-      return NIL_VAL;
+static Value initWindowNative(int argCount, Value *args)
+{
+  if (argCount != 3 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_STRING(args[2]))
+  {
+    fprintf(stderr, "initWindow(width, height, title) expected\n");
+    return NIL_VAL;
   }
   int width = AS_NUMBER(args[0]);
   int height = AS_NUMBER(args[1]);
-  const char* title = AS_CSTRING(args[2]);
+  const char *title = AS_CSTRING(args[2]);
 
   initWindow(width, height, title);
   return NIL_VAL;
 }
 
-static Value beginDrawingNative(int argCount, Value* args) {
-  if (argCount != 0) {
-      fprintf(stderr, "beginDrawing() takes no arguments\n");
-      return NIL_VAL;
+static Value beginDrawingNative(int argCount, Value *args)
+{
+  if (argCount != 0)
+  {
+    fprintf(stderr, "beginDrawing() takes no arguments\n");
+    return NIL_VAL;
   }
   beginDrawing();
   return NIL_VAL;
 }
 
-static Value clearBackgroundNative(int argCount, Value* args) {
-  if (argCount != 3 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2])) {
-      fprintf(stderr, "clearBackground(r, g, b) expected\n");
-      return NIL_VAL;
+static Value clearBackgroundNative(int argCount, Value *args)
+{
+  if (argCount != 3 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2]))
+  {
+    fprintf(stderr, "clearBackground(r, g, b) expected\n");
+    return NIL_VAL;
   }
   int r = AS_NUMBER(args[0]);
   int g = AS_NUMBER(args[1]);
@@ -308,14 +315,16 @@ static Value clearBackgroundNative(int argCount, Value* args) {
   return NIL_VAL;
 }
 
-static Value drawTextNative(int argCount, Value* args) {
-  if (argCount != 7 || !IS_STRING(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2]) || 
-      !IS_NUMBER(args[3]) || !IS_NUMBER(args[4]) || !IS_NUMBER(args[5])) {
-      fprintf(stderr, "drawText(text, x, y, fontSize, r, g, b) expected\n");
-      return NIL_VAL;
+static Value drawTextNative(int argCount, Value *args)
+{
+  if (argCount != 7 || !IS_STRING(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2]) ||
+      !IS_NUMBER(args[3]) || !IS_NUMBER(args[4]) || !IS_NUMBER(args[5]))
+  {
+    fprintf(stderr, "drawText(text, x, y, fontSize, r, g, b) expected\n");
+    return NIL_VAL;
   }
 
-  const char* text = AS_CSTRING(args[0]);
+  const char *text = AS_CSTRING(args[0]);
   int x = AS_NUMBER(args[1]);
   int y = AS_NUMBER(args[2]);
   int fontSize = AS_NUMBER(args[3]);
@@ -327,37 +336,44 @@ static Value drawTextNative(int argCount, Value* args) {
   return NIL_VAL;
 }
 
-static Value endDrawingNative(int argCount, Value* args) {
-  if (argCount != 0) {
-      fprintf(stderr, "endDrawing() takes no arguments\n");
-      return NIL_VAL;
+static Value endDrawingNative(int argCount, Value *args)
+{
+  if (argCount != 0)
+  {
+    fprintf(stderr, "endDrawing() takes no arguments\n");
+    return NIL_VAL;
   }
   endDrawing();
   return NIL_VAL;
 }
 
-static Value windowShouldCloseNative(int argCount, Value* args) {
-  if (argCount != 0) {
-      fprintf(stderr, "windowShouldClose() takes no arguments\n");
-      return BOOL_VAL(windowShouldClose());
+static Value windowShouldCloseNative(int argCount, Value *args)
+{
+  if (argCount != 0)
+  {
+    fprintf(stderr, "windowShouldClose() takes no arguments\n");
+    return BOOL_VAL(windowShouldClose());
   }
 
-  if (windowShouldClose()) {
+  if (windowShouldClose())
+  {
     return BOOL_VAL(true);
-  } else {
+  }
+  else
+  {
     return BOOL_VAL(false);
   }
   return NIL_VAL;
 }
 
+void defineNative(const char* name, NativeFn function) {
+  ObjString* nameObj = copyString(name, (int)strlen(name));
+  push(OBJ_VAL(nameObj)); 
+  push(OBJ_VAL(newNative(function))); 
 
-static void defineNative(const char *name, NativeFn function)
-{
-  push(OBJ_VAL(copyString(name, (int)strlen(name))));
-  push(OBJ_VAL(newNative(function)));
-  tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
-  pop();
-  pop();
+  tableSet(&vm.globals, nameObj, vm.stackTop[-1]);
+  pop(); 
+  pop(); 
 }
 
 void initVM()
@@ -377,19 +393,6 @@ void initVM()
   vm.initString = NULL; // GC reasons (again)
   vm.initString = copyString("init", 4);
 
-  HINSTANCE dllHandle = LoadLibrary("pogberry_gui.dll");
-  if (!dllHandle) {
-      printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError()); //handle this better
-  }
-
-  initWindow = (InitWindowFunc)GetProcAddress(dllHandle, "initWindow");
-  beginDrawing = (BeginDrawingFunc)GetProcAddress(dllHandle, "beginDrawing");
-  clearBackground = (ClearBackgroundFunc)GetProcAddress(dllHandle, "clearBackground");
-  drawText = (DrawTextFunc)GetProcAddress(dllHandle, "drawText");
-  endDrawing = (EndDrawingFunc)GetProcAddress(dllHandle, "endDrawing");
-  windowShouldClose = (WindowShouldCloseFunc)GetProcAddress(dllHandle, "windowShouldClose");
-
-
   srand(time(NULL)); // for the native function
   defineNative("clock", clockNative);
   defineNative("rand", randNative);
@@ -400,6 +403,28 @@ void initVM()
   defineNative("add", listAdd);
   defineNative("remove", listRemove);
   defineNative("sort", sortNative);
+}
+
+void initialiseRaylib()
+{
+  HINSTANCE dllHandle = LoadLibrary("pogberry_gui.dll");
+  if (!dllHandle)
+  {
+    printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError()); // handle this better
+  }
+
+  initWindow = (InitWindowFunc)GetProcAddress(dllHandle, "initWindow");
+  beginDrawing = (BeginDrawingFunc)GetProcAddress(dllHandle, "beginDrawing");
+  clearBackground = (ClearBackgroundFunc)GetProcAddress(dllHandle, "clearBackground");
+  drawText = (DrawTextFunc)GetProcAddress(dllHandle, "drawText");
+  endDrawing = (EndDrawingFunc)GetProcAddress(dllHandle, "endDrawing");
+  windowShouldClose = (WindowShouldCloseFunc)GetProcAddress(dllHandle, "windowShouldClose");
+
+  if (!initWindow || !beginDrawing || !clearBackground || !drawText || !endDrawing || !windowShouldClose) {
+    printf("Failed to get function addresses from DLL.\n");
+    FreeLibrary(dllHandle);
+  }
+
   defineNative("initWindow", initWindowNative);
   defineNative("beginDrawing", beginDrawingNative);
   defineNative("clearBackground", clearBackgroundNative);
@@ -414,6 +439,7 @@ void freeVM()
   freeTable(&vm.strings);
   vm.initString = NULL;
   freeObjects();
+  FreeLibrary(dllHandle);
 }
 
 void push(Value value)
@@ -472,21 +498,26 @@ static bool callValue(Value callee, int argCount)
       push(result);
       return true;
     }
-    case OBJ_CLASS: {
-      ObjClass* klass = AS_CLASS(callee);
+    case OBJ_CLASS:
+    {
+      ObjClass *klass = AS_CLASS(callee);
       vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
       Value initializer;
-      if (tableGet(&klass->methods, vm.initString, &initializer)) {
+      if (tableGet(&klass->methods, vm.initString, &initializer))
+      {
         return call(AS_FUNCTION(initializer), argCount);
-      } else if (argCount != 0) {
+      }
+      else if (argCount != 0)
+      {
         runtimeError("Expected 0 arguments but got %d.", argCount);
         return false;
       }
       return true;
     }
-    case OBJ_BOUND_METHOD: {
+    case OBJ_BOUND_METHOD:
+    {
       printf("inside obj bound");
-      ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+      ObjBoundMethod *bound = AS_BOUND_METHOD(callee);
       vm.stackTop[-argCount - 1] = bound->receiver;
       return call(bound->method, argCount);
     }
@@ -498,27 +529,32 @@ static bool callValue(Value callee, int argCount)
   return false;
 }
 
-static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
+static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount)
+{
   Value method;
-  if (!tableGet(&klass->methods, name, &method)) {
-  runtimeError("Undefined property '%s'.", name->chars);
-  return false;
+  if (!tableGet(&klass->methods, name, &method))
+  {
+    runtimeError("Undefined property '%s'.", name->chars);
+    return false;
   }
   return call(AS_FUNCTION(method), argCount);
 }
 
-static bool invoke(ObjString* name, int argCount) {
+static bool invoke(ObjString *name, int argCount)
+{
   Value receiver = peek(argCount);
 
-  if (!IS_INSTANCE(receiver)) {
+  if (!IS_INSTANCE(receiver))
+  {
     runtimeError("Only instances have methods.");
     return false;
   }
 
-  ObjInstance* instance = AS_INSTANCE(receiver);
+  ObjInstance *instance = AS_INSTANCE(receiver);
 
   Value value;
-  if (tableGet(&instance->fields, name, &value)) {
+  if (tableGet(&instance->fields, name, &value))
+  {
     vm.stackTop[-argCount - 1] = value;
     return callValue(value, argCount);
   }
@@ -526,14 +562,16 @@ static bool invoke(ObjString* name, int argCount) {
   return invokeFromClass(instance->klass, name, argCount);
 }
 
-static bool bindMethod(ObjClass* klass, ObjString* name) {
+static bool bindMethod(ObjClass *klass, ObjString *name)
+{
   Value method;
-  if (!tableGet(&klass->methods, name, &method)) {
+  if (!tableGet(&klass->methods, name, &method))
+  {
     runtimeError("Undefined property '%s'.", name->chars);
     return false;
   }
 
-  ObjBoundMethod* bound = newBoundMethod(peek(0), AS_FUNCTION(method));
+  ObjBoundMethod *bound = newBoundMethod(peek(0), AS_FUNCTION(method));
   pop();
   push(OBJ_VAL(bound));
   return true;
@@ -572,15 +610,19 @@ static void concatenate()
   chars[length] = '\0';
 
   // the gc makes you do weird shit man
-  pop(); pop(); pop(); pop();
+  pop();
+  pop();
+  pop();
+  pop();
 
   ObjString *result = takeString(chars, length);
   push(OBJ_VAL(result));
 }
 
-static void defineMethod(ObjString* name) {
+static void defineMethod(ObjString *name)
+{
   Value method = peek(0);
-  ObjClass* klass = AS_CLASS(peek(1));
+  ObjClass *klass = AS_CLASS(peek(1));
   tableSet(&klass->methods, name, method);
   pop();
 }
@@ -616,18 +658,18 @@ static InterpretResult run()
 
   for (;;)
   {
-    #ifdef DEBUG_TRACE_EXECUTION
-        printf("        ");
-        for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
-        {
-          printf("[ ");
-          printValue(*slot);
-          printf(" ]");
-        }
-        printf("\n");
-        disassembleInstruction(&frame->function->chunk,
-                               (int)(frame->ip - frame->function->chunk.code));
-    #endif
+#ifdef DEBUG_TRACE_EXECUTION
+    printf("        ");
+    for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
+    {
+      printf("[ ");
+      printValue(*slot);
+      printf(" ]");
+    }
+    printf("\n");
+    disassembleInstruction(&frame->function->chunk,
+                           (int)(frame->ip - frame->function->chunk.code));
+#endif
     uint8_t instruction;
     switch (instruction = READ_BYTE())
     {
@@ -691,66 +733,78 @@ static InterpretResult run()
       }
       break;
     }
-    case OP_GET_PROPERTY: {
-      if (!IS_INSTANCE(peek(0))) {
+    case OP_GET_PROPERTY:
+    {
+      if (!IS_INSTANCE(peek(0)))
+      {
         runtimeError("Only instances have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjInstance* instance = AS_INSTANCE(peek(0));
-      ObjString* name = READ_STRING();
+      ObjInstance *instance = AS_INSTANCE(peek(0));
+      ObjString *name = READ_STRING();
 
       Value value;
-      if (tableGet(&instance->fields, name, &value)) {
+      if (tableGet(&instance->fields, name, &value))
+      {
         pop();
         push(value);
         break;
       }
 
-      if (!bindMethod(instance->klass, name)) {
+      if (!bindMethod(instance->klass, name))
+      {
         return INTERPRET_RUNTIME_ERROR;
       }
       break;
       // need to define a way to check if a field exists, also delete
       // push(NIL_VAL); // if the property doesnt exist dont crash the vm just return nil
     }
-    case OP_SET_PROPERTY: {
-      if (!IS_INSTANCE(peek(1))) {
+    case OP_SET_PROPERTY:
+    {
+      if (!IS_INSTANCE(peek(1)))
+      {
         runtimeError("Only instances have fields.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjInstance* instance = AS_INSTANCE(peek(1));
+      ObjInstance *instance = AS_INSTANCE(peek(1));
       tableSet(&instance->fields, READ_STRING(), peek(0));
       Value value = pop();
       pop();
       push(value);
       break;
     }
-    case OP_INVOKE: {
-      ObjString* method = READ_STRING();
+    case OP_INVOKE:
+    {
+      ObjString *method = READ_STRING();
       int argCount = READ_BYTE();
-      if (!invoke(method, argCount)) {
+      if (!invoke(method, argCount))
+      {
         return INTERPRET_RUNTIME_ERROR;
       }
       frame = &vm.frames[vm.frameCount - 1];
       break;
     }
-    case OP_SUPER_INVOKE: {
-      ObjString* method = READ_STRING();
+    case OP_SUPER_INVOKE:
+    {
+      ObjString *method = READ_STRING();
       int argCount = READ_BYTE();
-      ObjClass* superclass = AS_CLASS(pop());
-      if (!invokeFromClass(superclass, method, argCount)) {
+      ObjClass *superclass = AS_CLASS(pop());
+      if (!invokeFromClass(superclass, method, argCount))
+      {
         return INTERPRET_RUNTIME_ERROR;
       }
       frame = &vm.frames[vm.frameCount - 1];
       break;
     }
-    case OP_GET_SUPER: {
-      ObjString* name = READ_STRING();
-      ObjClass* superclass = AS_CLASS(pop());
+    case OP_GET_SUPER:
+    {
+      ObjString *name = READ_STRING();
+      ObjClass *superclass = AS_CLASS(pop());
 
-      if (!bindMethod(superclass, name)) {
+      if (!bindMethod(superclass, name))
+      {
         return INTERPRET_RUNTIME_ERROR;
       }
       break;
@@ -797,7 +851,8 @@ static InterpretResult run()
       BINARY_OP(NUMBER_VAL, /);
       break;
     case OP_MODULO:
-      if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {
+      if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1)))
+      {
         runtimeError("Operands must be numbers.");
         return INTERPRET_RUNTIME_ERROR;
       }
@@ -805,14 +860,15 @@ static InterpretResult run()
       double b = AS_NUMBER(pop());
       double a = AS_NUMBER(pop());
 
-      if (floor(b) != b || floor(a) != a) { // integer check
+      if (floor(b) != b || floor(a) != a)
+      { // integer check
         runtimeError("Modulo only accepts integer operands.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
       int intA = (int)a;
       int intB = (int)b;
-      
+
       push(NUMBER_VAL(intA % intB));
       break;
     case OP_NOT:
@@ -858,7 +914,7 @@ static InterpretResult run()
     {
       int argCount = READ_BYTE();
       if (!callValue(peek(argCount), argCount))
-      { 
+      {
         printf("rintime errpr inside call");
         return INTERPRET_RUNTIME_ERROR;
       }
@@ -879,8 +935,9 @@ static InterpretResult run()
           runtimeError("String index out of bounds.");
           return INTERPRET_RUNTIME_ERROR;
         }
-        
-        pop(); pop(); 
+
+        pop();
+        pop();
 
         char chars[2] = {string->chars[i], '\0'};
         push(OBJ_VAL(copyString(chars, 1)));
@@ -910,7 +967,8 @@ static InterpretResult run()
           keyStr = copyString(keyBuffer, strlen(keyBuffer));
         }
 
-        pop(); pop();
+        pop();
+        pop();
 
         Value value;
         if (tableGet(&hashmap->items, keyStr, &value))
@@ -985,7 +1043,7 @@ static InterpretResult run()
 
     case OP_SET_INDEX:
     {
-      Value value = pop();  // think this is fine because it wont ever be a part of any other expression
+      Value value = pop(); // think this is fine because it wont ever be a part of any other expression
       Value key = pop();
       Value container = pop();
 
@@ -1174,8 +1232,10 @@ static InterpretResult run()
         ObjString *key = copyString(keyStr, strlen(keyStr));
         tableSet(&hashmap->items, key, value);
       }
-      
-      pop(); pop(); pop();
+
+      pop();
+      pop();
+      pop();
       push(OBJ_VAL(hashmap));
       break;
     }
@@ -1270,20 +1330,37 @@ static InterpretResult run()
       push(OBJ_VAL(newClass(READ_STRING())));
       break;
     }
-    case OP_INHERIT: {
+    case OP_INHERIT:
+    {
       Value superclass = peek(1);
-      if (!IS_CLASS(superclass)) {
+      if (!IS_CLASS(superclass))
+      {
         runtimeError("Superclass must be a class.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      ObjClass* subclass = AS_CLASS(peek(0));
-      tableAddAll(&AS_CLASS(superclass)->methods,&subclass->methods);
+      ObjClass *subclass = AS_CLASS(peek(0));
+      tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
       pop();
       break;
     }
-    case OP_METHOD: {
-        defineMethod(READ_STRING());
-        break;
+    case OP_METHOD:
+    {
+      defineMethod(READ_STRING());
+      break;
+    }
+    case OP_USE:
+    {
+      Value name = pop();
+      if (!IS_STRING(name)) {
+        runtimeError("Expected a string for 'use' statement.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjString *namestr = AS_STRING(name);
+      if (strcmp(namestr->chars, "raylib") == 0)
+      {
+        initialiseRaylib();
+      }
+      break;
     }
     }
   }

@@ -55,4 +55,4 @@ int main() {
     return 0;
 }
 
-// gcc -o test_dll.exe test_dll.c -mwindows
+// gcc -o test_dll.exe test_dll.c

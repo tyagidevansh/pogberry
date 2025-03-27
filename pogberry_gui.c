@@ -1,9 +1,9 @@
 #ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN  // exclude rarely used Windows APIs
+#define WIN32_LEAN_AND_MEAN  // Exclude rarely used Windows APIs
 #endif
 
 #ifndef NOMINMAX
-#define NOMINMAX             // prevent Windows.h from defining min/max macros
+#define NOMINMAX             // Prevent Windows.h from defining min/max macros
 #endif
 
 #include <windows.h>
@@ -18,7 +18,7 @@
 
 #include <raylib.h>
 
-// undo the temporary renames so that raylib can be used normally
+// Undo the temporary renames so that Raylib can be used normally
 #undef Rectangle
 #undef CloseWindow
 #undef ShowCursor
@@ -26,28 +26,81 @@
 #undef DrawText
 #undef DrawTextEx
 
+// Window functions
 __declspec(dllexport) void initWindow(int width, int height, const char* title) {
+    SetTraceLogLevel(LOG_ERROR); // Only write to the console in case of an error
     InitWindow(width, height, title);
 }
 
+__declspec(dllexport) int windowShouldClose() {
+    return WindowShouldClose();
+}
+
+__declspec(dllexport) void setTargetFPS(int fps) {
+    SetTargetFPS(fps);
+}
+
+// Rendering functions
 __declspec(dllexport) void beginDrawing() {
     BeginDrawing();
-}
-
-__declspec(dllexport) void clearBackground(int r, int g, int b) {
-    ClearBackground((Color){r, g, b, 255});
-}
-
-__declspec(dllexport) void drawText(const char* text, int x, int y, int fontSize, int r, int g, int b) {
-    DrawText(text, x, y, fontSize, (Color){r, g, b, 255});
 }
 
 __declspec(dllexport) void endDrawing() {
     EndDrawing();
 }
 
-__declspec(dllexport) int windowShouldClose() {
-  return WindowShouldClose();
+__declspec(dllexport) void clearBackground(int r, int g, int b) {
+    ClearBackground((Color){r, g, b, 255});
+}
+
+// Text drawing functions
+__declspec(dllexport) void drawText(const char* text, int x, int y, int fontSize, int r, int g, int b) {
+    DrawText(text, x, y, fontSize, (Color){r, g, b, 255});
+}
+
+// Shape drawing functions
+__declspec(dllexport) void drawRectangle(int x, int y, int width, int height, int r, int g, int b) {
+    DrawRectangle(x, y, width, height, (Color){r, g, b, 255});
+}
+
+__declspec(dllexport) void drawCircle(int x, int y, float radius, int r, int g, int b) {
+    DrawCircle(x, y, radius, (Color){r, g, b, 255});
+}
+
+// Input functions
+__declspec(dllexport) int isKeyPressed(int key) {
+    return IsKeyPressed(key);
+}
+
+__declspec(dllexport) int isKeyDown(int key) {
+    return IsKeyDown(key);
+}
+
+__declspec(dllexport) int isMouseButtonPressed(int button) {
+    return IsMouseButtonPressed(button);
+}
+
+__declspec(dllexport) int isMouseButtonDown(int button) {
+    return IsMouseButtonDown(button);
+}
+
+__declspec(dllexport) void getMousePosition(float* x, float* y) {
+    Vector2 pos = GetMousePosition();
+    *x = pos.x;
+    *y = pos.y;
+}
+
+// Texture functions
+__declspec(dllexport) Texture2D loadTexture(const char* filename) {
+    return LoadTexture(filename);
+}
+
+__declspec(dllexport) void unloadTexture(Texture2D texture) {
+    UnloadTexture(texture);
+}
+
+__declspec(dllexport) void drawTexture(Texture2D texture, int x, int y, int r, int g, int b) {
+    DrawTexture(texture, x, y, (Color){r, g, b, 255});
 }
 
 

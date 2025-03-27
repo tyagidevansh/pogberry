@@ -54,6 +54,7 @@ typedef enum {
   OP_CLASS,
   OP_INHERIT,
   OP_METHOD,
+  OP_USE,
 } OpCode;
 
 // unit of bytecode, essentially the entire AST class from JLOX

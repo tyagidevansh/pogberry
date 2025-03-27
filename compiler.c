@@ -452,7 +452,6 @@ static void and_(bool canAssign)
   patchJump(endJump);
 }
 
-
 static void binary(bool canAssign)
 {
   TokenType operatorType = parser.previous.type;
@@ -505,18 +504,24 @@ static void call(bool canAssign)
   emitBytes(OP_CALL, argCount);
 }
 
-static void dot(bool canAssign) {
+static void dot(bool canAssign)
+{
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
   uint8_t name = identifierConstant(&parser.previous);
 
-  if (canAssign && match(TOKEN_EQUAL)) {
+  if (canAssign && match(TOKEN_EQUAL))
+  {
     expression();
     emitBytes(OP_SET_PROPERTY, name);
-  } else if (match(TOKEN_LEFT_PAREN)) {
+  }
+  else if (match(TOKEN_LEFT_PAREN))
+  {
     uint8_t argCount = argumentList();
     emitBytes(OP_INVOKE, name);
     emitByte(argCount);
-  } else {
+  }
+  else
+  {
     emitBytes(OP_GET_PROPERTY, name);
   }
 }
@@ -629,7 +634,7 @@ static void varDeclaration()
 }
 
 static void variable(bool canAssign);
-static Token syntheticToken(const char* text);
+static Token syntheticToken(const char *text);
 
 static void classDeclaration()
 {
@@ -646,11 +651,13 @@ static void classDeclaration()
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
 
-  if (match(TOKEN_LESS)) {
+  if (match(TOKEN_LESS))
+  {
     consume(TOKEN_IDENTIFIER, "Expect superclass name.");
     variable(false);
 
-    if (identifiersEqual(&className, &parser.previous)) {
+    if (identifiersEqual(&className, &parser.previous))
+    {
       error("A class can't inherit from itself.");
     }
 
@@ -840,6 +847,21 @@ static void whileStatement()
   emitByte(OP_POP);
 }
 
+static void useStatement()
+{
+  if (current->type != TYPE_SCRIPT)
+  {
+    error("Can only include libraries in top-level code.");
+    return;
+  }
+
+  // consume(TOKEN_STRING, "Expect library name after 'use'.");
+  // uint8_t constant = makeConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
+  expression();
+  consume(TOKEN_SEMICOLON, "Expect ';'");
+  emitByte(OP_USE);
+}
+
 static void list(bool canAssign)
 {
   int itemCount = 0;
@@ -980,11 +1002,13 @@ static void handleDot(bool canAssign)
     }
   }
 
-  if (match(TOKEN_DOT)) {
+  if (match(TOKEN_DOT))
+  {
     handleDot(canAssign);
   }
 
-  if (match(TOKEN_LEFT_BRACKET)) {
+  if (match(TOKEN_LEFT_BRACKET))
+  {
     expression();
     emitByte(OP_GET_INDEX);
     consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
@@ -1073,6 +1097,10 @@ static void statement()
   {
     consume(TOKEN_RIGHT_BRACKET, "expect ']'");
   }
+  else if (match(TOKEN_USE))
+  {
+    useStatement();
+  }
   else
   {
     expressionStatement();
@@ -1130,7 +1158,8 @@ static void namedVariable(Token name, bool canAssign)
   }
   else if (canAssign && match(TOKEN_EQUAL))
   {
-    if (name.length == 4 && memcmp(name.start, "this", 4) == 0) {
+    if (name.length == 4 && memcmp(name.start, "this", 4) == 0)
+    {
       error("Cannot assign to 'this'.");
     }
     expression();
@@ -1147,17 +1176,22 @@ static void variable(bool canAssign)
   namedVariable(parser.previous, canAssign);
 }
 
-static Token syntheticToken(const char* text) {
+static Token syntheticToken(const char *text)
+{
   Token token;
   token.start = text;
   token.length = (int)strlen(text);
   return token;
 }
 
-static void super_(bool canAssign) {
-  if (currentClass == NULL) {
+static void super_(bool canAssign)
+{
+  if (currentClass == NULL)
+  {
     error("Can't use 'super' outside of a class.");
-  } else if (!currentClass->hasSuperclass) {
+  }
+  else if (!currentClass->hasSuperclass)
+  {
     error("Can't use 'super' in a class with no superclass.");
   }
 
@@ -1166,12 +1200,15 @@ static void super_(bool canAssign) {
   uint8_t name = identifierConstant(&parser.previous);
 
   namedVariable(syntheticToken("this"), false);
-  if (match(TOKEN_LEFT_PAREN)) {
+  if (match(TOKEN_LEFT_PAREN))
+  {
     uint8_t argCount = argumentList();
     namedVariable(syntheticToken("super"), false);
     emitBytes(OP_SUPER_INVOKE, name);
     emitByte(argCount);
-  } else {
+  }
+  else
+  {
     namedVariable(syntheticToken("super"), false);
     emitBytes(OP_GET_SUPER, name);
   }
@@ -1249,6 +1286,7 @@ ParseRule rules[] = {
     [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
     [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_USE] = {NULL, NULL, PREC_NONE},
     [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
     [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
 };
