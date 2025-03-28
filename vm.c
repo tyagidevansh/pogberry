@@ -18,11 +18,21 @@ VM vm;
 // global defintion of all the function pointers for raylib
 HINSTANCE dllHandle = NULL;
 InitWindowFunc initWindow = NULL;
+WindowShouldCloseFunc windowShouldClose = NULL;
+SetTargetFPSFunc setTargetFPS = NULL;
 BeginDrawingFunc beginDrawing = NULL;
+EndDrawingFunc endDrawing = NULL;
 ClearBackgroundFunc clearBackground = NULL;
 DrawTextFunc drawText = NULL;
-EndDrawingFunc endDrawing = NULL;
-WindowShouldCloseFunc windowShouldClose = NULL;
+DrawRectangleFunc drawRectangle = NULL;
+DrawCircleFunc drawCircle = NULL;
+IsKeyPressedFunc isKeyPressed = NULL;
+IsKeyDownFunc isKeyDown = NULL;
+IsMouseButtonPressedFunc isMouseButtonPressed = NULL;
+IsMouseButtonDownFunc isMouseButtonDown = NULL;
+GetMousePositionFunc getMousePosition = NULL;
+DrawLineFunc drawLine = NULL;
+// GetFps getFps = NULL;
 
 static void resetStack()
 {
@@ -366,6 +376,146 @@ static Value windowShouldCloseNative(int argCount, Value *args)
   return NIL_VAL;
 }
 
+static Value drawRectangleNative(int argCount, Value *args)
+{
+    if (argCount != 7 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2]) ||
+        !IS_NUMBER(args[3]) || !IS_NUMBER(args[4]) || !IS_NUMBER(args[5]) || !IS_NUMBER(args[6]))
+    {
+        fprintf(stderr, "drawRectangle(x, y, width, height, r, g, b) expected\n");
+        return NIL_VAL;
+    }
+
+    int x = AS_NUMBER(args[0]);
+    int y = AS_NUMBER(args[1]);
+    int width = AS_NUMBER(args[2]);
+    int height = AS_NUMBER(args[3]);
+    int r = AS_NUMBER(args[4]);
+    int g = AS_NUMBER(args[5]);
+    int b = AS_NUMBER(args[6]);
+
+    drawRectangle(x, y, width, height, r, g, b);
+    return NIL_VAL;
+}
+
+static Value drawCircleNative(int argCount, Value *args)
+{
+    if (argCount != 6 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2]) ||
+        !IS_NUMBER(args[3]) || !IS_NUMBER(args[4]) || !IS_NUMBER(args[5]))
+    {
+        fprintf(stderr, "drawCircle(x, y, radius, r, g, b) expected\n");
+        return NIL_VAL;
+    }
+
+    int x = AS_NUMBER(args[0]);
+    int y = AS_NUMBER(args[1]);
+    int radius = AS_NUMBER(args[2]);
+    int r = AS_NUMBER(args[3]);
+    int g = AS_NUMBER(args[4]);
+    int b = AS_NUMBER(args[5]);
+
+    drawCircle(x, y, radius, r, g, b);
+    return NIL_VAL;
+}
+
+static Value drawLineNative(int argCount, Value *args)
+{
+    if (argCount != 7 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_NUMBER(args[2]) ||
+        !IS_NUMBER(args[3]) || !IS_NUMBER(args[4]) || !IS_NUMBER(args[5]) || !IS_NUMBER(args[6]))
+    {
+        fprintf(stderr, "drawLine(x1, y1, x2, y2, r, g, b) expected\n");
+        return NIL_VAL;
+    }
+
+    int x1 = AS_NUMBER(args[0]);
+    int y1 = AS_NUMBER(args[1]);
+    int x2 = AS_NUMBER(args[2]);
+    int y2 = AS_NUMBER(args[3]);
+    int r = AS_NUMBER(args[4]);
+    int g = AS_NUMBER(args[5]);
+    int b = AS_NUMBER(args[6]);
+
+    drawLine(x1, y1, x2, y2, r, g, b);
+    return NIL_VAL;
+}
+
+static Value setTargetFPSNative(int argCount, Value *args)
+{
+    if (argCount != 1 || !IS_NUMBER(args[0]))
+    {
+        fprintf(stderr, "setTargetFPS(fps) expected\n");
+        return NIL_VAL;
+    }
+
+    int fps = AS_NUMBER(args[0]);
+    setTargetFPS(fps);
+    return NIL_VAL;
+}
+
+static Value isKeyDownNative(int argCount, Value* args)
+{
+    if (argCount != 1 || !IS_STRING(args[0])) 
+    {
+        fprintf(stderr, "isKeyDown(string keyName) expected\n");
+        return NIL_VAL;
+    }
+
+    const char* keyName = AS_CSTRING(args[0]);
+    int key = KEY_NULL; 
+
+    if (strcmp(keyName, "KEY_UP") == 0) key = KEY_UP;
+    else if (strcmp(keyName, "KEY_DOWN") == 0) key = KEY_DOWN;
+    else if (strcmp(keyName, "KEY_LEFT") == 0) key = KEY_LEFT;
+    else if (strcmp(keyName, "KEY_RIGHT") == 0) key = KEY_RIGHT;
+    else if (strcmp(keyName, "KEY_W") == 0) key = KEY_W;
+    else if (strcmp(keyName, "KEY_A") == 0) key = KEY_A;
+    else if (strcmp(keyName, "KEY_S") == 0) key = KEY_S;
+    else if (strcmp(keyName, "KEY_D") == 0) key = KEY_D;
+    else if (strcmp(keyName, "KEY_SPACE") == 0) key = KEY_SPACE;
+    else if (strcmp(keyName, "KEY_ENTER") == 0) key = KEY_ENTER;
+    else if (strcmp(keyName, "KEY_ESCAPE") == 0) key = KEY_ESCAPE;
+    else 
+    {
+        fprintf(stderr, "Invalid key name: %s\n", keyName);
+        return NIL_VAL;
+    }
+
+    return BOOL_VAL(isKeyDown(key));
+}
+
+static Value isMouseButtonDownNative(int argCount, Value* args)
+{
+  if (argCount != 1 || !IS_STRING(args[0]))
+  {
+    fprintf(stderr, "isMouseButtonDown(string buttonName) expected.");
+    return NIL_VAL;
+  }
+
+  const char* buttonName = AS_CSTRING(args[0]);
+
+  int button = -1;
+
+  if (strcmp(buttonName, "MOUSE_LEFT") == 0) button = 0;
+  else if (strcmp(buttonName, "MOUSE_RIGHT") == 0) button = 1;
+  else if (strcmp(buttonName, "MOUSE_MIDDLE") == 0) button = 2;
+  else 
+  {
+    fprintf(stderr, "Invalid button name: %s\n", buttonName);
+    return NIL_VAL;
+  }
+
+  return BOOL_VAL(isMouseButtonDown(button));
+}
+
+// static Value getFPSNative(int argCount, Value *args)
+// {
+//     if (argCount != 0)
+//     {
+//         fprintf(stderr, "getFPS() takes no arguments\n");
+//         return NIL_VAL;
+//     }
+//     return NUMBER_VAL(getFPS());
+// }
+
 void defineNative(const char* name, NativeFn function) {
   ObjString* nameObj = copyString(name, (int)strlen(name));
   push(OBJ_VAL(nameObj)); 
@@ -407,32 +557,42 @@ void initVM()
 
 void initialiseRaylib()
 {
-  HINSTANCE dllHandle = LoadLibrary("pogberry_gui.dll");
-  if (!dllHandle)
-  {
-    printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError()); // handle this better
-  }
+    dllHandle = LoadLibrary("pogberry_gui.dll");
+    if (!dllHandle)
+    {
+        printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError());
+        return;
+    }
 
-  initWindow = (InitWindowFunc)GetProcAddress(dllHandle, "initWindow");
-  beginDrawing = (BeginDrawingFunc)GetProcAddress(dllHandle, "beginDrawing");
-  clearBackground = (ClearBackgroundFunc)GetProcAddress(dllHandle, "clearBackground");
-  drawText = (DrawTextFunc)GetProcAddress(dllHandle, "drawText");
-  endDrawing = (EndDrawingFunc)GetProcAddress(dllHandle, "endDrawing");
-  windowShouldClose = (WindowShouldCloseFunc)GetProcAddress(dllHandle, "windowShouldClose");
+    // Load function pointers
+    initWindow = (InitWindowFunc)GetProcAddress(dllHandle, "initWindow");
+    beginDrawing = (BeginDrawingFunc)GetProcAddress(dllHandle, "beginDrawing");
+    clearBackground = (ClearBackgroundFunc)GetProcAddress(dllHandle, "clearBackground");
+    drawText = (DrawTextFunc)GetProcAddress(dllHandle, "drawText");
+    endDrawing = (EndDrawingFunc)GetProcAddress(dllHandle, "endDrawing");
+    windowShouldClose = (WindowShouldCloseFunc)GetProcAddress(dllHandle, "windowShouldClose");
+    drawRectangle = (DrawRectangleFunc)GetProcAddress(dllHandle, "drawRectangle");
+    drawCircle = (DrawCircleFunc)GetProcAddress(dllHandle, "drawCircle");
+    drawLine = (DrawLineFunc)GetProcAddress(dllHandle, "drawLine");
+    isKeyDown = (IsKeyDownFunc)GetProcAddress(dllHandle, "isKeyDown");
+    isMouseButtonDown = (IsMouseButtonDownFunc)GetProcAddress(dllHandle, "isMouseButtonDown");
+    setTargetFPS = (SetTargetFPSFunc)GetProcAddress(dllHandle, "setTargetFPS");
+    // getFPS = (GetFPSFunc)GetProcAddress(dllHandle, "getFPS");
 
-  if (!initWindow || !beginDrawing || !clearBackground || !drawText || !endDrawing || !windowShouldClose) {
-    printf("Failed to get function addresses from DLL.\n");
-    FreeLibrary(dllHandle);
-  }
-
-  defineNative("initWindow", initWindowNative);
-  defineNative("beginDrawing", beginDrawingNative);
-  defineNative("clearBackground", clearBackgroundNative);
-  defineNative("drawText", drawTextNative);
-  defineNative("endDrawing", endDrawingNative);
-  defineNative("windowShouldClose", windowShouldCloseNative);
+    // Register native functions
+    defineNative("initWindow", initWindowNative);
+    defineNative("beginDrawing", beginDrawingNative);
+    defineNative("clearBackground", clearBackgroundNative);
+    defineNative("drawText", drawTextNative);
+    defineNative("endDrawing", endDrawingNative);
+    defineNative("windowShouldClose", windowShouldCloseNative);
+    defineNative("drawRectangle", drawRectangleNative);
+    defineNative("drawCircle", drawCircleNative);
+    defineNative("drawLine", drawLineNative);
+    defineNative("setTargetFPS", setTargetFPSNative);
+    defineNative("isKeyDown", isKeyDownNative);
+    // defineNative("getFPS", getFPSNative);
 }
-
 void freeVM()
 {
   freeTable(&vm.globals);
@@ -1356,7 +1516,7 @@ static InterpretResult run()
         return INTERPRET_RUNTIME_ERROR;
       }
       ObjString *namestr = AS_STRING(name);
-      if (strcmp(namestr->chars, "raylib") == 0)
+      if (strcmp(namestr->chars, "pogberry_gui") == 0)
       {
         initialiseRaylib();
       }

@@ -67,6 +67,10 @@ __declspec(dllexport) void drawCircle(int x, int y, float radius, int r, int g, 
     DrawCircle(x, y, radius, (Color){r, g, b, 255});
 }
 
+__declspec(dllexport) void drawLine(int startx, int starty, int endx, int endy, int r, int g, int b) {
+    DrawLine(startx, starty, endx, endy, (Color){r, g, b, 255});
+}
+
 // Input functions
 __declspec(dllexport) int isKeyPressed(int key) {
     return IsKeyPressed(key);
@@ -89,19 +93,5 @@ __declspec(dllexport) void getMousePosition(float* x, float* y) {
     *x = pos.x;
     *y = pos.y;
 }
-
-// Texture functions
-__declspec(dllexport) Texture2D loadTexture(const char* filename) {
-    return LoadTexture(filename);
-}
-
-__declspec(dllexport) void unloadTexture(Texture2D texture) {
-    UnloadTexture(texture);
-}
-
-__declspec(dllexport) void drawTexture(Texture2D texture, int x, int y, int r, int g, int b) {
-    DrawTexture(texture, x, y, (Color){r, g, b, 255});
-}
-
 
 //gcc -shared -o pogberry_gui.dll pogberry_gui.c -DWIN32_LEAN_AND_MEAN -DNOMINMAX -lraylib -lopengl32 -lgdi32 -lwinmm

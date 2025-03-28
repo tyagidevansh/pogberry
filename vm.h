@@ -8,21 +8,56 @@
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
-// pointer types for each function
+typedef enum {
+  KEY_NULL            = 0,        // Key: NULL, used for no key pressed
+  // Alphanumeric keys
+  KEY_A               = 65,       // Key: A | a
+  KEY_D               = 68,       // Key: D | d
+  KEY_S               = 83,       // Key: S | s
+  KEY_W               = 87,       // Key: W | w
+  // Function keys
+  KEY_SPACE           = 32,       // Key: Space
+  KEY_ESCAPE          = 256,      // Key: Esc
+  KEY_ENTER           = 257,      // Key: Enter
+  KEY_RIGHT           = 262,      // Key: Cursor right
+  KEY_LEFT            = 263,      // Key: Cursor left
+  KEY_DOWN            = 264,      // Key: Cursor down
+  KEY_UP              = 265,      // Key: Cursor up
+} KeyboardKey;
+
+// function pointer types for Raylib bindings
 typedef void (*InitWindowFunc)(int, int, const char*);
+typedef int (*WindowShouldCloseFunc)();
+typedef void (*SetTargetFPSFunc)(int);
 typedef void (*BeginDrawingFunc)();
+typedef void (*EndDrawingFunc)();
 typedef void (*ClearBackgroundFunc)(int, int, int);
 typedef void (*DrawTextFunc)(const char*, int, int, int, int, int, int);
-typedef void (*EndDrawingFunc)();
-typedef int (*WindowShouldCloseFunc)(); 
+typedef void (*DrawRectangleFunc)(int, int, int, int, int, int, int);
+typedef void (*DrawCircleFunc)(int, int, float, int, int, int);
+typedef void (*DrawLineFunc)(int, int, int, int, int, int, int);
+typedef int (*IsKeyPressedFunc)(int);
+typedef int (*IsKeyDownFunc)(int);
+typedef int (*IsMouseButtonPressedFunc)(int);
+typedef int (*IsMouseButtonDownFunc)(int);
+typedef void (*GetMousePositionFunc)(float*, float*);
 
-// store function pointers globally
+// global function pointers
 extern InitWindowFunc initWindow;
+extern WindowShouldCloseFunc windowShouldClose;
+extern SetTargetFPSFunc setTargetFPS;
 extern BeginDrawingFunc beginDrawing;
+extern EndDrawingFunc endDrawing;
 extern ClearBackgroundFunc clearBackground;
 extern DrawTextFunc drawText;
-extern EndDrawingFunc endDrawing;
-extern WindowShouldCloseFunc windowShouldClose;
+extern DrawRectangleFunc drawRectangle;
+extern DrawCircleFunc drawCircle;
+extern DrawLineFunc drawLine;
+extern IsKeyPressedFunc isKeyPressed;
+extern IsKeyDownFunc isKeyDown;
+extern IsMouseButtonPressedFunc isMouseButtonPressed;
+extern IsMouseButtonDownFunc isMouseButtonDown;
+extern GetMousePositionFunc getMousePosition;
 
 typedef struct {
   ObjFunction* function;
@@ -62,4 +97,4 @@ InterpretResult interpret(const char* source); //run the chunk and respond with 
 void push(Value value);
 Value pop();
 
-#endif 
+#endif
