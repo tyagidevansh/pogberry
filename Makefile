@@ -11,10 +11,10 @@ LIBS = -lm -lreadline
 EXEC = pogberry
 
 # Source files
-SRC = main.c value.c memory.c chunk.c debug.c vm.c scanner.c compiler.c object.c table.c
+SRC = main.c value.c memory.c chunk.c debug.c vm.c scanner.c compiler.c object.c table.c native.c
 
 # Object files
-OBJ = main.o value.o memory.o chunk.o debug.o vm.o scanner.o compiler.o object.o table.o
+OBJ = main.o value.o memory.o chunk.o debug.o vm.o scanner.o compiler.o object.o table.o native.o
 
 # Default target
 all: $(EXEC)
