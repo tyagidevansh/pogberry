@@ -5,10 +5,10 @@
 #include <math.h>
 #include <stdarg.h>
 
-#include "native.h"
-#include "memory.h"
-#include "object.h"
-#include "vm.h"
+#include "headers/native.h"
+#include "headers/memory.h"
+#include "headers/object.h"
+#include "headers/vm.h"
 
 static void runtimeError(const char *format, ...)
 { // variadic function

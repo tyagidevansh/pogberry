@@ -94,4 +94,4 @@ __declspec(dllexport) void getMousePosition(float* x, float* y) {
     *y = pos.y;
 }
 
-//gcc -shared -o pogberry_gui.dll pogberry_gui.c -DWIN32_LEAN_AND_MEAN -DNOMINMAX -lraylib -lopengl32 -lgdi32 -lwinmm
+//gcc -shared -o lib/pogberry_gui_windows.dll pogberry_gui_windows.c -DWIN32_LEAN_AND_MEAN -DNOMINMAX -lraylib -lopengl32 -lgdi32 -lwinmm

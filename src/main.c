@@ -4,10 +4,10 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include "common.h"
-#include "chunk.h"
-#include "debug.h"
-#include "vm.h"
+#include "headers/common.h"
+#include "headers/chunk.h"
+#include "headers/debug.h"
+#include "headers/vm.h"
 
 static void repl() {
   char* line;

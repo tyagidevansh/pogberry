@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
-#include "memory.h"
-#include "compiler.h"
-#include "scanner.h"
+#include "headers/common.h"
+#include "headers/memory.h"
+#include "headers/compiler.h"
+#include "headers/scanner.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"

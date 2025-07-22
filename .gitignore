@@ -2,4 +2,4 @@
 *.o
 *.exe
 test.pb
-*.dll
+/build/

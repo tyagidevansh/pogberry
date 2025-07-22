@@ -12,13 +12,13 @@
 #error "Unsupported Platform"
 #endif
 
-#include "common.h"
-#include "compiler.h"
-#include "debug.h"
-#include "object.h"
-#include "memory.h"
-#include "vm.h"
-#include "native.h"
+#include "headers/common.h"
+#include "headers/compiler.h"
+#include "headers/debug.h"
+#include "headers/object.h"
+#include "headers/memory.h"
+#include "headers/vm.h"
+#include "headers/native.h"
 
 // global declaration of VM (fuck it we ball)
 VM vm;
