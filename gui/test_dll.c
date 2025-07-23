@@ -11,7 +11,7 @@ typedef int (*WindowShouldCloseFunc)();
 
 int main() {
     printf("Loading DLL...\n"); // printfs dont work for some reason?
-    HINSTANCE dllHandle = LoadLibrary("pogberry_gui.dll");
+    HINSTANCE dllHandle = LoadLibrary("../lib/pogberry_gui_windows.dll");
     if (!dllHandle) {
         printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError());
         return 1;

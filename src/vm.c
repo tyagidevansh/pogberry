@@ -109,7 +109,7 @@ void initVM()
 #ifdef _WIN32
 void initialiseRaylibWin()
 {
-  dllHandle = LoadLibrary("pogberry_gui.dll");
+  dllHandle = LoadLibrary("lib/pogberry_gui_windows.dll");
   if (!dllHandle)
   {
     printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError());

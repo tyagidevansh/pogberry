@@ -34,10 +34,10 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 # Clean build artifacts
 clean:
 ifeq ($(OS),Windows_NT)
-	del /Q $(OBJ_DIR)\*.o $(EXEC)
+	-del /Q $(subst /,\,$(OBJ_DIR))\*.o 2>nul
+	-del /Q $(EXEC).exe 2>nul
 else
-	rm -rf $(OBJ_DIR) $(EXEC)
+	rm -f $(OBJ_DIR)/*.o $(EXEC)
 endif
-
 
 .PHONY: all clean
