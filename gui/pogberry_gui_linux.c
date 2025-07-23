@@ -68,4 +68,4 @@ void getMousePosition(float* x, float* y) {
     *y = pos.y;
 }
 
-// gcc -shared -fPIC -o lib/pogberry_gui_linux.so gui/pogberry_gui_linux.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+//gcc -shared -fPIC -o lib/pogberry_gui_linux.so gui/pogberry_gui_linux.c /usr/local/lib/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11

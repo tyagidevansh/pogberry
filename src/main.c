@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif
 
 #include "headers/common.h"
 #include "headers/chunk.h"
@@ -10,20 +12,29 @@
 #include "headers/vm.h"
 
 static void repl() {
-  char* line;
+  char line[1024];
   for (;;) {
-    line = readline("> ");
-    if (!line) {
-      printf("\n");
-      break;
-    }
-
-    if (strlen(line) > 0) {
-      add_history(line);
-    }
-
+    #ifdef _WIN32
+      // basic fgets for Windows
+      printf("> ");
+      if (!fgets(line, sizeof(line), stdin)) {
+        printf("\n");
+        break;
+      }
+    #else
+      // use readline on Linux
+      char* buffer = readline("> ");
+      if (!buffer) {
+        printf("\n");
+        break;
+      }
+      if (strlen(buffer) > 0) {
+        add_history(buffer);
+      }
+      if (buffer) strcpy(line, buffer);
+    #endif
+    
     interpret(line);
-    free(line);
   }
 }
 
