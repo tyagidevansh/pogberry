@@ -26,6 +26,10 @@ VM vm;
 // global defintion of all the function pointers for raylib
 #ifdef _WIN32
 HINSTANCE dllHandle = NULL;
+#elif defined(__linux__)
+void* handle = NULL;
+#endif
+
 InitWindowFunc initWindow = NULL;
 WindowShouldCloseFunc windowShouldClose = NULL;
 SetTargetFPSFunc setTargetFPS = NULL;
@@ -42,7 +46,7 @@ IsMouseButtonDownFunc isMouseButtonDown = NULL;
 GetMousePositionFunc getMousePosition = NULL;
 DrawLineFunc drawLine = NULL;
 // GetFps getFps = NULL;
-#endif
+
 
 static void resetStack()
 {
@@ -148,7 +152,47 @@ void initialiseRaylibWin()
 #elif defined(__linux__)
 void initialiseRaylibLinux()
 {
-  // pass
+  handle = dlopen("lib/pogberry_gui_linux.so", RTLD_LAZY);
+  if (!handle) {
+    fprintf(stderr, "Failed to load shared library: %s\n", dlerror());
+    return;
+  }
+
+  dlerror();
+
+  initWindow = (InitWindowFunc)dlsym(handle, "initWindow");
+  beginDrawing = (BeginDrawingFunc)dlsym(handle, "beginDrawing");
+  clearBackground = (ClearBackgroundFunc)dlsym(handle, "clearBackground");
+  drawText = (DrawTextFunc)dlsym(handle, "drawText");
+  endDrawing = (EndDrawingFunc)dlsym(handle, "endDrawing");
+  windowShouldClose = (WindowShouldCloseFunc)dlsym(handle, "windowShouldClose");
+  drawRectangle = (DrawRectangleFunc)dlsym(handle, "drawRectangle");
+  drawCircle = (DrawCircleFunc)dlsym(handle, "drawCircle");
+  drawLine = (DrawLineFunc)dlsym(handle, "drawLine");
+  isKeyDown = (IsKeyDownFunc)dlsym(handle, "isKeyDown");
+  isMouseButtonDown = (IsMouseButtonDownFunc)dlsym(handle, "isMouseButtonDown");
+  setTargetFPS = (SetTargetFPSFunc)dlsym(handle, "setTargetFPS");
+  // getFPS = (GetFPSFunc)dlsym(handle, "getFPS");
+
+  defineNative("initWindow", initWindowNative);
+  defineNative("beginDrawing", beginDrawingNative);
+  defineNative("clearBackground", clearBackgroundNative);
+  defineNative("drawText", drawTextNative);
+  defineNative("endDrawing", endDrawingNative);
+  defineNative("windowShouldClose", windowShouldCloseNative);
+  defineNative("drawRectangle", drawRectangleNative);
+  defineNative("drawCircle", drawCircleNative);
+  defineNative("drawLine", drawLineNative);
+  defineNative("setTargetFPS", setTargetFPSNative);
+  defineNative("isKeyDown", isKeyDownNative);
+  // defineNative("getFPS", getFPSNative);
+  
+  // char* error;
+  // if ((error = dlerror()) != NULL) {
+  //   fprintf(stderr, "Error loading symbols: %s\n", error);
+  //   dlclose(handle);
+  //   return 74;
+  // }
 }
 #endif
 
@@ -1080,9 +1124,11 @@ static InterpretResult run()
       ObjString *namestr = AS_STRING(name);
       if (strcmp(namestr->chars, "pogberry_gui") == 0)
       {
-#ifdef _WIN32
-        initialiseRaylibWin();
-#endif
+        #ifdef _WIN32
+          initialiseRaylibWin();
+        #elif defined(__linux__)
+          initialiseRaylibLinux();
+        #endif
       }
       break;
     }
