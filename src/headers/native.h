@@ -28,6 +28,12 @@ Value drawLineNative(int argCount, Value *args);
 Value setTargetFPSNative(int argCount, Value *args);
 Value isKeyDownNative(int argCount, Value *args);
 Value isMouseButtonDownNative(int argCount, Value *args);
+Value closeWindowNative(int argCount, Value *args);
+Value isWindowMinimizedNative(int argCount, Value *args);
+Value toggleBorderlessWindowedNative(int argCount, Value *args);
+Value getScreenWidthNative(int argCount, Value *args);
+Value getScreenHeightNative(int argCount, Value *args);
+Value getFPSNative(int argCount, Value *args);
 
 void defineNative(const char *name, NativeFn function);
 

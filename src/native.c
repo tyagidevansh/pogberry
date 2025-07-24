@@ -489,6 +489,72 @@ Value isMouseButtonDownNative(int argCount, Value *args)
     return BOOL_VAL(isMouseButtonDown(button));
 }
 
+// Window close
+Value closeWindowNative(int argCount, Value *args)
+{
+    if (argCount != 0)
+    {
+        fprintf(stderr, "closeWindow() takes no arguments\n");
+        return NIL_VAL;
+    }
+    closeWindow();
+    return NIL_VAL;
+}
+
+// Window state
+Value isWindowMinimizedNative(int argCount, Value *args)
+{
+    if (argCount != 0)
+    {
+        fprintf(stderr, "isWindowMinimized() takes no arguments\n");
+        return NIL_VAL;
+    }
+    return BOOL_VAL(isWindowMinimized());
+}
+
+// Toggle borderless
+Value toggleBorderlessWindowedNative(int argCount, Value *args)
+{
+    if (argCount != 0)
+    {
+        fprintf(stderr, "toggleBorderlessWindowed() takes no arguments\n");
+        return NIL_VAL;
+    }
+    toggleBorderlessWindowed();
+    return NIL_VAL;
+}
+
+// Screen info
+Value getScreenWidthNative(int argCount, Value *args)
+{
+    if (argCount != 0)
+    {
+        fprintf(stderr, "getScreenWidth() takes no arguments\n");
+        return NIL_VAL;
+    }
+    return NUMBER_VAL(getScreenWidth());
+}
+
+Value getScreenHeightNative(int argCount, Value *args)
+{
+    if (argCount != 0)
+    {
+        fprintf(stderr, "getScreenHeight() takes no arguments\n");
+        return NIL_VAL;
+    }
+    return NUMBER_VAL(getScreenHeight());
+}
+
+Value getFPSNative(int argCount, Value *args)
+{
+    if (argCount != 0)
+    {
+        fprintf(stderr, "getFPS() takes no arguments\n");
+        return NIL_VAL;
+    }
+    return NUMBER_VAL(getFPS());
+}
+
 void defineNative(const char *name, NativeFn function)
 {
     ObjString *nameObj = copyString(name, (int)strlen(name));

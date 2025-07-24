@@ -4,7 +4,7 @@ PASS=0
 FAIL=0
 
 for src in *.pb; do
-    base=${src%.pog}
+    base=${src%.pb}
     expected="$base.out"
     output=$(mktemp)
     

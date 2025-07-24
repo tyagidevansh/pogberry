@@ -27,7 +27,7 @@ VM vm;
 #ifdef _WIN32
 HINSTANCE dllHandle = NULL;
 #elif defined(__linux__)
-void* handle = NULL;
+void *handle = NULL;
 #endif
 
 InitWindowFunc initWindow = NULL;
@@ -47,6 +47,13 @@ GetMousePositionFunc getMousePosition = NULL;
 DrawLineFunc drawLine = NULL;
 // GetFps getFps = NULL;
 
+// new function pointers
+CloseWindowFunc closeWindow = NULL;
+IsWindowMinimizedFunc isWindowMinimized = NULL;
+ToggleBorderlessWindowedFunc toggleBorderlessWindowed = NULL;
+GetScreenWidthFunc getScreenWidth = NULL;
+GetScreenHeightFunc getScreenHeight = NULL;
+GetFPSFunc getFPS = NULL;
 
 static void resetStack()
 {
@@ -133,9 +140,15 @@ void initialiseRaylibWin()
   isKeyDown = (IsKeyDownFunc)GetProcAddress(dllHandle, "isKeyDown");
   isMouseButtonDown = (IsMouseButtonDownFunc)GetProcAddress(dllHandle, "isMouseButtonDown");
   setTargetFPS = (SetTargetFPSFunc)GetProcAddress(dllHandle, "setTargetFPS");
-  // getFPS = (GetFPSFunc)GetProcAddress(dllHandle, "getFPS");
+  getFPS = (GetFPSFunc)GetProcAddress(dllHandle, "getFPS");
 
-  // Register native functions
+  closeWindow = (CloseWindowFunc)GetProcAddress(dllHandle, "closeWindow");
+  isWindowMinimized = (IsWindowMinimizedFunc)GetProcAddress(dllHandle, "isWindowMinimized");
+  toggleBorderlessWindowed = (ToggleBorderlessWindowedFunc)GetProcAddress(dllHandle, "toggleBorderlessWindowed");
+  getScreenWidth = (GetScreenWidthFunc)GetProcAddress(dllHandle, "getScreenWidth");
+  getScreenHeight = (GetScreenHeightFunc)GetProcAddress(dllHandle, "getScreenHeight");
+  getFPS = (GetFPSFunc)GetProcAddress(dllHandle, "getFPS");
+
   defineNative("initWindow", initWindowNative);
   defineNative("beginDrawing", beginDrawingNative);
   defineNative("clearBackground", clearBackgroundNative);
@@ -147,13 +160,19 @@ void initialiseRaylibWin()
   defineNative("drawLine", drawLineNative);
   defineNative("setTargetFPS", setTargetFPSNative);
   defineNative("isKeyDown", isKeyDownNative);
-  // defineNative("getFPS", getFPSNative);
+  defineNative("closeWindow", closeWindowNative);
+  defineNative("isWindowMinimized", isWindowMinimizedNative);
+  defineNative("toggleBorderlessWindowed", toggleBorderlessWindowedNative);
+  defineNative("getScreenWidth", getScreenWidthNative);
+  defineNative("getScreenHeight", getScreenHeightNative);
+  defineNative("getFPS", getFPSNative);
 }
 #elif defined(__linux__)
 void initialiseRaylibLinux()
 {
   handle = dlopen("lib/pogberry_gui_linux.so", RTLD_LAZY);
-  if (!handle) {
+  if (!handle)
+  {
     fprintf(stderr, "Failed to load shared library: %s\n", dlerror());
     return;
   }
@@ -172,7 +191,12 @@ void initialiseRaylibLinux()
   isKeyDown = (IsKeyDownFunc)dlsym(handle, "isKeyDown");
   isMouseButtonDown = (IsMouseButtonDownFunc)dlsym(handle, "isMouseButtonDown");
   setTargetFPS = (SetTargetFPSFunc)dlsym(handle, "setTargetFPS");
-  // getFPS = (GetFPSFunc)dlsym(handle, "getFPS");
+  closeWindow = (CloseWindowFunc)dlsym(handle, "closeWindow");
+  isWindowMinimized = (IsWindowMinimizedFunc)dlsym(handle, "isWindowMinimized");
+  toggleBorderlessWindowed = (ToggleBorderlessWindowedFunc)dlsym(handle, "toggleBorderlessWindowed");
+  getScreenWidth = (GetScreenWidthFunc)dlsym(handle, "getScreenWidth");
+  getScreenHeight = (GetScreenHeightFunc)dlsym(handle, "getScreenHeight");
+  getFPS = (GetFPSFunc)dlsym(handle, "getFPS");
 
   defineNative("initWindow", initWindowNative);
   defineNative("beginDrawing", beginDrawingNative);
@@ -185,14 +209,14 @@ void initialiseRaylibLinux()
   defineNative("drawLine", drawLineNative);
   defineNative("setTargetFPS", setTargetFPSNative);
   defineNative("isKeyDown", isKeyDownNative);
-  // defineNative("getFPS", getFPSNative);
-  
-  // char* error;
-  // if ((error = dlerror()) != NULL) {
-  //   fprintf(stderr, "Error loading symbols: %s\n", error);
-  //   dlclose(handle);
-  //   return 74;
-  // }
+  defineNative("getFPS", getFPSNative);
+
+  defineNative("closeWindow", closeWindowNative);
+  defineNative("isWindowMinimized", isWindowMinimizedNative);
+  defineNative("toggleBorderlessWindowed", toggleBorderlessWindowedNative);
+  defineNative("getScreenWidth", getScreenWidthNative);
+  defineNative("getScreenHeight", getScreenHeightNative);
+  defineNative("getFPS", getFPSNative);
 }
 #endif
 
@@ -808,7 +832,7 @@ static InterpretResult run()
 
     case OP_SET_INDEX:
     {
-      Value value = pop(); // think this is fine because it wont ever be a part of any other expression
+      Value value = pop(); // think this is fine because it won't ever be part of any other expression
       Value key = pop();
       Value container = pop();
 
