@@ -125,7 +125,7 @@ fun main() {
 
         updateInput();
 
-        if (!isDead and now - lastTime >= 0.2) {
+        if (!isDead and now - lastTime >= 0.1) {
             updateSnake();
             lastTime = now;
         }

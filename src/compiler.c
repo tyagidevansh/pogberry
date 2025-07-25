@@ -74,6 +74,17 @@ typedef struct ClassCompiler
   bool hasSuperclass;
 } ClassCompiler;
 
+#define MAX_BREAKS 256
+typedef struct LoopCompiler
+{
+  struct LoopCompiler *enclosing;
+  int breakJumpOffsets[MAX_BREAKS];
+  int breakCount;
+} LoopCompiler;
+
+static LoopCompiler *currentLoop = NULL;
+static void breakStatement(void);
+
 Parser parser;
 Compiler *current = NULL;
 ClassCompiler *currentClass = NULL;
@@ -693,6 +704,11 @@ static void expressionStatement()
 
 static void forStatement()
 {
+  LoopCompiler loopCompiler;
+  loopCompiler.enclosing = currentLoop;
+  loopCompiler.breakCount = 0;
+  currentLoop = &loopCompiler;
+
   beginScope(); // wrap the whole statement in a block for proper scoping for variables
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
   if (match(TOKEN_SEMICOLON))
@@ -743,6 +759,14 @@ static void forStatement()
   }
 
   endScope();
+
+  // patch any breaks recorded in this loop
+  for (int i = 0; i < currentLoop->breakCount; i++)
+  {
+    patchJump(currentLoop->breakJumpOffsets[i]);
+  }
+
+  currentLoop = currentLoop->enclosing;
 }
 
 static void ifStatement()
@@ -831,8 +855,28 @@ static void returnStatement()
   }
 }
 
+static void breakStatement(void)
+{
+  if (currentLoop == NULL)
+  {
+    error("Can't use 'break' outside of a loop.");
+    return;
+  }
+  int jumpOffset = emitJump(OP_JUMP);
+  if (currentLoop->breakCount < MAX_BREAKS)
+  {
+    currentLoop->breakJumpOffsets[currentLoop->breakCount++] = jumpOffset;
+  }
+  consume(TOKEN_SEMICOLON, "Expect ';' after 'break'.");
+}
+
 static void whileStatement()
 {
+  LoopCompiler loopCompiler;
+  loopCompiler.enclosing = currentLoop;
+  loopCompiler.breakCount = 0;
+  currentLoop = &loopCompiler;
+
   int loopStart = currentChunk()->count;
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
@@ -845,6 +889,13 @@ static void whileStatement()
 
   patchJump(exitJump);
   emitByte(OP_POP);
+
+  for (int i = 0; i < currentLoop->breakCount; i++)
+  {
+    patchJump(currentLoop->breakJumpOffsets[i]);
+  }
+
+  currentLoop = currentLoop->enclosing;
 }
 
 static void useStatement()
@@ -1100,6 +1151,10 @@ static void statement()
   else if (match(TOKEN_USE))
   {
     useStatement();
+  }
+  else if (match(TOKEN_BREAK))
+  {
+    breakStatement();
   }
   else
   {

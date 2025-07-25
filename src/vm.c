@@ -147,7 +147,8 @@ void initialiseRaylibWin()
   drawRectangle = (DrawRectangleFunc)GetProcAddress(dllHandle, "drawRectangle");
   drawCircle = (DrawCircleFunc)GetProcAddress(dllHandle, "drawCircle");
   drawLine = (DrawLineFunc)GetProcAddress(dllHandle, "drawLine");
-  isKeyDown = (IsKeyDownFunc)GetProcAddress(dllHandle, "isKeyDown");
+  // ! does not work for unknown reasons (always returns true)
+  // isKeyDown = (IsKeyDownFunc)GetProcAddress(dllHandle, "isKeyDown");
   isKeyPressed = (IsKeyPressedFunc)GetProcAddress(dllHandle, "isKeyPressed");
   isMouseButtonDown = (IsMouseButtonDownFunc)GetProcAddress(dllHandle, "isMouseButtonDown");
   setTargetFPS = (SetTargetFPSFunc)GetProcAddress(dllHandle, "setTargetFPS");
@@ -180,7 +181,7 @@ void initialiseRaylibWin()
   defineNative("drawCircle", drawCircleNative);
   defineNative("drawLine", drawLineNative);
   defineNative("setTargetFPS", setTargetFPSNative);
-  defineNative("isKeyDown", isKeyDownNative);
+  // defineNative("isKeyDown", isKeyDownNative);
   defineNative("isKeyPressed", isKeyPressedNative);
   defineNative("closeWindow", closeWindowNative);
   defineNative("isWindowMinimized", isWindowMinimizedNative);
@@ -222,7 +223,7 @@ void initialiseRaylibLinux()
   drawRectangle = (DrawRectangleFunc)dlsym(handle, "drawRectangle");
   drawCircle = (DrawCircleFunc)dlsym(handle, "drawCircle");
   drawLine = (DrawLineFunc)dlsym(handle, "drawLine");
-  isKeyDown = (IsKeyDownFunc)dlsym(handle, "isKeyDown");
+  // isKeyDown = (IsKeyDownFunc)dlsym(handle, "isKeyDown");
   isKeyPressed = (IsKeyPressedFunc)dlsym(handle, "isKeyPressed");
   isMouseButtonDown = (IsMouseButtonDownFunc)dlsym(handle, "isMouseButtonDown");
   setTargetFPS = (SetTargetFPSFunc)dlsym(handle, "setTargetFPS");
@@ -255,7 +256,7 @@ void initialiseRaylibLinux()
   defineNative("drawCircle", drawCircleNative);
   defineNative("drawLine", drawLineNative);
   defineNative("setTargetFPS", setTargetFPSNative);
-  defineNative("isKeyDown", isKeyDownNative);
+  // defineNative("isKeyDown", isKeyDownNative);
   defineNative("isKeyPressed", isKeyPressedNative);
   defineNative("getFPS", getFPSNative);
   defineNative("getMouseX", getMouseXNative);

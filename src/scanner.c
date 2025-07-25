@@ -148,6 +148,8 @@ static TokenType identifierType()
   // if there is only one keyword corresponding to a character (for eg F does NOT, as it can have for, false and fun while 'i' can only have 'if')
   case 'a':
     return checkKeyword(1, 2, "nd", TOKEN_AND);
+  case 'b':
+    return checkKeyword(1, 4, "reak", TOKEN_BREAK);
   case 'c':
     if (scanner.current - scanner.start > 1) {
       switch(scanner.start[1]) {

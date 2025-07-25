@@ -51,6 +51,7 @@ typedef enum {
   OP_HASHMAP_DELETE,
   OP_SIZE,
   OP_RETURN,
+  OP_BREAK,
   OP_CLASS,
   OP_INHERIT,
   OP_METHOD,
