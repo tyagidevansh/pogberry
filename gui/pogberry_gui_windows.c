@@ -61,19 +61,19 @@ __declspec(dllexport) int getScreenHeight(void) { return GetScreenHeight(); }
 __declspec(dllexport) int getFPS(void) { return GetFPS(); }
 
 // Drawing control
-__declspec(dllexport) void clearBackground(Color color) { ClearBackground(color); }
+__declspec(dllexport) void clearBackground(int r, int g, int b) { ClearBackground((Color){r, g, b, 255}); }
 __declspec(dllexport) void beginDrawing(void) { BeginDrawing(); }
 __declspec(dllexport) void endDrawing(void) { EndDrawing(); }
 __declspec(dllexport) void setTargetFPS(int fps) { SetTargetFPS(fps); }
 __declspec(dllexport) void swapScreenBuffer(void) { EndDrawing(); }
 
 // Shape drawing
-__declspec(dllexport) void drawPixel(int posX, int posY, Color color) { DrawPixel(posX, posY, color); }
-__declspec(dllexport) void drawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color) { DrawLine(startPosX, startPosY, endPosX, endPosY, color); }
-__declspec(dllexport) void drawCircle(int centerX, int centerY, float radius, Color color) { DrawCircle(centerX, centerY, radius, color); }
-__declspec(dllexport) void drawEllipse(int centerX, int centerY, float radiusH, float radiusV, Color color) { DrawEllipse(centerX, centerY, radiusH, radiusV, color); }
-__declspec(dllexport) void drawRectangle(int posX, int posY, int width, int height, Color color) { DrawRectangle(posX, posY, width, height, color); }
-__declspec(dllexport) void drawText(const char *text, int posX, int posY, int fontSize, Color color) { DrawText(text, posX, posY, fontSize, color); }
+__declspec(dllexport) void drawPixel(int posX, int posY, int r, int g, int b) { DrawPixel(posX, posY, (Color){r, g, b, 255}); }
+__declspec(dllexport) void drawLine(int startPosX, int startPosY, int endPosX, int endPosY, int r, int g, int b) { DrawLine(startPosX, startPosY, endPosX, endPosY, (Color){r, g, b, 255}); }
+__declspec(dllexport) void drawCircle(int centerX, int centerY, float radius, int r, int g, int b) { DrawCircle(centerX, centerY, radius, (Color){r, g, b, 255}); }
+__declspec(dllexport) void drawEllipse(int centerX, int centerY, float radiusH, float radiusV, int r, int g, int b) { DrawEllipse(centerX, centerY, radiusH, radiusV, (Color){r, g, b, 255}); }
+__declspec(dllexport) void drawRectangle(int posX, int posY, int width, int height, int r, int g, int b) { DrawRectangle(posX, posY, width, height, (Color){r, g, b, 255}); }
+__declspec(dllexport) void drawText(const char *text, int posX, int posY, int fontSize, int r, int g, int b) { DrawText(text, posX, posY, fontSize, (Color){r, g, b, 255}); }
 
 // Keyboard input
 __declspec(dllexport) bool isKeyPressed(int key) { return IsKeyPressed(key); }
@@ -92,4 +92,4 @@ __declspec(dllexport) bool isMouseButtonUp(int button) { return IsMouseButtonUp(
 __declspec(dllexport) int getMouseX(void) { return GetMouseX(); }
 __declspec(dllexport) int getMouseY(void) { return GetMouseY(); }
 
-// gcc -shared -o lib/pogberry_gui_windows.dll pogberry_gui_windows.c -DWIN32_LEAN_AND_MEAN -DNOMINMAX -lraylib -lopengl32 -lgdi32 -lwinmm
+// gcc -shared -o lib/pogberry_gui_windows.dll gui/pogberry_gui_windows.c -DWIN32_LEAN_AND_MEAN -DNOMINMAX -lraylib -lopengl32 -lgdi32 -lwinmm

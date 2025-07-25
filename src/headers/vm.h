@@ -27,7 +27,7 @@ typedef enum
 } KeyboardKey;
 
 // function pointer types for Raylib bindings
-typedef void (*InitWindowFunc)(int, int, const char*);
+typedef void (*InitWindowFunc)(int, int, const char *);
 typedef int (*WindowShouldCloseFunc)();
 typedef void (*SetTargetFPSFunc)(int);
 typedef void (*BeginDrawingFunc)();
@@ -42,6 +42,18 @@ typedef int (*IsKeyDownFunc)(int);
 typedef int (*IsMouseButtonPressedFunc)(int);
 typedef int (*IsMouseButtonDownFunc)(int);
 typedef void (*GetMousePositionFunc)(float *, float *);
+typedef void (*SwapScreenBufferFunc)();
+typedef void (*DrawPixelFunc)(int, int, int, int, int);
+typedef void (*DrawEllipseFunc)(int, int, float, float, int, int, int);
+typedef int (*IsKeyReleasedFunc)(int);
+typedef int (*IsKeyUpFunc)(int);
+typedef int (*GetKeyPressedFunc)();
+typedef int (*GetCharPressedFunc)();
+typedef void (*SetExitKeyFunc)(int);
+typedef int (*IsMouseButtonReleasedFunc)(int);
+typedef int (*IsMouseButtonUpFunc)(int);
+typedef int (*GetMouseXFunc)();
+typedef int (*GetMouseYFunc)();
 
 // Window control function pointer types
 typedef void (*CloseWindowFunc)();
@@ -62,18 +74,28 @@ extern DrawTextFunc drawText;
 extern DrawRectangleFunc drawRectangle;
 extern DrawCircleFunc drawCircle;
 extern DrawLineFunc drawLine;
+extern CloseWindowFunc closeWindow;
+extern ToggleBorderlessWindowedFunc toggleBorderlessWindowed;
+extern IsWindowMinimizedFunc isWindowMinimized;
+extern GetScreenWidthFunc getScreenWidth;
+extern GetScreenHeightFunc getScreenHeight;
 extern IsKeyPressedFunc isKeyPressed;
 extern IsKeyDownFunc isKeyDown;
 extern IsMouseButtonPressedFunc isMouseButtonPressed;
 extern IsMouseButtonDownFunc isMouseButtonDown;
 extern GetMousePositionFunc getMousePosition;
-
-// new window control pointers
-extern CloseWindowFunc closeWindow;
-extern IsWindowMinimizedFunc isWindowMinimized;
-extern ToggleBorderlessWindowedFunc toggleBorderlessWindowed;
-extern GetScreenWidthFunc getScreenWidth;
-extern GetScreenHeightFunc getScreenHeight;
+extern SwapScreenBufferFunc swapScreenBuffer;
+extern DrawPixelFunc drawPixel;
+extern DrawEllipseFunc drawEllipse;
+extern IsKeyReleasedFunc isKeyReleased;
+extern IsKeyUpFunc isKeyUp;
+extern GetKeyPressedFunc getKeyPressed;
+extern GetCharPressedFunc getCharPressed;
+extern SetExitKeyFunc setExitKey;
+extern IsMouseButtonReleasedFunc isMouseButtonReleased;
+extern IsMouseButtonUpFunc isMouseButtonUp;
+extern GetMouseXFunc getMouseX;
+extern GetMouseYFunc getMouseY;
 extern GetFPSFunc getFPS;
 
 typedef struct

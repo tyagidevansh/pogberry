@@ -40,7 +40,7 @@ var name = "Pogberry";
 
 ```pogberry
 fun greet() {
-  print "Hello, World!";
+  print("Hello, World!");
 }
 ```
 
@@ -48,9 +48,9 @@ fun greet() {
 
 ```pogberry
 if (x > 5) {
-  print "x is greater than 5";
+  print("x is greater than 5");
 } else {
-  print "x is 5 or less";
+  print("x is 5 or less");
 }
 ```
 
@@ -58,7 +58,7 @@ if (x > 5) {
 
 ```pogberry
 for (var i = 0; i < 10; i = i + 1) {
-  print i;
+  print(i);
 }
 ```
 
@@ -71,7 +71,7 @@ Concatenation makes new strings. "+" is the supported concatenation operator. Nu
 var a = "Hello"; //defining a string
 var b = a + " World" //concatenation
 
-print a[3]; //Outputs: l
+print(a[3]); //Outputs: l
 ```
 
 ## Arrays and Hashmaps
@@ -84,25 +84,25 @@ Arrays are ordered collections of elements. Pogberry supports mixed type arrays,
 
 ```pogberry
 var numbers = [1, 2, 3, 4, 5];
-print numbers[0]; // Outputs: 1
+print(numbers[0]); // Outputs: 1
 
 numbers.push(6);
-print numbers; // Outputs: [1, 2, 3, 4, 5, 6]
+print(numbers); // Outputs: [1, 2, 3, 4, 5, 6]
 
 numbers.add(9, 3)
-print numbers; //Outputs: [1, 2, 3, 9, 4, 5, 6]
+print(numbers); //Outputs: [1, 2, 3, 9, 4, 5, 6]
 
 numbers.pop();
-print numbers; //Outputs: [1, 2, 3, 9, 4, 5]
+print(numbers); //Outputs: [1, 2, 3, 9, 4, 5]
 
 numbers.remove(3) // provide index
-print numbers; //Outputs: [1, 2, 3, 4, 5]
+print(numbers); //Outputs: [1, 2, 3, 4, 5]
 
 numbers.sort();
-print numbers; // Outputs: [1, 2, 3, 4, 5, 6]
+print(numbers); // Outputs: [1, 2, 3, 4, 5, 6]
 
 var matrix = [[1, 2], [3, 4]];
-print matrix[0][1] // Outputs: 2
+print(matrix[0][1]) // Outputs: 2
 ```
 
 ### Hashmaps
@@ -114,19 +114,19 @@ var person = {
   "name": "Alice",
   "age": 30
 };
-print person["name"]; // Outputs: Alice
+print(person["name"]); // Outputs: Alice
 
 person["age"] = 31;
-print person; // Outputs: {"name": "Alice", "age": 31}
+print(person); // Outputs: {"name": "Alice", "age": 31}
 
 person.delete("name");
-print person; // Outputs: {"age" : 31};
+print(person); // Outputs: {"age" : 31};
 
 // Outputs: "does not exist"
 if (person.find(name)) {
-  print "exists";
+  print("exists");
 } else {
-  print "does not exist";
+  print("does not exist");
 }
 ```
 
@@ -146,12 +146,12 @@ class Person {
   }
   
   sayHello() {
-    print "Hello, my name is " + this.name;
+    print("Hello, my name is " + this.name);
   }
   
   birthday() {
     this.age = this.age + 1;
-    print this.name + " is now " + this.age;
+    print(this.name + " is now " + this.age);
   }
 }
 
@@ -177,13 +177,13 @@ class Counter {
   
   reset() {
     this.count = 0;
-    print "Counter reset";
+    print("Counter reset");
   }
 }
 
 var counter = Counter();
-print counter.increment(); // Outputs: 1
-print counter.increment(); // Outputs: 2
+print(counter.increment()); // Outputs: 1
+print(counter.increment()); // Outputs: 2
 counter.reset(); // Outputs: Counter reset
 ```
 
@@ -220,7 +220,7 @@ print("Color: " + rect.color);  // Outputs: Color: red
 You can create subclasses using "<":
 
 ```pogberry
-  class Animal {
+class Animal {
   speak() {
     print("Some generic animal sound");
   }
@@ -237,7 +237,6 @@ a.speak();   // Outputs: Some generic animal sound
 
 var d = Dog();
 d.speak();   // Outputs: Woof!
-
 ```
 
 ## Native Functions
@@ -249,42 +248,42 @@ Pogberry includes several built-in native functions:
   ```pogberry
   print("Hello, Pogberry!"); // Outputs: Hello, Pogberry!
   print("Hello ", newline = false);
-  print("again!); // Outputs: Hello again! (single line)
+  print("again!"); // Outputs: Hello again! (single line)
   ```
 
 - `clock()`: Returns the current time in seconds since the program started.
 
   ```pogberry
   var time = clock();
-  print time; // Outputs: time in seconds
+  print(time); // Outputs: time in seconds
   ```
 
 - `rand()`: Generates a random number.
 
   ```pogberry
   var randomNum = rand();
-  print randomNum; // Outputs: a random double-precision float between 0 and 1
+  print(randomNum); // Outputs: a random double-precision float between 0 and 1
   ```
 
 - `strInput()`: Reads user input as a string from the console.
 
   ```pogberry
   var input = strInput();
-  print input; // Outputs: user input
+  print(input); // Outputs: user input
   ```
 
 - `sqrt(number)`: Calculates the square root of a number.
 
   ```pogberry
   var result = sqrt(16);
-  print result; // Outputs: 4
+  print(result); // Outputs: 4
   ```
 
 - `abs(number)`: Returns the absolute value of a number.
 
   ```pogberry
   var absolute = abs(-5);
-  print absolute; // Outputs: 5
+  print(absolute); // Outputs: 5
   ```
 
 - `add(array, value, index)`: Adds a value at the specified index in an array.
@@ -292,7 +291,7 @@ Pogberry includes several built-in native functions:
   ```pogberry
   var numbers = [1, 2, 3];
   add(numbers, 4, 1);
-  print numbers; // Outputs: [1, 4, 2, 3]
+  print(numbers); // Outputs: [1, 4, 2, 3]
   ```
 
 - `remove(array, index)`: Removes the element at the specified index from an array.
@@ -300,7 +299,7 @@ Pogberry includes several built-in native functions:
   ```pogberry
   var numbers = [1, 2, 3];
   remove(numbers, 1);
-  print numbers; // Outputs: [1, 3]
+  print(numbers); // Outputs: [1, 3]
   ```
 
 - `sort(array)`: Sorts the elements of an array in ascending order. Implements quicksort, so it is not stable. Sorts by casting everything to the type of the first element, so sorting behaviour may be unexpected when array elements are of mixed types. Can also sort strings and hashmaps.
@@ -308,15 +307,22 @@ Pogberry includes several built-in native functions:
   ```pogberry
   var numbers = [3, 1, 2];
   sort(numbers);
-  print numbers; // Outputs: [1, 2, 3]
+  print(numbers); // Outputs: [1, 2, 3]
 
   sort(numbers, True); //reverse = True
-  print numbers; // Outputs: [3, 2, 1]
+  print(numbers); // Outputs: [3, 2, 1]
 
   var str = "hello";
   sort(str);
-  print str; // Outputs: ehllo
+  print(str); // Outputs: ehllo
   ```
+
+- `.size()` : Returns the size of any container (string, hashmap, list);
+
+ ```pogberry
+ var numbers = [1, 2, 3];
+ print(numbers.size()); // Outputs: 3 
+ ```
 
 ## Getting Started
 
@@ -364,3 +370,4 @@ To get started with the Pogberry interpreter, follow these steps:
    ```
 
 Happy coding with Pogberry!
+

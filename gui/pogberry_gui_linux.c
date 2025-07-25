@@ -44,9 +44,9 @@ int getFPS(void)
 }
 
 // Drawing control
-void clearBackground(Color color)
+void clearBackground(int r, int g, int b)
 {
-    ClearBackground(color);
+    ClearBackground((Color){r, g, b, 255});
 }
 
 void beginDrawing(void)
@@ -70,34 +70,34 @@ void swapScreenBuffer(void)
 }
 
 // Shape drawing
-void drawPixel(int posX, int posY, Color color)
+void drawPixel(int posX, int posY, int r, int g, int b)
 {
-    DrawPixel(posX, posY, color);
+    DrawPixel(posX, posY, (Color){r, g, b, 255});
 }
 
-void drawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color)
+void drawLine(int startPosX, int startPosY, int endPosX, int endPosY, int r, int g, int b)
 {
-    DrawLine(startPosX, startPosY, endPosX, endPosY, color);
+    DrawLine(startPosX, startPosY, endPosX, endPosY, (Color){r, g, b, 255});
 }
 
-void drawCircle(int centerX, int centerY, float radius, Color color)
+void drawCircle(int centerX, int centerY, float radius, int r, int g, int b)
 {
-    DrawCircle(centerX, centerY, radius, color);
+    DrawCircle(centerX, centerY, radius, (Color){r, g, b, 255});
 }
 
-void drawEllipse(int centerX, int centerY, float radiusH, float radiusV, Color color)
+void drawEllipse(int centerX, int centerY, float radiusH, float radiusV, int r, int g, int b)
 {
-    DrawEllipse(centerX, centerY, radiusH, radiusV, color);
+    DrawEllipse(centerX, centerY, radiusH, radiusV, (Color){r, g, b, 255});
 }
 
-void drawRectangle(int posX, int posY, int width, int height, Color color)
+void drawRectangle(int posX, int posY, int width, int height, int r, int g, int b)
 {
-    DrawRectangle(posX, posY, width, height, color);
+    DrawRectangle(posX, posY, width, height, (Color){r, g, b, 255});
 }
 
-void drawText(const char *text, int posX, int posY, int fontSize, Color color)
+void drawText(const char *text, int posX, int posY, int fontSize, int r, int g, int b)
 {
-    DrawText(text, posX, posY, fontSize, color);
+    DrawText(text, posX, posY, fontSize, (Color){r, g, b, 255});
 }
 
 // Keyboard input
