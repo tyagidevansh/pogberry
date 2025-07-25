@@ -668,7 +668,11 @@ Value isKeyDownNative(int argCount, Value *args)
         fprintf(stderr, "Invalid key name: %s\n", keyName);
         return NIL_VAL;
     }
-    return BOOL_VAL(isKeyDown(key));
+
+    printf("key: %d\n", key);
+    bool result = isKeyDown(key);
+    printf("isKeyDown(%d) = %d\n", key, result);
+    return BOOL_VAL(result);
 }
 
 Value isMouseButtonDownNative(int argCount, Value *args)
