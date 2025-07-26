@@ -163,6 +163,7 @@ void initialiseRaylibWin()
   getMouseY = (GetMouseYFunc)GetProcAddress(dllHandle, "getMouseY");
   isMouseButtonUp = (IsMouseButtonUpFunc)GetProcAddress(dllHandle, "isMouseButtonUp");
   isMouseButtonReleased = (IsMouseButtonReleasedFunc)GetProcAddress(dllHandle, "isMouseButtonReleased");
+  isMouseButtonPressed = (IsMouseButtonPressedFunc)GetProcAddress(dllHandle, "isMouseButtonPressed");
   setExitKey = (SetExitKeyFunc)GetProcAddress(dllHandle, "setExitKey");
   getKeyPressed = (GetKeyPressedFunc)GetProcAddress(dllHandle, "getKeyPressed");
   getCharPressed = (GetCharPressedFunc)GetProcAddress(dllHandle, "getCharPressed");
@@ -193,6 +194,8 @@ void initialiseRaylibWin()
   defineNative("getMouseY", getMouseYNative);
   defineNative("isMouseButtonUp", isMouseButtonUpNative);
   defineNative("isMouseButtonReleased", isMouseButtonReleasedNative);
+  defineNative("isMouseButtonPressed", isMouseButtonPressedNative);
+  defineNative("isMouseButtonDown", isMouseButtonDownNative);
   defineNative("setExitKey", setExitKeyNative);
   defineNative("getKeyPressed", getKeyPressedNative);
   defineNative("getCharPressed", getCharPressedNative);
@@ -226,6 +229,7 @@ void initialiseRaylibLinux()
   // isKeyDown = (IsKeyDownFunc)dlsym(handle, "isKeyDown");
   isKeyPressed = (IsKeyPressedFunc)dlsym(handle, "isKeyPressed");
   isMouseButtonDown = (IsMouseButtonDownFunc)dlsym(handle, "isMouseButtonDown");
+  isMouseButtonPressed = (IsMouseButtonPressedFunc)dlsym(handle, "IsMouseButtonPressed");
   setTargetFPS = (SetTargetFPSFunc)dlsym(handle, "setTargetFPS");
   getFPS = (GetFPSFunc)dlsym(handle, "getFPS");
   swapScreenBuffer = (SwapScreenBufferFunc)dlsym(handle, "swapScreenBuffer");
@@ -263,6 +267,8 @@ void initialiseRaylibLinux()
   defineNative("getMouseY", getMouseYNative);
   defineNative("isMouseButtonUp", isMouseButtonUpNative);
   defineNative("isMouseButtonReleased", isMouseButtonReleasedNative);
+  defineNative("isMouseButtonPressed", isMouseButtonPressedNative);
+  defineNative("isMouseButtonDown", isMouseButtonDownNative);
   defineNative("closeWindow", closeWindowNative);
   defineNative("isWindowMinimized", isWindowMinimizedNative);
   defineNative("getScreenHeight", getScreenHeightNative);

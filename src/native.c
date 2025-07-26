@@ -13,13 +13,11 @@
 // map mouse button names to raylib constants
 static int getMouseButtonCode(const char *name)
 {
-    if (strncmp(name, "MOUSE_BUTTON_", 13) != 0)
-        return -1;
-    if (strcmp(name, "MOUSE_BUTTON_LEFT") == 0)
+    if (strcmp(name, "LEFT") == 0)
         return 0;
-    if (strcmp(name, "MOUSE_BUTTON_RIGHT") == 0)
+    if (strcmp(name, "RIGHT") == 0)
         return 1;
-    if (strcmp(name, "MOUSE_BUTTON_MIDDLE") == 0)
+    if (strcmp(name, "MIDDLE") == 0)
         return 2;
     return -1;
 }
