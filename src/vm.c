@@ -19,6 +19,7 @@
 #include "headers/memory.h"
 #include "headers/vm.h"
 #include "headers/native.h"
+#include "headers/pogberry.h"
 
 // global declaration of VM (fuck it we ball)
 VM vm;
@@ -98,6 +99,36 @@ static void runtimeError(const char *format, ...)
 }
 
 void initVM()
+{
+  resetStack();
+  vm.objects = NULL;
+  vm.bytesAllocated = 0;
+  vm.nextGC = 1024 * 1024;
+
+  vm.grayCount = 0;
+  vm.grayCapacity = 0;
+  vm.grayStack = NULL;
+
+  initTable(&vm.globals);
+  initTable(&vm.strings);
+
+  vm.initString = NULL; // GC reasons (again)
+  vm.initString = copyString("init", 4);
+
+  srand(time(NULL)); // for the native function
+  defineNative("clock", clockNative);
+  defineNative("rand", randNative);
+  defineNative("floor", floorNative);
+  defineNative("strInput", strInputNative);
+  defineNative("sqrt", sqrtNative);
+  defineNative("abs", absNative);
+  defineNative("add", listAdd);
+  defineNative("remove", listRemove);
+  defineNative("sort", sortNative);
+  defineNative("getTime", getTime);
+}
+
+POGBERRY_API void ext_initVM()
 {
   resetStack();
   vm.objects = NULL;
@@ -1231,6 +1262,18 @@ static InterpretResult run()
 }
 
 InterpretResult interpret(const char *source)
+{
+  ObjFunction *function = compile(source);
+  if (function == NULL)
+    return INTERPRET_COMPILE_ERROR;
+
+  push(OBJ_VAL(function));
+  call(function, 0);
+
+  return run();
+}
+
+POGBERRY_API InterpretResult ext_interpret(const char *source)
 {
   ObjFunction *function = compile(source);
   if (function == NULL)

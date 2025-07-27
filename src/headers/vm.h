@@ -4,6 +4,7 @@
 #include "object.h"
 #include "table.h"
 #include "value.h"
+#include "pogberry.h"
 
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
@@ -123,13 +124,6 @@ typedef struct
   int grayCapacity;
   Obj **grayStack;
 } VM;
-
-typedef enum
-{
-  INTERPRET_OK,
-  INTERPRET_COMPILE_ERROR,
-  INTERPRET_RUNTIME_ERROR,
-} InterpretResult;
 
 extern VM vm;
 
