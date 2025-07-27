@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include "../src/headers/common.h"
-#include "../src/headers/chunk.h"
-#include "../src/headers/debug.h"
-#include "../src/headers/pogberry.h"
+#include "src/headers/common.h"
+#include "src/headers/chunk.h"
+#include "src/headers/debug.h"
+#include "src/headers/pogberry.h"
 
 // build script will replace this
 const char POGBERRY_SCRIPT[] = "/* SCRIPT_CONTENT_HERE */";
