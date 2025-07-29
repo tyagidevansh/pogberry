@@ -30,7 +30,7 @@ def compile_script(script_path):
         '"/* SCRIPT_CONTENT_HERE */"', formatted_script
     )
 
-    temp_c_file = "temp_app.c"
+    temp_c_file = "temp_app.c" 
     with open(temp_c_file, 'w', encoding='utf-8') as f:
         f.write(final_c_code)
 

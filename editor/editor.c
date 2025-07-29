@@ -5,10 +5,11 @@
 #include <math.h>
 
 #if defined(_WIN32)
-#include <direct.h> // this is seriously so cool
+#include <direct.h> // so cool
 #define MKDIR(path) _mkdir(path)
 #else
 #include <sys/stat.h>
+#include <unistd.h>
 #define MKDIR(path) mkdir(path, 0755)
 #endif
 
@@ -55,6 +56,7 @@ static int saveAsCursor = 0;
 static char statusMessage[128] = "";
 static float statusMessageTimer = 0.0f;
 
+
 static void EnsureFilesDirExists(void);
 static void SaveFile(TextBuffer *tb, const char *filename);
 static void LoadFile(TextBuffer *tb, const char *filename);
@@ -85,6 +87,8 @@ static int GetLineForIndex(const char *text, int index);
 static int GetStartOfLine(const char *text, int line);
 static int GetColumnForIndex(const char *text, int index);
 static void SetStatusMessage(const char *message);
+const char *FindBestTerminal(void);
+
 
 int main(void)
 {
@@ -94,7 +98,7 @@ int main(void)
     const int screenHeight = 720;
 
     InitWindow(screenWidth, screenHeight, "Pogberry Editor");
-    SetExitKey(0);
+    SetExitKey(0); // Allow closing with window's X button without a key
     SetWindowState(FLAG_WINDOW_RESIZABLE);
 
     EnsureFilesDirExists();
@@ -134,11 +138,14 @@ int main(void)
             {
                 if (IsKeyPressed(KEY_S))
                 {
-                    if (strcmp(currentFilename, "untitled.pb") == 0) {
-                        memset(saveAsBuffer, 0, MAX_FILENAME_LEN); //clear the buffer
+                    if (strcmp(currentFilename, "untitled.pb") == 0)
+                    {
+                        memset(saveAsBuffer, 0, MAX_FILENAME_LEN);
                         saveAsCursor = 0;
                         mode = MODE_SAVE_AS;
-                    } else {
+                    }
+                    else
+                    {
                         SaveFile(&textBuffer, currentFilename);
                     }
                 }
@@ -185,6 +192,47 @@ int main(void)
                     PushUndoState(&textBuffer);
                     InsertString(&textBuffer, GetClipboardText());
                     textChanged = true;
+                }
+                else if (IsKeyPressed(KEY_I))
+                {
+                    SaveFile(&textBuffer, currentFilename);
+
+                    char command[1024] = {0};
+
+#if defined(_WIN32)
+                    sprintf(command, "start cmd /k \"files\\build\\pogberry.exe files\\%s\"", currentFilename);
+#elif defined(__linux__)
+                    const char *terminalCmd = FindBestTerminal();
+
+                    if (terminalCmd != NULL)
+                    {
+                        if (strcmp(terminalCmd, "gnome-terminal") == 0)
+                        {
+                            // Hardcoded command for gnome-terminal
+                            sprintf(command, "gnome-terminal -- sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pogberry ../%s; echo; read -p \"Process finished. Press Enter to exit.\"'", currentFilename);
+                        }
+                        else
+                        {
+                            // Hardcoded command for other terminals like xterm
+                            sprintf(command, "%s -e \"sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pogberry ../%s; echo; read -p \\\"Process finished. Press Enter to exit.\\\"'\"", terminalCmd, currentFilename);
+                        }
+                        SetStatusMessage(TextFormat("Executed %s in new terminal", currentFilename));
+                    }
+                    else
+                    {
+                        // Hardcoded command for fallback if no terminal is found
+                        sprintf(command, "sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pogberry ../%s'", currentFilename);
+                        SetStatusMessage("No terminal found, running directly.");
+                    }
+                    #else
+                        // Generic fallback for other systems
+                        sprintf(command, "./files/build/pogberry ./files/%s", currentFilename);
+#endif
+
+                    if (strlen(command) > 0)
+                    {
+                        system(command);
+                    }
                 }
             }
             else
@@ -270,7 +318,8 @@ int main(void)
 
             if (IsKeyPressedRepeat(KEY_BACKSPACE) || IsKeyPressed(KEY_BACKSPACE))
             {
-                if (saveAsCursor > 0) {
+                if (saveAsCursor > 0)
+                {
                     saveAsCursor--;
                     saveAsBuffer[saveAsCursor] = '\0';
                 }
@@ -278,18 +327,18 @@ int main(void)
 
             if (IsKeyPressed(KEY_ENTER))
             {
-                if (saveAsCursor > 0) {
-                    // if user didnt add the extension, add it
-                    if (!TextIsEqual(GetFileExtension(saveAsBuffer), ".pb")) {
+                if (saveAsCursor > 0)
+                {
+                    if (!TextIsEqual(GetFileExtension(saveAsBuffer), ".pb"))
+                    {
                         strcat(saveAsBuffer, ".pb");
                     }
-
                     strncpy(currentFilename, saveAsBuffer, MAX_FILENAME_LEN - 1);
                     SaveFile(&textBuffer, currentFilename);
                 }
-                mode = MODE_EDIT; //back to editing
+                mode = MODE_EDIT;
             }
-            else if (IsKeyPressed(KEY_ESCAPE)) 
+            else if (IsKeyPressed(KEY_ESCAPE))
             {
                 mode = MODE_EDIT;
             }
@@ -310,16 +359,17 @@ int main(void)
                 const char *filename = GetFileName(fileList.paths[fileSelection]);
                 LoadFile(&textBuffer, filename);
                 UnloadDirectoryFiles(fileList);
+                fileList = (FilePathList){0}; 
                 mode = MODE_EDIT;
             }
             if (IsKeyPressed(KEY_ESCAPE))
             {
                 UnloadDirectoryFiles(fileList);
+                fileList = (FilePathList){0}; 
                 mode = MODE_EDIT;
             }
         }
 
-        // -- Draw --
         BeginDrawing();
         ClearBackground(bgColor);
 
@@ -383,7 +433,7 @@ int main(void)
         else if (mode == MODE_OPEN_FILE)
         {
             DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(bgColor, 0.8f));
-            Vector2 menuPos = {GetScreenWidth() / 2.0f - 200, GetScreenHeight() / 2.0f - 150};
+            Vector2 menuPos = {GetScreenWidth() / 2.0f - 250, GetScreenHeight() / 2.0f - 150};
             DrawRectangle(menuPos.x, menuPos.y, 500, 300, gutterColor);
             DrawRectangleLines(menuPos.x, menuPos.y, 500, 300, gutterTextColor);
             DrawText("Open File (Enter to select, Esc to cancel)", menuPos.x + 10, menuPos.y + 10, 20, textColor);
@@ -397,31 +447,27 @@ int main(void)
                 }
             }
         }
-        else if (mode == MODE_SAVE_AS) 
+        else if (mode == MODE_SAVE_AS)
         {
             DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(bgColor, 0.8f));
-
             float boxWidth = 450;
             float boxHeight = 100;
-            Vector2 boxPos = { GetScreenWidth()/2.0f - boxWidth/2.0f, GetScreenHeight()/2.0f - boxHeight/2.0f };
-
+            Vector2 boxPos = {GetScreenWidth() / 2.0f - boxWidth / 2.0f, GetScreenHeight() / 2.0f - boxHeight / 2.0f};
             DrawRectangle(boxPos.x, boxPos.y, boxWidth, boxHeight, gutterColor);
             DrawRectangleLines(boxPos.x, boxPos.y, boxWidth, boxHeight, gutterTextColor);
-
             DrawText("Save As (Enter to confirm, Esc to cancel)", boxPos.x + 10, boxPos.y + 10, 20, textColor);
             DrawText(saveAsBuffer, boxPos.x + 10, boxPos.y + 50, 20, textColor);
 
-            // draw a blinking cursor
-            if (fmod(GetTime(), 1.0) > 0.5) {
+            if (fmod(GetTime(), 1.0) > 0.5)
+            {
                 int textWidth = MeasureText(saveAsBuffer, 20);
                 DrawRectangle(boxPos.x + 10 + textWidth, boxPos.y + 50, 2, 20, cursorColor);
             }
         }
 
-        // Draw Status Bar
         int screenHeight = GetScreenHeight();
-        DrawRectangle(0, screenHeight - 20, GetScreenWidth(), 25, statusColor);
-        DrawText(TextFormat("File: %s", currentFilename), 10, screenHeight - 15, 16, textColor);
+        DrawRectangle(0, screenHeight - 20, GetScreenWidth(), 20, statusColor);
+        DrawText(TextFormat("File: %s", currentFilename), 10, screenHeight - 15, 10, textColor);
         if (statusMessageTimer > 0)
         {
             int textWidth = MeasureText(statusMessage, 10);
@@ -447,7 +493,6 @@ void EnsureFilesDirExists(void)
     if (!DirectoryExists("files"))
     {
         MKDIR("files");
-        TraceLog(LOG_INFO, "Created 'files' directory.");
     }
 }
 
@@ -486,12 +531,7 @@ void LoadFile(TextBuffer *tb, const char *filename)
     }
     else
     {
-        // File doesn't exist, start with a blank slate
-        const char *initialText = "-- welcome to pogberry --\n\n"
-                                  "-there is no auto-save and this file will be overwritten, so make sure to press ctrl+s before writing any code, and before quitting\n"
-                                  "-basic shortcuts like ctrl+c, v, x, u, r, a and o work as you'd expect them to\n"
-                                  "-you can run the code by pressing ctrl+i, and save your program as an executable by pressing ctrl + e\n"
-                                  "-no mouse usage/buttons here, pls rememeber the shortcuts, there's not many";
+        const char *initialText = "-- welcome to pogberry --\n\n- this file will be overwritten, so make sure to press ctrl+s before writing any code\n- you can run the code by pressing ctrl+i\n- enjoyyyy";
         FreeTextBuffer(tb);
         InitTextBuffer(tb);
         InsertString(tb, initialText);
@@ -513,7 +553,7 @@ void NewFile(TextBuffer *tb)
 void SetStatusMessage(const char *message)
 {
     strncpy(statusMessage, message, 127);
-    statusMessageTimer = 3.0f; // Show message for 3 seconds
+    statusMessageTimer = 3.0f;
 }
 
 void InitTextBuffer(TextBuffer *tb)
@@ -810,4 +850,39 @@ int GetColumnForIndex(const char *text, int index)
 {
     int lineStart = GetStartOfLine(text, GetLineForIndex(text, index));
     return index - lineStart;
+}
+
+const char *FindBestTerminal(void)
+{
+#if defined(__linux__)
+    const char *termEnv = getenv("TERMINAL");
+    if (termEnv != NULL && strlen(termEnv) > 0)
+    {
+        char checkCmd[512];
+        sprintf(checkCmd, "which %s > /dev/null 2>&1", termEnv);
+        if (system(checkCmd) == 0)
+        {
+            return termEnv;
+        }
+    }
+
+    const char *terminalList[] = {
+        "gnome-terminal",
+        "konsole",
+        "xfce4-terminal",
+        "xterm",
+        NULL};
+
+    for (int i = 0; terminalList[i] != NULL; i++)
+    {
+        char checkCmd[512];
+        sprintf(checkCmd, "which %s > /dev/null 2>&1", terminalList[i]);
+        if (system(checkCmd) == 0)
+        {
+            return terminalList[i];
+        }
+    }
+#endif
+
+    return NULL;
 }

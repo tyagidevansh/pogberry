@@ -1,3 +1,9 @@
--- welcome to pogberry --
+use "pogberry_gui";
 
-ghhfhfh
+initWindow(400, 400, "hi");
+
+while (!windowShouldClose()) {
+  beginDrawing();
+  clearBackground(20, 20, 20);
+  endDrawing();
+}
