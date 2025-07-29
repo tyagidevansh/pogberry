@@ -161,7 +161,19 @@ POGBERRY_API void ext_initVM()
 #ifdef _WIN32
 void initialiseRaylibWin()
 {
-  dllHandle = LoadLibrary("lib/pogberry_gui_windows.dll");
+  char exePath[MAX_PATH] = {0};
+  GetModuleFileNameA(NULL, exePath, MAX_PATH);
+
+  char *lastSlash = strrchr(exePath, '\\');
+  if (lastSlash != NULL)
+  {
+      *lastSlash = '\0';
+  }
+
+  char dllPath[MAX_PATH] = {0};
+  sprintf(dllPath, "%s\\lib\\pogberry_gui_windows.dll", exePath);
+
+  dllHandle = LoadLibrary(dllPath);
   if (!dllHandle)
   {
     printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError());

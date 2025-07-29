@@ -56,7 +56,6 @@ static int saveAsCursor = 0;
 static char statusMessage[128] = "";
 static float statusMessageTimer = 0.0f;
 
-
 static void EnsureFilesDirExists(void);
 static void SaveFile(TextBuffer *tb, const char *filename);
 static void LoadFile(TextBuffer *tb, const char *filename);
@@ -89,10 +88,9 @@ static int GetColumnForIndex(const char *text, int index);
 static void SetStatusMessage(const char *message);
 const char *FindBestTerminal(void);
 
-
 int main(void)
 {
-    SetTraceLogLevel(LOG_ERROR);
+    SetTraceLogLevel(LOG_NONE);
 
     const int screenWidth = 1280;
     const int screenHeight = 720;
@@ -112,6 +110,14 @@ int main(void)
     Color cursorColor = {248, 248, 242, 255};
     Color selectionColor = {68, 71, 90, 200};
     Color statusColor = {68, 71, 90, 255};
+
+    Camera2D camera = {0};
+    camera.target = (Vector2){0, 0};
+    camera.offset = (Vector2){0, 0};
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
+
+    float scrollY = 0.0f;
 
     TextBuffer textBuffer = {0};
     InitTextBuffer(&textBuffer);
@@ -133,6 +139,38 @@ int main(void)
         {
             bool textChanged = false;
             bool selectionChangedByKey = false;
+
+            float wheelMove = GetMouseWheelMove();
+            scrollY -= wheelMove * EDITOR_FONT_SIZE * 3;
+
+            int totalLines = CountLines(textBuffer.buffer, textBuffer.length);
+            float contentHeight = totalLines * EDITOR_FONT_SIZE * EDITOR_LINE_SPACING;
+            float viewHeight = GetScreenHeight() - 20;
+
+            float maxScrollY = contentHeight - viewHeight;
+            if (maxScrollY < 0)
+                maxScrollY = 0;
+
+            if (scrollY < 0)
+                scrollY = 0;
+            if (scrollY > maxScrollY)
+                scrollY = maxScrollY;
+
+            camera.offset.y = -scrollY;
+
+            Vector2 cursorPos = GetCursorScreenPos(textBuffer.buffer, textBuffer.cursor, font, EDITOR_LINE_SPACING);
+            float cursorY = cursorPos.y;
+
+            if (cursorY < scrollY)
+            {
+                scrollY = cursorY;
+            }
+
+            float cursorBottom = cursorY + (EDITOR_FONT_SIZE * EDITOR_LINE_SPACING);
+            if (cursorBottom > scrollY + viewHeight)
+            {
+                scrollY = cursorBottom - viewHeight;
+            }
 
             if (IsKeyDown(KEY_LEFT_CONTROL))
             {
@@ -224,15 +262,24 @@ int main(void)
                         sprintf(command, "sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pogberry ../%s'", currentFilename);
                         SetStatusMessage("No terminal found, running directly.");
                     }
-                    #else
-                        // Generic fallback for other systems
-                        sprintf(command, "./files/build/pogberry ./files/%s", currentFilename);
+#else
+                    // Generic fallback for other systems
+                    sprintf(command, "./files/build/pogberry ./files/%s", currentFilename);
 #endif
 
                     if (strlen(command) > 0)
                     {
                         system(command);
                     }
+                }
+                else if (IsKeyPressed(KEY_R))
+                {
+                    SaveFile(&textBuffer, currentFilename);
+
+                    char command[512] = {0};
+                    sprintf(command, "python3 pogc.py files/%s", currentFilename);
+                    system(command);
+                    SetStatusMessage(TextFormat("Compiling %s...", currentFilename));
                 }
             }
             else
@@ -359,19 +406,21 @@ int main(void)
                 const char *filename = GetFileName(fileList.paths[fileSelection]);
                 LoadFile(&textBuffer, filename);
                 UnloadDirectoryFiles(fileList);
-                fileList = (FilePathList){0}; 
+                fileList = (FilePathList){0};
                 mode = MODE_EDIT;
             }
             if (IsKeyPressed(KEY_ESCAPE))
             {
                 UnloadDirectoryFiles(fileList);
-                fileList = (FilePathList){0}; 
+                fileList = (FilePathList){0};
                 mode = MODE_EDIT;
             }
         }
 
         BeginDrawing();
         ClearBackground(bgColor);
+
+        BeginMode2D(camera);
 
         if (mode == MODE_EDIT)
         {
@@ -465,6 +514,8 @@ int main(void)
             }
         }
 
+        EndMode2D();
+
         int screenHeight = GetScreenHeight();
         DrawRectangle(0, screenHeight - 20, GetScreenWidth(), 20, statusColor);
         DrawText(TextFormat("File: %s", currentFilename), 10, screenHeight - 15, 10, textColor);
@@ -531,7 +582,7 @@ void LoadFile(TextBuffer *tb, const char *filename)
     }
     else
     {
-        const char *initialText = "-- welcome to pogberry --\n\n- this file will be overwritten, so make sure to press ctrl+s before writing any code\n- you can run the code by pressing ctrl+i\n- enjoyyyy";
+        const char *initialText = "-- welcome to pogberry --\n\n- this file will be overwritten, so make sure to press ctrl+s to save a new file before writing any code \n- or ctrl+o to open an existing file\n- you can run the code by pressing ctrl+i or save it as an executable using ctrl+r\n -basic shortcuts such as ctrl + a, c, z etc do work but you cannot select text right now\n- enjoyyyy";
         FreeTextBuffer(tb);
         InitTextBuffer(tb);
         InsertString(tb, initialText);
@@ -886,3 +937,6 @@ const char *FindBestTerminal(void)
 
     return NULL;
 }
+
+// gcc -o editor editor.c -lraylib -lopengl32 -lgdi32 -lwinmm -mwindows
+// gcc -o editor editor.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11

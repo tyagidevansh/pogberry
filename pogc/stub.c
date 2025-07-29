@@ -1,7 +1,9 @@
 #include <stdio.h>
-#include "src/headers/common.h"
-#include "src/headers/chunk.h"
-#include "src/headers/debug.h"
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "src/headers/pogberry.h"
 
 // build script will replace this
@@ -10,7 +12,6 @@ const char POGBERRY_SCRIPT[] = "/* SCRIPT_CONTENT_HERE */";
 int main()
 {
     ext_initVM();
-    // printf("HERE \n");
     // printf("%s", POGBERRY_SCRIPT);
     ext_interpret(POGBERRY_SCRIPT);
     return 0;
