@@ -44,7 +44,7 @@ The language has four layers:
 - Stable public semantics. Optimisations such as string interning and garbage
   collection are never observable language behaviour.
 - A graphics API, physics engine, editor, and import semantics.
-- Native filesystem access.
+- Built-in, sandboxed access to game assets and save data.
 
 ### 1.2 Non-goals for 2.0
 - A JIT compiler.
@@ -59,7 +59,7 @@ without changing the rest of the grammar.
 
 - Whitespace separates tokens and is otherwise insignificant.
 - `//` begins a line comment.
-- `/* ... */` is a block comment. Block comments do not nest currently (in 1.5).
+- Block comments are not supported.
 - Statements end with `;`. Automatic semicolon insertion is not part of 2.0.
 - Strings use double quotes. The required escapes are `\\`, `\"`, `\n`, `\r`,
   and `\t`; unknown escapes are compile errors.
@@ -67,11 +67,11 @@ without changing the rest of the grammar.
   hexadecimal, binary, and numeric separators are not supported for now.
 
 Reserved words are: `and`, `as`, `break`, `class`, `const`, `continue`,
-`else`, `false`, `for`, `fun`, `if`, `nil`, `or`, `return`, `super`,
-`this`, `true`, `use`, and `while`.
+`else`, `export`, `false`, `for`, `fun`, `if`, `let`, `nil`, `or`, `return`,
+`super`, `this`, `true`, `use`, `var`, and `while`.
 
-I will introduce a new reserved word `let` in this release.
-It will replace `var`. Though both will work `let` shall become prefered.
+`let` is introduced in 2.0. `var` remains a supported mutable-declaration
+spelling; new code should prefer `let` for consistency with `const`.
 
 ## 3. Values, identity, and mutability
 
@@ -83,8 +83,8 @@ Every runtime value is one of the following:
 | Boolean | no | by value |
 | Number | no | IEEE numeric equality |
 | String | no | by Unicode byte sequence |
-| List | yes | identity or element by element match |
-| Map | yes | identity or element by element match |
+| List | yes | element by element |
+| Map | yes | key/value by key/value |
 | Function | no | identity |
 | Class | no after declaration | identity |
 | Instance | yes | identity |
@@ -97,6 +97,19 @@ Existing implementation does not respect this and needs to be fixed.
 
 Lists, maps, and instances are reference values. Assigning one copies the
 reference, not its contents. There is no implicit deep copy.
+
+Equality deliberately follows Python's collection rules:
+
+- Two Lists are equal when they have the same length and each corresponding
+  element is equal. List order matters.
+- Two Maps are equal when they have the same set of keys and the value for
+  every key is equal. Map insertion order does not affect equality.
+- Lists and Maps are mutable and therefore are not valid Map keys.
+
+An implementation must first return true when comparing a container to itself.
+Comparison of two distinct recursive containers follows the implementation's
+normal recursion limit and raises a runtime error if that limit is exceeded,
+as Python does for unsupported recursive comparisons.
 
 `false` and `nil` are falsey. Every other value, including `0`, `""`, empty
 lists, and empty maps, is truthy.
@@ -169,7 +182,7 @@ importDecl     = "use" STRING "as" IDENTIFIER ";" ;
 exportDecl     = "export" (classDecl | funDecl | varDecl) ;
 classDecl      = "class" IDENTIFIER [ "<" IDENTIFIER ] "{" { method } "}" ;
 funDecl        = "fun" IDENTIFIER functionBody ;
-varDecl        = ( "let" | "const" ) IDENTIFIER [ "=" expression ] ";" ;
+varDecl        = ( "let" | "var" | "const" ) IDENTIFIER [ "=" expression ] ";" ;
 statement      = exprStmt | block | ifStmt | whileStmt | forStmt |
                  breakStmt | continueStmt | returnStmt ;
 block          = "{" { declaration } "}" ;
@@ -231,24 +244,35 @@ enemies.push("golem");
 let first = enemies.remove(0);
 ```
 
-`list[index]` reads an element; `list[index] = value` replaces one. Reads and
-writes require `0 <= index < list.length`. `insert(index, value)` additionally
-permits `index == list.length`. An invalid index is a runtime error.
+List operations follow Python's familiar behaviour. `list[index]` reads an
+element; `list[index] = value` replaces one. Positive indexes start at zero;
+negative indexes count from the end, so `list[-1]` is the final element. A read
+or replacement outside the list is a runtime error.
 
 The following native methods are part of the standard library and are resolved
 through ordinary runtime property lookup, not special parser rules:
 
-- `list.push(value) -> nil`
-- `list.pop() -> value` (error for an empty list)
-- `list.insert(index, value) -> nil`
-- `list.remove(index) -> value`
+- `list.append(value) -> nil`
+- `list.extend(otherList) -> nil`
+- `list.pop() -> value` and `list.pop(index) -> value` (error for an empty
+  list or an invalid index)
+- `list.insert(index, value) -> nil`; indexes are normalized and clamped to
+  the valid insertion range, matching Python's `list.insert`.
+- `list.remove(value) -> nil`; removes the first equal value and errors if it
+  is absent.
 - `list.clear() -> nil`
-- `list.clone() -> List` (shallow copy)
-- `list.length -> Number`
+- `list.copy() -> List` (shallow copy)
+- `list.index(value) -> Number` (error if absent)
+- `list.count(value) -> Number`
+- `list.reverse() -> nil`
 
-Sorting is a library feature, not a mutation of text. `list.sort()` sorts a
-list of all Numbers or all Strings in ascending order; mixed values are
-fine, unsupported values are an error. `list.sorted()` returns a shallow sorted copy.
+`len(list)` returns a List's length. Slicing syntax and custom comparison
+functions are deferred; they must not be added as compiler-only special cases.
+
+Sorting is a List operation, never a mutation of text. `list.sort()` sorts a
+list of all Numbers or all Strings in ascending order. Mixed or unsupported
+values are a runtime error. A later release may add a custom comparison
+function once its closure and error semantics are proven.
 
 ### 7.2 Maps
 
@@ -311,7 +335,7 @@ let update = enemy.update;
 update(dt);
 ```
 
-Classes have no syntax for adding methods after declaration in 1.0. Instances
+Classes have no syntax for adding methods after declaration in 2.0. Instances
 may receive dynamic data fields; reading an absent field is a runtime error.
 
 ## 9. Modules and the host boundary
@@ -331,14 +355,15 @@ once per VM; subsequent imports receive the cached exports. Circular imports
 are a compile/load error in 2.0. User modules expose names with `export`:
 
 ```pogberry
-export fun spawnWave(level) { /* ... */ }
+export fun spawnWave(level) {}
 export const version = 1;
 ```
 
 A host must provide a module resolver, module source or native exports, and a
 stable module identifier. The core language provides no `dlopen`, shell,
-filesystem, socket, or reflection primitive. This is both a portability rule
-and an important safety boundary.
+socket, or reflection primitive. This is both a portability rule and an
+important safety boundary. File access is provided through the sandboxed
+asset/storage API below, not through arbitrary native calls.
 
 ### 9.1 Engine modules
 
@@ -383,6 +408,30 @@ Host objects are opaque, VM-owned references with host-supplied finalization.
 Using a released host object is a runtime error. Engine resources should not be
 represented as raw C pointers or integer addresses in scripts.
 
+### 9.3 Assets and filesystem access
+
+Loading assets is a core game-scripting requirement, so every full Pogberry
+host provides these prelude objects without an import:
+
+```pogberry
+let dialogue = assets.readText("dialogue/intro.txt");
+let imageData = assets.readBytes("sprites/player.png");
+storage.writeText("saves/slot-1.json", saveData);
+```
+
+`assets` is read-only and rooted at the game's packaged asset directory.
+`storage` is read/write and rooted at a host-selected per-game save directory.
+Paths are relative UTF-8 paths; `..`, absolute paths, and paths escaping a
+configured root are runtime errors. Hosts may package assets in an archive or
+serve them through a platform API, so scripts must use this interface rather
+than assume an operating-system path.
+
+Required operations are `readText(path)`, `readBytes(path)`, and `exists(path)`
+on `assets`; and `readText(path)`, `readBytes(path)`, `writeText(path, value)`,
+`writeBytes(path, value)`, and `exists(path)` on `storage`. Missing files and
+failed writes are host errors. A broader developer-only `fs` capability may be
+registered explicitly, but it is not available to ordinary packaged games.
+
 ## 10. Errors and diagnostics
 
 There are three result classes:
@@ -402,17 +451,32 @@ a function stack trace where available.
 API are stable. Games commonly benefit more from host-level script isolation
 and a useful stack trace than from prematurely designed exceptions.
 
-## 11. Standard-library baseline
-- `std.console`: `print(value)` and logging hooks.
+## 11. Default prelude and standard-library baseline
+
+The following basic functions are always available without an import:
+
+- `print(value, ...) -> nil` writes values through the host's normal output
+  channel, separated by one space and followed by a newline.
+- `len(value) -> Number` returns the size of a String, List, or Map.
+- `str(value) -> String` uses the language's canonical value conversion.
+- `type(value) -> String` returns the stable language type name.
+
+`assets` and `storage` are also always available as described in section 9.3.
+This default prelude is part of the 2.0 language profile; these names are
+ordinary runtime bindings, not parser keywords or special bytecode.
+
+Additional standard-library modules are:
+
+- `std.console`: structured logging hooks beyond `print`.
 - `std.math`: basic pure math; no implicit time or random state.
 - `std.string`: conversion, length, searching, splitting, and immutable
   transformations.
 - `std.list` and `std.map`: helpers beyond the native methods.
 - `std.random`: explicit seeded random generators.
 
-`print` is an ordinary standard-library function, not a parser keyword or
-special bytecode instruction. Existing programs may receive it through a
-compatibility prelude during migration.
+`print` is an ordinary prelude function, not a parser keyword or special
+bytecode instruction. It accepts values directly; formatted output is a
+separate future feature and must have its own documented placeholder rules.
 
 All user-visible rendering of values uses one canonical conversion routine.
 For example, a list prints recursively and a map prints arbitrary values
