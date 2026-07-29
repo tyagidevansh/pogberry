@@ -1,48 +1,48 @@
-# Compiler
-CC = gcc
+CC ?= gcc
 
-# Compiler flags
-CFLAGS = -Wall -std=c11 -I./src
+SRC_DIR := src
+BUILD_DIR := build
 
-# Linker flags
 ifeq ($(OS),Windows_NT)
-    LIBS = -static -lm
+EXEEXT := .exe
+LDLIBS := -static -lm
+TEST_RUNNER := cmd /c tests\run_tests.bat
+MAKE_DIR = cmd /c if not exist "$(1)" mkdir "$(1)"
+CLEAN_BUILD = cmd /c if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)"
 else
-    LIBS = -lm -lreadline
+EXEEXT :=
+LDLIBS := -lm -lreadline
+TEST_RUNNER := bash tests/run_tests.sh
+MAKE_DIR = mkdir -p "$(1)"
+CLEAN_BUILD = rm -rf "$(BUILD_DIR)"
 endif
 
+TARGET := $(BUILD_DIR)/pogberry$(EXEEXT)
+SOURCES := $(wildcard $(SRC_DIR)/*.c)
+OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
+DEPS := $(OBJECTS:.o=.d)
 
-# Executable name
-EXEC = pogberry
+CPPFLAGS := -I$(SRC_DIR)
+CFLAGS := -std=c11 -Wall -Wextra -Wpedantic -MMD -MP
+TEST_PATH ?=
 
-# Source and object directories
-SRC_DIR = src
-OBJ_DIR = build
+.PHONY: all test clean
 
-# Source files
-SRC = $(wildcard $(SRC_DIR)/*.c)
+all: $(TARGET)
 
-# Object files
-OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
+$(TARGET): $(OBJECTS) | $(BUILD_DIR)
+	$(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@
 
-# Default target
-all: $(EXEC)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-# Link object files to create the executable
-$(EXEC): $(OBJ)
-	$(CC) $(OBJ) $(LIBS) -o $@
+$(BUILD_DIR):
+	@$(call MAKE_DIR,$@)
 
-# Compile each .c to a .o in build/
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+test: $(TARGET)
+	@$(TEST_RUNNER) "$(TEST_PATH)"
 
-# Clean build artifacts
 clean:
-ifeq ($(OS),Windows_NT)
-	-del /Q $(subst /,\,$(OBJ_DIR))\*.o 2>nul
-	-del /Q $(EXEC).exe 2>nul
-else
-	rm -f $(OBJ_DIR)/*.o $(EXEC)
-endif
+	@$(CLEAN_BUILD)
 
-.PHONY: all clean
+-include $(DEPS)
