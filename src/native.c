@@ -422,7 +422,7 @@ Value sortNative(int argCount, Value *args)
     }
 }
 
-Value listAdd(int argCount, Value *args)
+Value listPushNative(int argCount, Value *args)
 {
     if (argCount != 2 || !IS_LIST(args[0]))
     {

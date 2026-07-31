@@ -12,7 +12,7 @@ Value strInputNative(int argCount, Value *args);
 Value sqrtNative(int argCount, Value *args);
 Value absNative(int argCount, Value *args);
 Value sortNative(int argCount, Value *args);
-Value listAdd(int argCount, Value *args);
+Value listPushNative(int argCount, Value *args);
 Value listRemove(int argCount, Value *args);
 Value getTime(int argCount, Value* args);
 

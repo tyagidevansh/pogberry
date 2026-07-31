@@ -122,7 +122,7 @@ void initVM()
   defineNative("strInput", strInputNative);
   defineNative("sqrt", sqrtNative);
   defineNative("abs", absNative);
-  defineNative("add", listAdd);
+  // defineNative("add", listAdd);
   defineNative("remove", listRemove);
   defineNative("sort", sortNative);
   defineNative("getTime", getTime);
@@ -152,7 +152,7 @@ POGBERRY_API void ext_initVM()
   defineNative("strInput", strInputNative);
   defineNative("sqrt", sqrtNative);
   defineNative("abs", absNative);
-  defineNative("add", listAdd);
+  // defineNative("add", listAdd);
   defineNative("remove", listRemove);
   defineNative("sort", sortNative);
   defineNative("getTime", getTime);
@@ -445,9 +445,30 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount)
   return call(AS_FUNCTION(method), argCount);
 }
 
+static bool invokeListMethod(ObjString* name, int argCount) {
+  NativeFn method = NULL;
+
+  if (strcmp(name->chars, "push") == 0) {
+    method = listPushNative;
+  } else {
+    runtimeError("Lists do not have a method named %s.", name->chars);
+    return false;
+  }
+
+  Value result = method(argCount + 1, vm.stackTop - argCount - 1);
+
+  vm.stackTop -= argCount + 1;
+  push(result);
+  return true;
+}
+
 static bool invoke(ObjString *name, int argCount)
 {
   Value receiver = peek(argCount);
+
+  if (IS_LIST(receiver)) {
+    return invokeListMethod(name, argCount);
+  }
 
   if (!IS_INSTANCE(receiver))
   {
