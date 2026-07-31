@@ -7,4 +7,4 @@ print(items);
 
 items.remove(15);
 print(items.pop());
-print(items)
+print(items);

@@ -1081,6 +1081,7 @@ static void synchronize()
     case TOKEN_CLASS:
     case TOKEN_FUN:
     case TOKEN_VAR:
+    case TOKEN_LET:
     case TOKEN_FOR:
     case TOKEN_IF:
     case TOKEN_WHILE:
@@ -1099,7 +1100,7 @@ static void declaration()
   {
     funDeclaration();
   }
-  else if (match(TOKEN_VAR))
+  else if (match(TOKEN_VAR) || match(TOKEN_LET))
   {
     varDeclaration();
   }
@@ -1340,6 +1341,7 @@ ParseRule rules[] = {
     [TOKEN_THIS] = {this_, NULL, PREC_NONE},
     [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
     [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LET] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
     [TOKEN_USE] = {NULL, NULL, PREC_NONE},
     [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},

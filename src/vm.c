@@ -159,6 +159,10 @@ POGBERRY_API void ext_initVM()
 }
 
 #ifdef _WIN32
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
 void initialiseRaylibWin()
 {
   char exePath[MAX_PATH] = {0};
@@ -248,6 +252,10 @@ void initialiseRaylibWin()
   defineNative("drawEllipse", drawEllipseNative);
   defineNative("swapScreenBuffer", swapScreenBufferNative);
 }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
 #elif defined(__linux__)
 void initialiseRaylibLinux()
 {
