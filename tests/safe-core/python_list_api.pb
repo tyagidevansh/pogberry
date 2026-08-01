@@ -1,5 +1,5 @@
 var items = [10, 20];
-items.append(30);
+items.push(30);
 print(items[-1]);
 
 items.insert(-1, 15);

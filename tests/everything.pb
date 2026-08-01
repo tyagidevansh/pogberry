@@ -29,7 +29,7 @@ for (var j = 0; j < 3; j = j + 1) {
 var arr = [1, 2, 3];
 arr.push(4);
 print("Array: " + arr); // [1, 2, 3, 4]
-arr.remove(1); // remove element at index 1
+arr.removeAt(1);
 print("After remove: " + arr); // [1, 3, 4]
 
 // Hashmaps

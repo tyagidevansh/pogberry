@@ -241,7 +241,7 @@ Lists are ordered mutable sequences:
 ```pogberry
 let enemies = ["slime", "bat"];
 enemies.push("golem");
-let first = enemies.remove(0);
+let first = enemies.removeAt(0);
 ```
 
 List operations follow Python's familiar behaviour. `list[index]` reads an
@@ -252,7 +252,7 @@ or replacement outside the list is a runtime error.
 The following native methods are part of the standard library and are resolved
 through ordinary runtime property lookup, not special parser rules:
 
-- `list.append(value) -> nil`
+- `list.push(value) -> nil`
 - `list.extend(otherList) -> nil`
 - `list.pop() -> value` and `list.pop(index) -> value` (error for an empty
   list or an invalid index)
@@ -260,6 +260,7 @@ through ordinary runtime property lookup, not special parser rules:
   the valid insertion range, matching Python's `list.insert`.
 - `list.remove(value) -> nil`; removes the first equal value and errors if it
   is absent.
+- `list.removeAt(index) -> value`
 - `list.clear() -> nil`
 - `list.copy() -> List` (shallow copy)
 - `list.index(value) -> Number` (error if absent)

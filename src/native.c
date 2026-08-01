@@ -357,69 +357,36 @@ int Valuecomp(const void *elem1, const void *elem2)
     }
 }
 
-int ValuecompReverse(const void *elem1, const void *elem2)
+Value listSortNative(int argCount, Value *args)
 {
-    return Valuecomp(elem2, elem1);
-}
-
-int Strcomp(const void *elem1, const void *elem2)
-{
-    char f = *((char *)elem1);
-    char s = *((char *)elem2);
-
-    if (f > s)
-        return 1;
-    if (f < s)
-        return -1;
-    return 0;
-}
-
-int StrcompReverse(const void *elem1, const void *elem2)
-{
-    return Strcomp(elem2, elem1);
-}
-
-Value sortNative(int argCount, Value *args)
-{
-    if (argCount < 1)
-    {
-        runtimeError("Expect at least one argument.");
-        return NIL_VAL;
-    }
-    if (argCount > 2)
-    {
-        runtimeError("Function cannot take more than two arguments [Container, Reverse = True | False]");
+    if (argCount != 1 || !IS_LIST(args[0])) {
+        runtimeError("sort() expects a list and no arguments.");
         return NIL_VAL;
     }
 
-    bool reverse = false;
-    if (argCount == 2)
-    {
-        if (!IS_BOOL(args[1]))
-        {
-            runtimeError("Second argument must be a boolean.");
+    ObjList *list = AS_LIST(args[0]);
+    if (list->items.count < 2) {
+        return NIL_VAL;
+    }
+
+    ValueType elementType = list->items.values[0].type;
+    if (elementType != VAL_NUMBER &&
+        !(elementType == VAL_OBJ && IS_STRING(list->items.values[0]))) {
+        runtimeError("sort() only supports lists of numbers or strings.");
+        return NIL_VAL;
+    }
+
+    for (int i = 1; i < list->items.count; i++) {
+        Value element = list->items.values[i];
+        if (element.type != elementType ||
+            (elementType == VAL_OBJ && !IS_STRING(element))) {
+            runtimeError("sort() requires values of one supported type.");
             return NIL_VAL;
         }
-        reverse = AS_BOOL(args[1]);
     }
 
-    if (IS_LIST(args[0]))
-    {
-        ObjList *list = AS_LIST(args[0]);
-        qsort(list->items.values, list->items.count, sizeof(Value), reverse ? ValuecompReverse : Valuecomp);
-        return NIL_VAL;
-    }
-    else if (IS_STRING(args[0]))
-    {
-        ObjString *str = AS_STRING(args[0]);
-        qsort(str->chars, str->length, sizeof(char), reverse ? StrcompReverse : Strcomp);
-        return NIL_VAL;
-    }
-    else
-    {
-        runtimeError("First argument must be a list or a string.");
-        return NIL_VAL;
-    }
+    qsort(list->items.values, list->items.count, sizeof(Value), Valuecomp);
+    return NIL_VAL;
 }
 
 Value listPushNative(int argCount, Value *args)
@@ -431,48 +398,260 @@ Value listPushNative(int argCount, Value *args)
     }
 
     ObjList *list = AS_LIST(args[0]);
-    Value value = args[1];
-
-    if (list->items.count + 1 > list->items.capacity)
-    {
-        int oldCapacity = list->items.capacity;
-        list->items.capacity = GROW_CAPACITY(oldCapacity);
-        list->items.values = GROW_ARRAY(Value, list->items.values, oldCapacity, list->items.capacity);
-    }
-
-    list->items.values[list->items.count] = value;
-    list->items.count++;
+    writeValueArray(&list->items, args[1]);
 
     return NIL_VAL;
 }
 
-Value listRemove(int argCount, Value *args)
+static bool normalizeListIndex(Value indexValue, int listCount, int *outIndex)
 {
-    if (argCount != 2 || !IS_LIST(args[0]) || !IS_NUMBER(args[1]))
-    {
-        runtimeError("Expect a list and an index");
+    if (!IS_NUMBER(indexValue)) {
+        runtimeError("List index must be a number.");
+        return false;
+    }
+
+    double index = AS_NUMBER(indexValue);
+    if (!isfinite(index) || floor(index) != index) {
+        runtimeError("List index must be a finite integer.");
+        return false;
+    }
+
+    if (index < 0) {
+        index += listCount;
+    }
+
+    if (index < 0 || index >= listCount) {
+        runtimeError("List index out of bounds.");
+        return false;
+    }
+
+    *outIndex = (int)index;
+    return true;
+}
+
+static bool normalizeInsertIndex(Value indexValue, int listCount, int *outIndex)
+{
+    if (!IS_NUMBER(indexValue)) {
+        runtimeError("List index must be a number.");
+        return false;
+    }
+
+    double index = AS_NUMBER(indexValue);
+    if (!isfinite(index) || floor(index) != index) {
+        runtimeError("List index must be a finite integer.");
+        return false;
+    }
+
+    if (index < 0) {
+        index += listCount;
+    }
+
+    if (index < 0) {
+        index = 0;
+    } else if (index > listCount) {
+        index = listCount;
+    }
+
+    *outIndex = (int)index;
+    return true;
+}
+
+Value listExtendNative(int argCount, Value *args)
+{
+    if (argCount != 2 || !IS_LIST(args[0]) || !IS_LIST(args[1])) {
+        runtimeError("extend() expects two lists.");
         return NIL_VAL;
     }
 
     ObjList *list = AS_LIST(args[0]);
-    int index = AS_NUMBER(args[1]);
+    ObjList *other = AS_LIST(args[1]);
+    int otherCount = other->items.count;
 
-    if (index < 0 || index >= list->items.count)
-    {
-        runtimeError("Index out of bounds");
+    for (int i = 0; i < otherCount; i++) {
+        writeValueArray(&list->items, other->items.values[i]);
+    }
+
+    return NIL_VAL;
+}
+
+Value listPopNative(int argCount, Value *args)
+{
+    if ((argCount != 1 && argCount != 2) || !IS_LIST(args[0])) {
+        runtimeError("pop() expects a list and an optional index.");
         return NIL_VAL;
     }
 
-    Value removedVal = list->items.values[index];
-
-    for (int i = index; i < list->items.count - 1; i++)
-    {
-        list->items.values[i] = list->items.values[i + 1];
+    ObjList *list = AS_LIST(args[0]);
+    if (list->items.count == 0) {
+        runtimeError("Cannot pop from an empty list.");
+        return NIL_VAL;
     }
 
+    int index = list->items.count - 1;
+    if (argCount == 2 &&
+        !normalizeListIndex(args[1], list->items.count, &index)) {
+        return NIL_VAL;
+    }
+
+    Value value = list->items.values[index];
+    memmove(&list->items.values[index],
+            &list->items.values[index + 1],
+            sizeof(Value) * (list->items.count - index - 1));
     list->items.count--;
 
-    return removedVal;
+    return value;
+}
+
+Value listInsertNative(int argCount, Value *args)
+{
+    if (argCount != 3 || !IS_LIST(args[0])) {
+        runtimeError("insert() expects a list, an index, and a value.");
+        return NIL_VAL;
+    }
+
+    ObjList *list = AS_LIST(args[0]);
+    int index;
+    if (!normalizeInsertIndex(args[1], list->items.count, &index)) {
+        return NIL_VAL;
+    }
+
+    int oldCount = list->items.count;
+    writeValueArray(&list->items, NIL_VAL);
+    memmove(&list->items.values[index + 1],
+            &list->items.values[index],
+            sizeof(Value) * (oldCount - index));
+    list->items.values[index] = args[2];
+
+    return NIL_VAL;
+}
+
+Value listRemoveNative(int argCount, Value *args)
+{
+    if (argCount != 2 || !IS_LIST(args[0])) {
+        runtimeError("remove() expects a list and a value.");
+        return NIL_VAL;
+    }
+
+    ObjList *list = AS_LIST(args[0]);
+    for (int i = 0; i < list->items.count; i++) {
+        if (!valuesEqual(list->items.values[i], args[1])) {
+            continue;
+        }
+
+        memmove(&list->items.values[i],
+                &list->items.values[i + 1],
+                sizeof(Value) * (list->items.count - i - 1));
+        list->items.count--;
+        return NIL_VAL;
+    }
+
+    runtimeError("List value not found.");
+    return NIL_VAL;
+}
+
+Value listRemoveAtNative(int argCount, Value *args)
+{
+    if (argCount != 2 || !IS_LIST(args[0])) {
+        runtimeError("removeAt() expects a list and an index.");
+        return NIL_VAL;
+    }
+
+    ObjList *list = AS_LIST(args[0]);
+    int index;
+    if (!normalizeListIndex(args[1], list->items.count, &index)) {
+        return NIL_VAL;
+    }
+
+    Value value = list->items.values[index];
+    memmove(&list->items.values[index],
+            &list->items.values[index + 1],
+            sizeof(Value) * (list->items.count - index - 1));
+    list->items.count--;
+
+    return value;
+}
+
+Value listClearNative(int argCount, Value *args)
+{
+    if (argCount != 1 || !IS_LIST(args[0])) {
+        runtimeError("clear() expects a list.");
+        return NIL_VAL;
+    }
+
+    AS_LIST(args[0])->items.count = 0;
+    return NIL_VAL;
+}
+
+Value listCopyNative(int argCount, Value *args)
+{
+    if (argCount != 1 || !IS_LIST(args[0])) {
+        runtimeError("copy() expects a list.");
+        return NIL_VAL;
+    }
+
+    ObjList *source = AS_LIST(args[0]);
+    ObjList *copy = newList();
+
+    // Keep the new list reachable if growing its backing array triggers GC.
+    push(OBJ_VAL(copy));
+    for (int i = 0; i < source->items.count; i++) {
+        writeValueArray(&copy->items, source->items.values[i]);
+    }
+    return pop();
+}
+
+Value listIndexNative(int argCount, Value *args)
+{
+    if (argCount != 2 || !IS_LIST(args[0])) {
+        runtimeError("index() expects a list and a value.");
+        return NIL_VAL;
+    }
+
+    ObjList *list = AS_LIST(args[0]);
+    for (int i = 0; i < list->items.count; i++) {
+        if (valuesEqual(list->items.values[i], args[1])) {
+            return NUMBER_VAL(i);
+        }
+    }
+
+    runtimeError("List value not found.");
+    return NIL_VAL;
+}
+
+Value listCountNative(int argCount, Value *args)
+{
+    if (argCount != 2 || !IS_LIST(args[0])) {
+        runtimeError("count() expects a list and a value.");
+        return NIL_VAL;
+    }
+
+    ObjList *list = AS_LIST(args[0]);
+    int count = 0;
+    for (int i = 0; i < list->items.count; i++) {
+        if (valuesEqual(list->items.values[i], args[1])) {
+            count++;
+        }
+    }
+
+    return NUMBER_VAL(count);
+}
+
+Value listReverseNative(int argCount, Value *args)
+{
+    if (argCount != 1 || !IS_LIST(args[0])) {
+        runtimeError("reverse() expects a list.");
+        return NIL_VAL;
+    }
+
+    ObjList *list = AS_LIST(args[0]);
+    for (int left = 0, right = list->items.count - 1; left < right;
+         left++, right--) {
+        Value temporary = list->items.values[left];
+        list->items.values[left] = list->items.values[right];
+        list->items.values[right] = temporary;
+    }
+
+    return NIL_VAL;
 }
 
 Value getTime(int argCount, Value* args) {

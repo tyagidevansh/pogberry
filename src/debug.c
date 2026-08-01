@@ -148,22 +148,12 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_SET_INDEX", offset);
   case OP_NEW_LIST:
     return simpleInstruction("OP_NEW_LIST", offset);
-  case OP_LIST_APPEND:
-    return simpleInstruction("OP_LIST_APPEND", offset);
-  case OP_LIST_ADD:
-    return simpleInstruction("OP_LIST_ADD", offset);
-  case OP_LIST_REMOVE:
-    return simpleInstruction("OP_LIST_REMOVE", offset);
-  case OP_LIST_POP:
-    return simpleInstruction("OP_LIST_POP", offset);
+  case OP_LIST_LITERAL_APPEND:
+    return simpleInstruction("OP_LIST_LITERAL_APPEND", offset);
   case OP_NEW_HASHMAP:
     return simpleInstruction("OP_NEW_HASHMAP", offset);
-  case OP_HASHMAP_APPEND:
-    return simpleInstruction("OP_HASHMAP_APPEND", offset);
-  case OP_HASHMAP_DELETE:
-    return simpleInstruction("OP_HASHMAP_DELETE", offset);
-  case OP_SIZE:
-    return simpleInstruction("OP_SIZE", offset);
+  case OP_HASHMAP_LITERAL_INSERT:
+    return simpleInstruction("OP_HASHMAP_LITERAL_INSERT", offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   case OP_CLASS:

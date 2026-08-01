@@ -931,7 +931,7 @@ static void list(bool canAssign)
         expression();
       }
 
-      emitByte(OP_LIST_APPEND);
+      emitByte(OP_LIST_LITERAL_APPEND);
       itemCount++;
 
     } while (match(TOKEN_COMMA));
@@ -952,7 +952,7 @@ static void hashmap(bool canAssign)
       expression();
       consume(TOKEN_COLON, "Expect ':' between key and value.");
       expression();
-      emitByte(OP_HASHMAP_APPEND);
+      emitByte(OP_HASHMAP_LITERAL_INSERT);
       itemCount++;
     } while (match(TOKEN_COMMA));
   }
@@ -983,74 +983,22 @@ static void containerIndex(bool canAssign)
 static void handleDot(bool canAssign)
 {
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-  if (parser.previous.length == 4 && memcmp(parser.previous.start, "push", 4) == 0)
+  uint8_t name = identifierConstant(&parser.previous);
+
+  if (canAssign && match(TOKEN_EQUAL))
   {
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'push'.");
     expression();
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after value.");
-    emitByte(OP_LIST_APPEND);
+    emitBytes(OP_SET_PROPERTY, name);
   }
-  else if (parser.previous.length == 3 && memcmp(parser.previous.start, "add", 3) == 0)
+  else if (match(TOKEN_LEFT_PAREN))
   {
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'add'.");
-    expression();
-    consume(TOKEN_COMMA, "Expect two parameters: value and index.");
-    expression();
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'index'.");
-    emitByte(OP_LIST_ADD);
-  }
-  else if (parser.previous.length == 6 && memcmp(parser.previous.start, "remove", 6) == 0)
-  {
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'remove'.");
-    expression();
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after index.");
-    emitByte(OP_LIST_REMOVE);
-  }
-  else if (parser.previous.length == 3 && memcmp(parser.previous.start, "pop", 3) == 0)
-  {
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'pop'.");
-    consume(TOKEN_RIGHT_PAREN, "Expect ')', 'pop' does not accept any parameters.");
-    emitByte(OP_LIST_POP);
-  }
-  else if (parser.previous.length == 4 && memcmp(parser.previous.start, "size", 4) == 0)
-  {
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'size'.");
-    consume(TOKEN_RIGHT_PAREN, "Expect ')', 'size' does not accept any parameters.");
-    emitByte(OP_SIZE);
-  }
-  else if (parser.previous.length == 4 && memcmp(parser.previous.start, "find", 4) == 0)
-  {
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'find'.");
-    expression();
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'find'.");
-    emitByte(OP_GET_INDEX);
-  }
-  else if (parser.previous.length == 6 && memcmp(parser.previous.start, "delete", 6) == 0)
-  {
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'find'.");
-    expression();
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'find'.");
-    emitByte(OP_HASHMAP_DELETE);
+    uint8_t argCount = argumentList();
+    emitBytes(OP_INVOKE, name);
+    emitByte(argCount);
   }
   else
   {
-    uint8_t name = identifierConstant(&parser.previous);
-
-    if (canAssign && match(TOKEN_EQUAL))
-    {
-      expression();
-      emitBytes(OP_SET_PROPERTY, name);
-    }
-    else if (match(TOKEN_LEFT_PAREN))
-    {
-      uint8_t argCount = argumentList();
-      emitBytes(OP_INVOKE, name);
-      emitByte(argCount);
-    }
-    else
-    {
-      emitBytes(OP_GET_PROPERTY, name);
-    }
+    emitBytes(OP_GET_PROPERTY, name);
   }
 
   if (match(TOKEN_DOT))

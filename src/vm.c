@@ -122,9 +122,6 @@ void initVM()
   defineNative("strInput", strInputNative);
   defineNative("sqrt", sqrtNative);
   defineNative("abs", absNative);
-  // defineNative("add", listAdd);
-  defineNative("remove", listRemove);
-  defineNative("sort", sortNative);
   defineNative("getTime", getTime);
 }
 
@@ -152,9 +149,6 @@ POGBERRY_API void ext_initVM()
   defineNative("strInput", strInputNative);
   defineNative("sqrt", sqrtNative);
   defineNative("abs", absNative);
-  // defineNative("add", listAdd);
-  defineNative("remove", listRemove);
-  defineNative("sort", sortNative);
   defineNative("getTime", getTime);
 }
 
@@ -450,8 +444,30 @@ static bool invokeListMethod(ObjString* name, int argCount) {
 
   if (strcmp(name->chars, "push") == 0) {
     method = listPushNative;
+  } else if (strcmp(name->chars, "extend") == 0) {
+    method = listExtendNative;
+  } else if (strcmp(name->chars, "pop") == 0) {
+    method = listPopNative;
+  } else if (strcmp(name->chars, "insert") == 0) {
+    method = listInsertNative;
+  } else if (strcmp(name->chars, "remove") == 0) {
+    method = listRemoveNative;
+  } else if (strcmp(name->chars, "removeAt") == 0) {
+    method = listRemoveAtNative;
+  } else if (strcmp(name->chars, "clear") == 0) {
+    method = listClearNative;
+  } else if (strcmp(name->chars, "copy") == 0) {
+    method = listCopyNative;
+  } else if (strcmp(name->chars, "index") == 0) {
+    method = listIndexNative;
+  } else if (strcmp(name->chars, "count") == 0) {
+    method = listCountNative;
+  } else if (strcmp(name->chars, "reverse") == 0) {
+    method = listReverseNative;
+  } else if (strcmp(name->chars, "sort") == 0) {
+    method = listSortNative;
   } else {
-    runtimeError("Lists do not have a method named %s.", name->chars);
+    runtimeError("Lists do not have a method named '%s'.", name->chars);
     return false;
   }
 
@@ -551,6 +567,31 @@ static void defineMethod(ObjString *name)
   ObjClass *klass = AS_CLASS(peek(1));
   tableSet(&klass->methods, name, method);
   pop();
+}
+
+static bool normalizeListIndex(Value indexValue, int listCount, int *outIndex) {
+  if (!IS_NUMBER(indexValue)) {
+    runtimeError("List index must be a number.");
+    return false;
+  }
+
+  double index = AS_NUMBER(indexValue);
+  if (!isfinite(index) || floor(index) != index) {
+    runtimeError("List index must be a finite integer.");
+    return false;
+  }
+
+  if (index < 0) {
+    index += listCount;
+  }
+
+  if (index < 0 || index >= listCount) {
+    runtimeError("List index out of bounds.");
+    return false;
+  }
+
+  *outIndex = (int)index;
+  return true;
 }
 
 static InterpretResult run()
@@ -940,11 +981,10 @@ static InterpretResult run()
           }
 
           ObjList *objList = AS_LIST(container);
-          int index = (int)AS_NUMBER(peek(i));
+          int index;
 
-          if (index < 0 || index >= objList->items.count)
+          if (!normalizeListIndex(peek(i), objList->items.count, &index))
           {
-            runtimeError("List index out of bounds.");
             return INTERPRET_RUNTIME_ERROR;
           }
 
@@ -976,16 +1016,9 @@ static InterpretResult run()
       if (IS_LIST(container))
       {
         ObjList *objList = AS_LIST(container);
-        if (!IS_NUMBER(key))
-        {
-          runtimeError("List index must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-
-        int i = (int)AS_NUMBER(key);
-        if (i < 0 || i >= objList->items.count)
-        {
-          runtimeError("List index out of bounds.");
+        
+        int i;
+        if (!normalizeListIndex(key, objList->items.count, &i)) {
           return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -1028,7 +1061,7 @@ static InterpretResult run()
       push(OBJ_VAL(newList()));
       break;
     }
-    case OP_LIST_APPEND:
+    case OP_LIST_LITERAL_APPEND:
     {
       Value item = pop();
       Value listVal = pop();
@@ -1046,87 +1079,12 @@ static InterpretResult run()
       push(OBJ_VAL(list));
       break;
     }
-    case OP_LIST_ADD:
-    {
-      Value indexVal = pop();
-      Value item = pop();
-      Value listVal = pop();
-
-      if (!IS_LIST(listVal))
-      {
-        runtimeError("Can only append to a list.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      ObjList *list = AS_LIST(listVal);
-      int index = AS_NUMBER(indexVal);
-
-      if (index < 0 || index >= list->items.count)
-      {
-        runtimeError("List index out of bounds.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      if (list->items.count + 1 > list->items.capacity)
-      {
-        int oldCapacity = list->items.capacity;
-        list->items.capacity = GROW_CAPACITY(oldCapacity);
-        list->items.values = GROW_ARRAY(Value, list->items.values, oldCapacity, list->items.capacity);
-      }
-
-      for (int i = list->items.count - 1; i >= index; i--)
-      {
-        list->items.values[i + 1] = list->items.values[i];
-      }
-
-      list->items.values[index] = item;
-      list->items.count++;
-      push(OBJ_VAL(list));
-      break;
-    }
-    case OP_LIST_REMOVE:
-    {
-      Value indexVal = pop();
-      Value listVal = pop();
-
-      if (!IS_LIST(listVal))
-      {
-        runtimeError("Can only remove from a list.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      ObjList *list = AS_LIST(listVal);
-      int index = AS_NUMBER(indexVal);
-
-      for (int i = index; i < list->items.count - 1; i++)
-      {
-        list->items.values[i] = list->items.values[i + 1];
-      }
-
-      list->items.count--;
-      push(OBJ_VAL(list));
-      break;
-    }
-    case OP_LIST_POP:
-    {
-      Value listVal = pop();
-      if (!IS_LIST(listVal))
-      {
-        runtimeError("Can only append to a list.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      ObjList *list = AS_LIST(listVal);
-      list->items.count--;
-      push(OBJ_VAL(list));
-      break;
-    }
     case OP_NEW_HASHMAP:
     {
       push(OBJ_VAL(newHashmap()));
       break;
     }
-    case OP_HASHMAP_APPEND:
+    case OP_HASHMAP_LITERAL_INSERT:
     {
       Value value = peek(0);
       Value keyVal = peek(1);
@@ -1163,77 +1121,6 @@ static InterpretResult run()
       pop();
       pop();
       push(OBJ_VAL(hashmap));
-      break;
-    }
-    case OP_HASHMAP_DELETE:
-    {
-      Value keyVal = pop();
-      Value hashmapVal = pop();
-
-      if (!IS_HASHMAP(hashmapVal))
-      {
-        runtimeError("Expect a hashmap.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      ObjHashmap *hashmap = AS_HASHMAP(hashmapVal);
-
-      if (!IS_STRING(keyVal) && !IS_NUMBER(keyVal))
-      {
-        runtimeError("Hashmap key must be a string or a number.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      bool deleted = false;
-      if (IS_STRING(keyVal))
-      {
-        ObjString *keyStr = AS_STRING(keyVal);
-        deleted = tableDelete(&hashmap->items, keyStr);
-      }
-      else if (IS_NUMBER(keyVal))
-      {
-        char keyStr[32];
-        snprintf(keyStr, sizeof(keyStr), "%g", AS_NUMBER(keyVal));
-        ObjString *key = copyString(keyStr, strlen(keyStr));
-        deleted = tableDelete(&hashmap->items, key);
-      }
-
-      if (deleted)
-      {
-        push(BOOL_VAL(true));
-      }
-      else
-      {
-        runtimeError("This key does not exist in the hashmap.");
-      }
-      break;
-    }
-    case OP_SIZE:
-    {
-      Value item = pop();
-      if (IS_LIST(item))
-      {
-        ObjList *list = AS_LIST(item);
-        int size = list->items.count;
-        push(NUMBER_VAL(size));
-      }
-      else if (IS_STRING(item))
-      {
-        ObjString *string = AS_STRING(item);
-        int size = string->length;
-        push(NUMBER_VAL(size));
-      }
-      else if (IS_HASHMAP(item))
-      {
-        ObjHashmap *hashmap = AS_HASHMAP(item);
-        int size = hashmap->items.count;
-        push(NUMBER_VAL(size));
-      }
-      else
-      {
-        runtimeError("Size does not exist for this datatype.");
-        push(NIL_VAL);
-      }
       break;
     }
     case OP_RETURN:
