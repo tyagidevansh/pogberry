@@ -87,9 +87,7 @@ static bool hashmapGetByContents(ObjHashmap* hashmap, ObjString* key, Value* out
 static bool hashmapsEqual(ObjHashmap* left, ObjHashmap* right) {
   if (left == right) return true;
 
-  if (hashmapLiveEntryCount(left) != hashmapLiveEntryCount(right)) {
-    return false;
-  }
+  if (hashmapLiveEntryCount(left) != hashmapLiveEntryCount(right)) return false;
 
   for (int i = 0; i < left->items.capacity; i++) {
     Entry* entry = &left->items.entries[i];
@@ -97,14 +95,12 @@ static bool hashmapsEqual(ObjHashmap* left, ObjHashmap* right) {
     if (entry->key == NULL) continue;
 
     Value rightValue;
-    if (!hashmapGetByContents(right, entry->key, &rightValue)) {
-      return false;
-    }
+    if (!hashmapGetByContents(right, entry->key, &rightValue)) return false;
 
     if (!valuesEqual(entry->value, rightValue)) return false;
-
-    return true;
   }
+
+  return true;
 }
 
 static bool objectsEqual(Value left, Value right) {
@@ -132,7 +128,6 @@ static bool objectsEqual(Value left, Value right) {
 bool valuesEqual(Value left, Value right) {
   if (left.type != right.type) return false;
 
-
   switch (left.type) {
     case VAL_BOOL:
       return AS_BOOL(left) == AS_BOOL(right);
@@ -144,6 +139,8 @@ bool valuesEqual(Value left, Value right) {
       return true;
     
     case VAL_OBJ:
-    return objectsEqual(left, right);
+      return objectsEqual(left, right);
   }
+
+  return false;
 }
