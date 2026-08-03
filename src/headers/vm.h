@@ -110,6 +110,7 @@ typedef struct
 {
   CallFrame frames[FRAMES_MAX];
   int frameCount;
+  bool hadRuntimeError;
 
   Value stack[STACK_MAX]; // time for implementing a stack in the virtual machine babyyyy also this is the pointer to the first element of the array by default (if we dont do any pointer arithmetic)
   Value *stackTop;        // pointer to the element (pointer faster than indexing) just after the last stack, so pointing to 0 index means stack empty
@@ -130,6 +131,7 @@ extern VM vm;
 void initVM();
 void freeVM();
 InterpretResult interpret(const char *source); // run the chunk and respond with a value from enum declared above
+void runtimeError(const char *format, ...);
 void push(Value value);
 Value pop();
 

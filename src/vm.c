@@ -71,8 +71,11 @@ static void resetStack()
   vm.frameCount = 0;
 }
 
-static void runtimeError(const char *format, ...)
+void runtimeError(const char *format, ...)
 { // variadic function
+  if (vm.hadRuntimeError) return;
+  vm.hadRuntimeError = true;
+
   va_list args;
   va_start(args, format);
   vfprintf(stderr, format, args);
@@ -101,6 +104,7 @@ static void runtimeError(const char *format, ...)
 void initVM()
 {
   resetStack();
+  vm.hadRuntimeError = false;
   vm.objects = NULL;
   vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
@@ -128,6 +132,7 @@ void initVM()
 POGBERRY_API void ext_initVM()
 {
   resetStack();
+  vm.hadRuntimeError = false;
   vm.objects = NULL;
   vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
@@ -393,6 +398,9 @@ static bool callValue(Value callee, int argCount)
     {
       NativeFn native = AS_NATIVE(callee);
       Value result = native(argCount, vm.stackTop - argCount);
+      
+      if (vm.hadRuntimeError) return false;
+
       vm.stackTop -= argCount + 1;
       push(result);
       return true;
@@ -472,6 +480,8 @@ static bool invokeListMethod(ObjString* name, int argCount) {
   }
 
   Value result = method(argCount + 1, vm.stackTop - argCount - 1);
+
+  if (vm.hadRuntimeError) return false;
 
   vm.stackTop -= argCount + 1;
   push(result);
@@ -1191,24 +1201,32 @@ static InterpretResult run()
 
 InterpretResult interpret(const char *source)
 {
+  vm.hadRuntimeError = false;
+  
   ObjFunction *function = compile(source);
   if (function == NULL)
     return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL(function));
-  call(function, 0);
+  if (!call(function, 0)) {
+    return INTERPRET_RUNTIME_ERROR;
+  }
 
   return run();
 }
 
 POGBERRY_API InterpretResult ext_interpret(const char *source)
 {
+  vm.hadRuntimeError = false;
+  
   ObjFunction *function = compile(source);
   if (function == NULL)
     return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL(function));
-  call(function, 0);
+  if (!call(function, 0)) {
+    return INTERPRET_RUNTIME_ERROR;
+  }
 
   return run();
 }

@@ -3,7 +3,6 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include <stdarg.h>
 
 #include "headers/native.h"
 #include "headers/memory.h"
@@ -232,32 +231,6 @@ int getKeyCode(const char *name)
     return -1;
 }
 
-static void runtimeError(const char *format, ...)
-{ // variadic function
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
-    fputs("\n", stderr);
-
-    for (int i = vm.frameCount - 1; i >= 0; i--)
-    {
-        CallFrame *frame = &vm.frames[i];
-        ObjFunction *function = frame->function;
-        size_t instruction = frame->ip - function->chunk.code - 1;
-        fprintf(stderr, "[line %d] in ",
-                function->chunk.lines[instruction]);
-        if (function->name == NULL)
-        {
-            fprintf(stderr, "script\n");
-        }
-        else
-        {
-            fprintf(stderr, "%s()\n", function->name->chars);
-        }
-    }
-}
-
 Value clockNative(int argCount, Value *args)
 {
     if (argCount > 0)
@@ -393,7 +366,7 @@ Value listPushNative(int argCount, Value *args)
 {
     if (argCount != 2 || !IS_LIST(args[0]))
     {
-        runtimeError("Expected a list and a value");
+        runtimeError("push() expects one value.");
         return NIL_VAL;
     }
 
