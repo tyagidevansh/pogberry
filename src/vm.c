@@ -73,7 +73,8 @@ static void resetStack()
 
 void runtimeError(const char *format, ...)
 { // variadic function
-  if (vm.hadRuntimeError) return;
+  if (vm.hadRuntimeError)
+    return;
   vm.hadRuntimeError = true;
 
   va_list args;
@@ -170,7 +171,7 @@ void initialiseRaylibWin()
   char *lastSlash = strrchr(exePath, '\\');
   if (lastSlash != NULL)
   {
-      *lastSlash = '\0';
+    *lastSlash = '\0';
   }
 
   char dllPath[MAX_PATH] = {0};
@@ -398,8 +399,9 @@ static bool callValue(Value callee, int argCount)
     {
       NativeFn native = AS_NATIVE(callee);
       Value result = native(argCount, vm.stackTop - argCount);
-      
-      if (vm.hadRuntimeError) return false;
+
+      if (vm.hadRuntimeError)
+        return false;
 
       vm.stackTop -= argCount + 1;
       push(result);
@@ -447,41 +449,68 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount)
   return call(AS_FUNCTION(method), argCount);
 }
 
-static bool invokeListMethod(ObjString* name, int argCount) {
+static bool invokeListMethod(ObjString *name, int argCount)
+{
   NativeFn method = NULL;
 
-  if (strcmp(name->chars, "push") == 0) {
+  if (strcmp(name->chars, "push") == 0)
+  {
     method = listPushNative;
-  } else if (strcmp(name->chars, "extend") == 0) {
+  }
+  else if (strcmp(name->chars, "extend") == 0)
+  {
     method = listExtendNative;
-  } else if (strcmp(name->chars, "pop") == 0) {
+  }
+  else if (strcmp(name->chars, "pop") == 0)
+  {
     method = listPopNative;
-  } else if (strcmp(name->chars, "insert") == 0) {
+  }
+  else if (strcmp(name->chars, "insert") == 0)
+  {
     method = listInsertNative;
-  } else if (strcmp(name->chars, "remove") == 0) {
+  }
+  else if (strcmp(name->chars, "remove") == 0)
+  {
     method = listRemoveNative;
-  } else if (strcmp(name->chars, "removeAt") == 0) {
+  }
+  else if (strcmp(name->chars, "removeAt") == 0)
+  {
     method = listRemoveAtNative;
-  } else if (strcmp(name->chars, "clear") == 0) {
+  }
+  else if (strcmp(name->chars, "clear") == 0)
+  {
     method = listClearNative;
-  } else if (strcmp(name->chars, "copy") == 0) {
+  }
+  else if (strcmp(name->chars, "copy") == 0)
+  {
     method = listCopyNative;
-  } else if (strcmp(name->chars, "index") == 0) {
+  }
+  else if (strcmp(name->chars, "index") == 0)
+  {
     method = listIndexNative;
-  } else if (strcmp(name->chars, "count") == 0) {
+  }
+  else if (strcmp(name->chars, "count") == 0)
+  {
     method = listCountNative;
-  } else if (strcmp(name->chars, "reverse") == 0) {
+  }
+  else if (strcmp(name->chars, "reverse") == 0)
+  {
     method = listReverseNative;
-  } else if (strcmp(name->chars, "sort") == 0) {
+  }
+  else if (strcmp(name->chars, "sort") == 0)
+  {
     method = listSortNative;
-  } else {
+  }
+  else
+  {
     runtimeError("Lists do not have a method named '%s'.", name->chars);
     return false;
   }
 
   Value result = method(argCount + 1, vm.stackTop - argCount - 1);
 
-  if (vm.hadRuntimeError) return false;
+  if (vm.hadRuntimeError)
+    return false;
 
   vm.stackTop -= argCount + 1;
   push(result);
@@ -492,7 +521,8 @@ static bool invoke(ObjString *name, int argCount)
 {
   Value receiver = peek(argCount);
 
-  if (IS_LIST(receiver)) {
+  if (IS_LIST(receiver))
+  {
     return invokeListMethod(name, argCount);
   }
 
@@ -579,23 +609,28 @@ static void defineMethod(ObjString *name)
   pop();
 }
 
-static bool normalizeListIndex(Value indexValue, int listCount, int *outIndex) {
-  if (!IS_NUMBER(indexValue)) {
+static bool normalizeListIndex(Value indexValue, int listCount, int *outIndex)
+{
+  if (!IS_NUMBER(indexValue))
+  {
     runtimeError("List index must be a number.");
     return false;
   }
 
   double index = AS_NUMBER(indexValue);
-  if (!isfinite(index) || floor(index) != index) {
+  if (!isfinite(index) || floor(index) != index)
+  {
     runtimeError("List index must be a finite integer.");
     return false;
   }
 
-  if (index < 0) {
+  if (index < 0)
+  {
     index += listCount;
   }
 
-  if (index < 0 || index >= listCount) {
+  if (index < 0 || index >= listCount)
+  {
     runtimeError("List index out of bounds.");
     return false;
   }
@@ -900,172 +935,144 @@ static InterpretResult run()
     }
     case OP_GET_INDEX:
     {
-      if (IS_NUMBER(peek(0)) && IS_STRING(peek(1)))
+      Value index = peek(0);
+      Value container = peek(1);
+
+      if (IS_LIST(container))
       {
-        Value key = peek(0); // do NOT change to pop, this is important for the gc
-        Value container = peek(1);
+        ObjList *list = AS_LIST(container);
+        int listIndex;
+
+        if (!normalizeListIndex(index, list->items.count, &listIndex))
+        {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        Value result = list->items.values[listIndex];
+        pop();
+        pop();
+        push(result);
+      }
+      else if (IS_STRING(container))
+      {
+        if (!IS_NUMBER(index))
+        {
+          runtimeError("String index must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        double stringIndex = AS_NUMBER(index);
+        if (!isfinite(stringIndex) || floor(stringIndex) != stringIndex)
+        {
+          runtimeError("String index must be a finite integer.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
 
         ObjString *string = AS_STRING(container);
-        int i = (int)AS_NUMBER(key);
-        if (i < 0 || i >= string->length)
-        {
-          runtimeError("String index out of bounds.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
+        char chars[2] = {string->chars[(int)stringIndex], '\0'};
+
+        ObjString *result = copyString(chars, 1);
 
         pop();
         pop();
-
-        char chars[2] = {string->chars[i], '\0'};
-        push(OBJ_VAL(copyString(chars, 1)));
+        push(OBJ_VAL(result));
       }
-      else if ((IS_STRING(peek(0)) || IS_NUMBER(peek(0))) && IS_HASHMAP(peek(1)))
+      else if (IS_HASHMAP(container))
       {
-        Value key = peek(0);
-        Value container = peek(1);
-
-        ObjHashmap *hashmap = AS_HASHMAP(container);
-
-        if (!IS_STRING(key) && !IS_NUMBER(key))
+        if (!IS_STRING(index) && !IS_NUMBER(index))
         {
-          runtimeError("Hashmap key must be a string or a number");
+          runtimeError("Hashmap key must be a string or a number.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        ObjString *keyStr;
-        if (IS_STRING(key))
+        ObjString *key;
+
+        if (IS_STRING(index))
         {
-          keyStr = AS_STRING(key);
+          key = AS_STRING(index);
         }
         else
         {
           char keyBuffer[32];
-          snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(key));
-          keyStr = copyString(keyBuffer, strlen(keyBuffer));
+          snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(index));
+          key = copyString(keyBuffer, strlen(keyBuffer));
         }
+
+        Value result = NIL_VAL;
+        tableGet(&AS_HASHMAP(container)->items, key, &result);
 
         pop();
         pop();
-
-        Value value;
-        if (tableGet(&hashmap->items, keyStr, &value))
-        {
-          push(value);
-        }
-        else
-        {
-          push(NIL_VAL);
-        }
-      }
-      else if (IS_NUMBER(peek(0)))
-      {
-        int keyCount = 0;
-
-        while (IS_NUMBER(peek(keyCount)))
-        {
-          keyCount++;
-        }
-
-        Value container = peek(keyCount);
-
-        if (!IS_LIST(container))
-        {
-          if (keyCount == 1)
-          {
-            runtimeError("Can only index into lists, strings and hashmaps.");
-            return INTERPRET_RUNTIME_ERROR;
-          }
-          else
-          {
-            runtimeError("Multi-level indexing is only supported in lists.");
-            return INTERPRET_RUNTIME_ERROR;
-          }
-        }
-
-        for (int i = keyCount - 1; i >= 0; i--)
-        {
-          if (!IS_LIST(container))
-          {
-            runtimeError("Cannot index non-list value.");
-            return INTERPRET_RUNTIME_ERROR;
-          }
-
-          ObjList *objList = AS_LIST(container);
-          int index;
-
-          if (!normalizeListIndex(peek(i), objList->items.count, &index))
-          {
-            return INTERPRET_RUNTIME_ERROR;
-          }
-
-          container = objList->items.values[index];
-        }
-
-        for (int i = 0; i <= keyCount; i++)
-        {
-          pop();
-        }
-
-        push(container);
-        break;
+        push(result);
       }
       else
       {
-        runtimeError("Can only index into lists, strings and hashmaps.");
+        runtimeError("Can only index into lists, strings, and hashmaps.");
         return INTERPRET_RUNTIME_ERROR;
       }
+
       break;
     }
 
     case OP_SET_INDEX:
     {
-      Value value = pop(); // think this is fine because it won't ever be part of any other expression
-      Value key = pop();
-      Value container = pop();
+      Value value = peek(0);
+      Value key = peek(1);
+      Value container = peek(2);
 
       if (IS_LIST(container))
       {
-        ObjList *objList = AS_LIST(container);
-        
-        int i;
-        if (!normalizeListIndex(key, objList->items.count, &i)) {
+        ObjList *list = AS_LIST(container);
+        int index;
+
+        if (!normalizeListIndex(key, list->items.count, &index))
+        {
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        objList->items.values[i] = value;
+        list->items.values[index] = value;
+
+        pop();
+        pop();
+        pop();
         push(value);
       }
       else if (IS_HASHMAP(container))
       {
-        ObjHashmap *hashmap = AS_HASHMAP(container);
         if (!IS_STRING(key) && !IS_NUMBER(key))
         {
-          runtimeError("Hashmap key must be a string or a number");
+          runtimeError("Hashmap key must be a string or a number.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        ObjString *keyStr;
+        ObjString *mapKey;
         if (IS_STRING(key))
         {
-          keyStr = AS_STRING(key);
+          mapKey = AS_STRING(key);
         }
         else
         {
           char keyBuffer[32];
           snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(key));
-          keyStr = copyString(keyBuffer, strlen(keyBuffer));
+          mapKey = copyString(keyBuffer, strlen(keyBuffer));
         }
 
-        tableSet(&hashmap->items, keyStr, value);
+        tableSet(&AS_HASHMAP(container)->items, mapKey, value);
+
+        pop();
+        pop();
+        pop();
         push(value);
       }
       else
       {
-        runtimeError("Can only index into lists and hashmaps.");
+        runtimeError("Can only assign through a list or hashmap index.");
         return INTERPRET_RUNTIME_ERROR;
       }
+
       break;
     }
+
     case OP_NEW_LIST:
     {
       push(OBJ_VAL(newList()));
@@ -1202,13 +1209,14 @@ static InterpretResult run()
 InterpretResult interpret(const char *source)
 {
   vm.hadRuntimeError = false;
-  
+
   ObjFunction *function = compile(source);
   if (function == NULL)
     return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL(function));
-  if (!call(function, 0)) {
+  if (!call(function, 0))
+  {
     return INTERPRET_RUNTIME_ERROR;
   }
 
@@ -1218,13 +1226,14 @@ InterpretResult interpret(const char *source)
 POGBERRY_API InterpretResult ext_interpret(const char *source)
 {
   vm.hadRuntimeError = false;
-  
+
   ObjFunction *function = compile(source);
   if (function == NULL)
     return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL(function));
-  if (!call(function, 0)) {
+  if (!call(function, 0))
+  {
     return INTERPRET_RUNTIME_ERROR;
   }
 

@@ -3,7 +3,7 @@
   "scopeName": "source.pb",
   "patterns": [
     {
-      "match": "\\b(var|fun|if|else|while|for|return|print|class|super|this|and|or|break|continue)\\b",
+      "match": "\\b(var|let|fun|if|else|while|for|return|print|class|super|this|and|or|break|continue)\\b",
       "name": "keyword.control.pogberry"
     },
     {

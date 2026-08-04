@@ -913,27 +913,15 @@ static void useStatement()
   emitByte(OP_USE);
 }
 
-static void list(bool canAssign)
-{
-  int itemCount = 0;
+static void list(bool canAssign) {
+  (void)canAssign;
+
   emitByte(OP_NEW_LIST);
 
-  if (!check(TOKEN_RIGHT_BRACKET))
-  {
-    do
-    {
-      if (match(TOKEN_LEFT_BRACKET))
-      {
-        list(canAssign);
-      }
-      else
-      {
-        expression();
-      }
-
+  if (!check(TOKEN_RIGHT_BRACKET)) {
+    do {
+      expression();
       emitByte(OP_LIST_LITERAL_APPEND);
-      itemCount++;
-
     } while (match(TOKEN_COMMA));
   }
 
@@ -960,57 +948,15 @@ static void hashmap(bool canAssign)
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after hashmap elements.");
 }
 
-static void containerIndex(bool canAssign)
-{
-  do
-  {
+static void containerIndex(bool canAssign) {
+  expression();
+  consume(TOKEN_RIGHT_BRACKET, "Expect ']' after index.");
+
+  if (canAssign && match(TOKEN_EQUAL)) {
     expression();
-    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list index.");
-
-    if (canAssign && match(TOKEN_EQUAL))
-    {
-      expression();
-      emitByte(OP_SET_INDEX); // also works with hashmap keys
-      break;
-    }
-    else
-    {
-      emitByte(OP_GET_INDEX);
-    }
-  } while (match(TOKEN_LEFT_BRACKET));
-}
-
-static void handleDot(bool canAssign)
-{
-  consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-  uint8_t name = identifierConstant(&parser.previous);
-
-  if (canAssign && match(TOKEN_EQUAL))
-  {
-    expression();
-    emitBytes(OP_SET_PROPERTY, name);
-  }
-  else if (match(TOKEN_LEFT_PAREN))
-  {
-    uint8_t argCount = argumentList();
-    emitBytes(OP_INVOKE, name);
-    emitByte(argCount);
-  }
-  else
-  {
-    emitBytes(OP_GET_PROPERTY, name);
-  }
-
-  if (match(TOKEN_DOT))
-  {
-    handleDot(canAssign);
-  }
-
-  if (match(TOKEN_LEFT_BRACKET))
-  {
-    expression();
+    emitByte(OP_SET_INDEX);
+  } else {
     emitByte(OP_GET_INDEX);
-    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
   }
 }
 
@@ -1150,18 +1096,7 @@ static void namedVariable(Token name, bool canAssign)
     setOp = OP_SET_GLOBAL;
   }
 
-  if (match(TOKEN_LEFT_BRACKET))
-  {
-    emitBytes(getOp, (uint8_t)arg);
-    containerIndex(canAssign);
-  }
-  else if (match(TOKEN_DOT))
-  {
-    emitBytes(getOp, (uint8_t)arg);
-    handleDot(canAssign);
-  }
-  else if (canAssign && match(TOKEN_EQUAL))
-  {
+  if (canAssign && match(TOKEN_EQUAL)) {
     if (name.length == 4 && memcmp(name.start, "this", 4) == 0)
     {
       error("Cannot assign to 'this'.");
@@ -1253,7 +1188,7 @@ ParseRule rules[] = {
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
     [TOKEN_LEFT_BRACE] = {hashmap, NULL, PREC_CALL},
     [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LEFT_BRACKET] = {list, NULL, PREC_CALL},
+    [TOKEN_LEFT_BRACKET] = {list, containerIndex, PREC_CALL},
     [TOKEN_RIGHT_BRACKET] = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT] = {NULL, dot, PREC_CALL},
