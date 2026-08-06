@@ -81,7 +81,7 @@ static void blackenObject(Obj* object) {
       break;
     case OBJ_HASHMAP:
       ObjHashmap* map = (ObjHashmap*)object;
-      markTable(&map->items);
+      markMap(&map->items);
       break;
     case OBJ_NATIVE:
       break;
@@ -161,7 +161,7 @@ static void freeObject(Obj* object) {
     }
     case OBJ_HASHMAP: {
       ObjHashmap* hashmap = (ObjHashmap*)object;
-      freeTable(&hashmap->items);
+      freeMap(&hashmap->items);
       FREE(ObjHashmap, object);
       break;
     }

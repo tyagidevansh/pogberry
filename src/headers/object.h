@@ -5,6 +5,7 @@
 #include "chunk.h"
 #include "value.h"
 #include "table.h"
+#include "map.h"
 
 #define OBJ_TYPE(value)      (AS_OBJ(value)->type)
 
@@ -75,7 +76,7 @@ typedef struct {
 
 typedef struct {
   Obj obj;
-  Table items;
+  Map items;
 } ObjHashmap;
 
 typedef struct {

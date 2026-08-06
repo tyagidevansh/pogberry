@@ -57,45 +57,17 @@ static bool listsEqual(ObjList* left, ObjList* right) {
   return true;
 }
 
-static int hashmapLiveEntryCount(ObjHashmap* hashmap) {
-  int count = 0;
-
-  for (int i = 0; i < hashmap->items.capacity; i++) {
-    Entry* entry = &hashmap->items.entries[i];
-
-    if (entry->key != NULL) {
-      count++;
-    }
-  }
-
-  return count;
-}
-
-static bool hashmapGetByContents(ObjHashmap* hashmap, ObjString* key, Value* outValue) {
-  for (int i = 0; i < hashmap->items.capacity; i++) {
-    Entry* entry = &hashmap->items.entries[i];
-
-    if (entry->key != NULL && stringsEqual(entry->key, key)) {
-      *outValue = entry->value;
-      return true;
-    }
-  }
-
-  return false;
-}
-
 static bool hashmapsEqual(ObjHashmap* left, ObjHashmap* right) {
   if (left == right) return true;
 
-  if (hashmapLiveEntryCount(left) != hashmapLiveEntryCount(right)) return false;
+  if (mapCount(&left->items) != mapCount(&right->items)) return false;
 
-  for (int i = 0; i < left->items.capacity; i++) {
-    Entry* entry = &left->items.entries[i];
-
-    if (entry->key == NULL) continue;
+  for (int index = mapFirstEntry(&left->items); index != -1;
+       index = mapNextEntry(&left->items, index)) {
+    MapEntry* entry = mapEntryAt(&left->items, index);
 
     Value rightValue;
-    if (!hashmapGetByContents(right, entry->key, &rightValue)) return false;
+    if (!mapGet(&right->items, entry->key, &rightValue)) return false;
 
     if (!valuesEqual(entry->value, rightValue)) return false;
   }

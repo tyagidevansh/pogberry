@@ -23,6 +23,10 @@ Value listCopyNative(int argCount, Value *args);
 Value listIndexNative(int argCount, Value *args);
 Value listCountNative(int argCount, Value *args);
 Value listReverseNative(int argCount, Value *args);
+Value mapHasNative(int argCount, Value *args);
+Value mapGetNative(int argCount, Value *args);
+Value mapDeleteNative(int argCount, Value *args);
+Value mapClearNative(int argCount, Value *args);
 Value getTime(int argCount, Value* args);
 
 // raylib native functions (where do i put these???)

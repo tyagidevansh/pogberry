@@ -517,6 +517,40 @@ static bool invokeListMethod(ObjString *name, int argCount)
   return true;
 }
 
+static bool invokeMapMethod(ObjString *name, int argCount)
+{
+  NativeFn method = NULL;
+
+  if (strcmp(name->chars, "has") == 0)
+  {
+    method = mapHasNative;
+  }
+  else if (strcmp(name->chars, "get") == 0)
+  {
+    method = mapGetNative;
+  }
+  else if (strcmp(name->chars, "delete") == 0)
+  {
+    method = mapDeleteNative;
+  }
+  else if (strcmp(name->chars, "clear") == 0)
+  {
+    method = mapClearNative;
+  }
+  else
+  {
+    runtimeError("Maps do not have a method named '%s'.", name->chars);
+    return false;
+  }
+
+  Value result = method(argCount + 1, vm.stackTop - argCount - 1);
+  if (vm.hadRuntimeError) return false;
+
+  vm.stackTop -= argCount + 1;
+  push(result);
+  return true;
+}
+
 static bool invoke(ObjString *name, int argCount)
 {
   Value receiver = peek(argCount);
@@ -524,6 +558,11 @@ static bool invoke(ObjString *name, int argCount)
   if (IS_LIST(receiver))
   {
     return invokeListMethod(name, argCount);
+  }
+
+  if (IS_HASHMAP(receiver))
+  {
+    return invokeMapMethod(name, argCount);
   }
 
   if (!IS_INSTANCE(receiver))
@@ -747,6 +786,21 @@ static InterpretResult run()
     }
     case OP_GET_PROPERTY:
     {
+      ObjString *name = READ_STRING();
+
+      if (IS_HASHMAP(peek(0)))
+      {
+        if (strcmp(name->chars, "length") != 0)
+        {
+          runtimeError("Maps do not have a property named '%s'.", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjHashmap *map = AS_HASHMAP(pop());
+        push(NUMBER_VAL(mapCount(&map->items)));
+        break;
+      }
+
       if (!IS_INSTANCE(peek(0)))
       {
         runtimeError("Only instances have properties.");
@@ -754,7 +808,6 @@ static InterpretResult run()
       }
 
       ObjInstance *instance = AS_INSTANCE(peek(0));
-      ObjString *name = READ_STRING();
 
       Value value;
       if (tableGet(&instance->fields, name, &value))
@@ -979,27 +1032,14 @@ static InterpretResult run()
       }
       else if (IS_HASHMAP(container))
       {
-        if (!IS_STRING(index) && !IS_NUMBER(index))
+        if (!mapKeyIsValid(index))
         {
-          runtimeError("Hashmap key must be a string or a number.");
+          runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        ObjString *key;
-
-        if (IS_STRING(index))
-        {
-          key = AS_STRING(index);
-        }
-        else
-        {
-          char keyBuffer[32];
-          snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(index));
-          key = copyString(keyBuffer, strlen(keyBuffer));
-        }
-
         Value result = NIL_VAL;
-        tableGet(&AS_HASHMAP(container)->items, key, &result);
+        mapGet(&AS_HASHMAP(container)->items, index, &result);
 
         pop();
         pop();
@@ -1039,25 +1079,17 @@ static InterpretResult run()
       }
       else if (IS_HASHMAP(container))
       {
-        if (!IS_STRING(key) && !IS_NUMBER(key))
+        if (!mapKeyIsValid(key))
         {
-          runtimeError("Hashmap key must be a string or a number.");
+          runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        ObjString *mapKey;
-        if (IS_STRING(key))
+        if (!mapSet(&AS_HASHMAP(container)->items, key, value, NULL))
         {
-          mapKey = AS_STRING(key);
+          runtimeError("Map key is invalid.");
+          return INTERPRET_RUNTIME_ERROR;
         }
-        else
-        {
-          char keyBuffer[32];
-          snprintf(keyBuffer, sizeof(keyBuffer), "%g", AS_NUMBER(key));
-          mapKey = copyString(keyBuffer, strlen(keyBuffer));
-        }
-
-        tableSet(&AS_HASHMAP(container)->items, mapKey, value);
 
         pop();
         pop();
@@ -1115,23 +1147,16 @@ static InterpretResult run()
 
       ObjHashmap *hashmap = AS_HASHMAP(hashmapVal);
 
-      if (!IS_STRING(keyVal) && !IS_NUMBER(keyVal))
+      if (!mapKeyIsValid(keyVal))
       {
-        runtimeError("Hashmap key must be a string or a number.");
+        runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      if (IS_STRING(keyVal))
+      if (!mapSet(&hashmap->items, keyVal, value, NULL))
       {
-        ObjString *key = AS_STRING(keyVal);
-        tableSet(&hashmap->items, key, value);
-      }
-      else if (IS_NUMBER(keyVal))
-      {
-        char keyStr[32];
-        snprintf(keyStr, sizeof(keyStr), "%g", AS_NUMBER(keyVal));
-        ObjString *key = copyString(keyStr, strlen(keyStr));
-        tableSet(&hashmap->items, key, value);
+        runtimeError("Map key is invalid.");
+        return INTERPRET_RUNTIME_ERROR;
       }
 
       pop();

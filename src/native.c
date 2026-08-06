@@ -627,6 +627,64 @@ Value listReverseNative(int argCount, Value *args)
     return NIL_VAL;
 }
 
+Value mapHasNative(int argCount, Value *args)
+{
+    if (argCount != 2 || !IS_HASHMAP(args[0])) {
+        runtimeError("has() expects a map and a key.");
+        return NIL_VAL;
+    }
+    if (!mapKeyIsValid(args[1])) {
+        runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+        return NIL_VAL;
+    }
+
+    Value value;
+    return BOOL_VAL(mapGet(&AS_HASHMAP(args[0])->items, args[1], &value));
+}
+
+Value mapGetNative(int argCount, Value *args)
+{
+    if (argCount != 3 || !IS_HASHMAP(args[0])) {
+        runtimeError("get() expects a map, a key, and a default value.");
+        return NIL_VAL;
+    }
+    if (!mapKeyIsValid(args[1])) {
+        runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+        return NIL_VAL;
+    }
+
+    Value value;
+    if (mapGet(&AS_HASHMAP(args[0])->items, args[1], &value)) {
+        return value;
+    }
+    return args[2];
+}
+
+Value mapDeleteNative(int argCount, Value *args)
+{
+    if (argCount != 2 || !IS_HASHMAP(args[0])) {
+        runtimeError("delete() expects a map and a key.");
+        return NIL_VAL;
+    }
+    if (!mapKeyIsValid(args[1])) {
+        runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+        return NIL_VAL;
+    }
+
+    return BOOL_VAL(mapDelete(&AS_HASHMAP(args[0])->items, args[1]));
+}
+
+Value mapClearNative(int argCount, Value *args)
+{
+    if (argCount != 1 || !IS_HASHMAP(args[0])) {
+        runtimeError("clear() expects a map.");
+        return NIL_VAL;
+    }
+
+    mapClear(&AS_HASHMAP(args[0])->items);
+    return NIL_VAL;
+}
+
 Value getTime(int argCount, Value* args) {
     if (argCount != 0) 
     {

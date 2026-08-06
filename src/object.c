@@ -89,7 +89,7 @@ ObjList* newList() {
 
 ObjHashmap* newHashmap() {
   ObjHashmap* hashmap = ALLOCATE_OBJ(ObjHashmap, OBJ_HASHMAP);
-  initTable(&hashmap->items);
+  initMap(&hashmap->items);
   return hashmap;
 }
 
@@ -134,16 +134,16 @@ static void printList(ObjList* list) {
 static void printHashmap(ObjHashmap* hashmap) {
   printf("{");
   bool first = true;
-  for (int i = 0; i < hashmap->items.capacity; i++) {
-    Entry* entry = &hashmap->items.entries[i];
-    if (entry->key != NULL) {
-      if (!first) {
-        printf(", ");
-      }
-      first = false;
-      printf("%s : ", entry->key->chars);
-      printf("%s", AS_CSTRING(entry->value));
+  for (int index = mapFirstEntry(&hashmap->items); index != -1;
+       index = mapNextEntry(&hashmap->items, index)) {
+    MapEntry* entry = mapEntryAt(&hashmap->items, index);
+    if (!first) {
+      printf(", ");
     }
+    first = false;
+    printValue(entry->key);
+    printf(": ");
+    printValue(entry->value);
   }
   printf("}");
 }
