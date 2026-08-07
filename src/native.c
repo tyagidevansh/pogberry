@@ -233,6 +233,7 @@ int getKeyCode(const char *name)
 
 Value clockNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount > 0)
     {
         runtimeError("Clock does not accept any arguments");
@@ -685,7 +686,56 @@ Value mapClearNative(int argCount, Value *args)
     return NIL_VAL;
 }
 
+Value lenNative(int argCount, Value *args)
+{
+    if (argCount != 1) {
+        runtimeError("len() expects one value.");
+        return NIL_VAL;
+    }
+
+    if (IS_STRING(args[0])) return NUMBER_VAL(AS_STRING(args[0])->length);
+    if (IS_LIST(args[0])) return NUMBER_VAL(AS_LIST(args[0])->items.count);
+    if (IS_HASHMAP(args[0])) return NUMBER_VAL(mapCount(&AS_HASHMAP(args[0])->items));
+
+    runtimeError("len() expects a string, list, or map.");
+    return NIL_VAL;
+}
+
+Value typeNative(int argCount, Value *args)
+{
+    if (argCount != 1) {
+        runtimeError("type() expects one value.");
+        return NIL_VAL;
+    }
+
+    const char* name;
+    if (IS_NIL(args[0])) name = "nil";
+    else if (IS_BOOL(args[0])) name = "bool";
+    else if (IS_NUMBER(args[0])) name = "number";
+    else if (IS_STRING(args[0])) name = "string";
+    else if (IS_LIST(args[0])) name = "list";
+    else if (IS_HASHMAP(args[0])) name = "map";
+    else if (IS_FUNCTION(args[0])) name = "function";
+    else if (IS_NATIVE(args[0])) name = "native";
+    else if (IS_CLASS(args[0])) name = "class";
+    else if (IS_INSTANCE(args[0])) name = "instance";
+    else name = "bound_method";
+
+    return OBJ_VAL(copyString(name, strlen(name)));
+}
+
+Value strNative(int argCount, Value *args)
+{
+    if (argCount != 1) {
+        runtimeError("str() expects one value.");
+        return NIL_VAL;
+    }
+
+    return OBJ_VAL(valueToString(args[0]));
+}
+
 Value getTime(int argCount, Value* args) {
+    (void)args;
     if (argCount != 0) 
     {
         runtimeError("getTime() accepts no arguments");
@@ -712,6 +762,7 @@ Value initWindowNative(int argCount, Value *args)
 
 Value beginDrawingNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "beginDrawing() takes no arguments\n");
@@ -759,6 +810,7 @@ Value drawTextNative(int argCount, Value *args)
 
 Value endDrawingNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "endDrawing() takes no arguments\n");
@@ -770,6 +822,7 @@ Value endDrawingNative(int argCount, Value *args)
 
 Value windowShouldCloseNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "windowShouldClose() takes no arguments\n");
@@ -904,6 +957,7 @@ Value isMouseButtonDownNative(int argCount, Value *args)
 // Window close
 Value closeWindowNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "closeWindow() takes no arguments\n");
@@ -916,6 +970,7 @@ Value closeWindowNative(int argCount, Value *args)
 // Window state
 Value isWindowMinimizedNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "isWindowMinimized() takes no arguments\n");
@@ -927,6 +982,7 @@ Value isWindowMinimizedNative(int argCount, Value *args)
 // Toggle borderless
 Value toggleBorderlessWindowedNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "toggleBorderlessWindowed() takes no arguments\n");
@@ -939,6 +995,7 @@ Value toggleBorderlessWindowedNative(int argCount, Value *args)
 // Screen info
 Value getScreenWidthNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "getScreenWidth() takes no arguments\n");
@@ -949,6 +1006,7 @@ Value getScreenWidthNative(int argCount, Value *args)
 
 Value getScreenHeightNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "getScreenHeight() takes no arguments\n");
@@ -959,6 +1017,7 @@ Value getScreenHeightNative(int argCount, Value *args)
 
 Value getFPSNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "getFPS() takes no arguments\n");
@@ -970,6 +1029,7 @@ Value getFPSNative(int argCount, Value *args)
 // GUI native wrappers
 Value swapScreenBufferNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "swapScreenBuffer() takes no arguments\n");
@@ -1066,6 +1126,7 @@ Value isKeyUpNative(int argCount, Value *args)
 
 Value getKeyPressedNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "getKeyPressed() takes no arguments\n");
@@ -1076,6 +1137,7 @@ Value getKeyPressedNative(int argCount, Value *args)
 
 Value getCharPressedNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "getCharPressed() takes no arguments\n");
@@ -1149,6 +1211,7 @@ Value isMouseButtonUpNative(int argCount, Value *args)
 
 Value getMouseXNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "getMouseX() takes no arguments\n");
@@ -1159,6 +1222,7 @@ Value getMouseXNative(int argCount, Value *args)
 
 Value getMouseYNative(int argCount, Value *args)
 {
+    (void)args;
     if (argCount != 0)
     {
         fprintf(stderr, "getMouseY() takes no arguments\n");

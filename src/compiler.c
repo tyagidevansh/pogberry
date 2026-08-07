@@ -455,6 +455,7 @@ static uint8_t argumentList()
 
 static void and_(bool canAssign)
 {
+  (void)canAssign;
   int endJump = emitJump(OP_JUMP_IF_FALSE);
 
   emitByte(OP_POP);
@@ -465,6 +466,7 @@ static void and_(bool canAssign)
 
 static void binary(bool canAssign)
 {
+  (void)canAssign;
   TokenType operatorType = parser.previous.type;
   ParseRule *rule = getRule(operatorType);
   parsePrecedence((Precedence)(rule->precedence + 1));
@@ -511,6 +513,7 @@ static void binary(bool canAssign)
 
 static void call(bool canAssign)
 {
+  (void)canAssign;
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
 }
@@ -539,6 +542,7 @@ static void dot(bool canAssign)
 
 static void literal(bool canAssign)
 {
+  (void)canAssign;
   switch (parser.previous.type)
   {
   case TOKEN_FALSE:
@@ -557,6 +561,7 @@ static void literal(bool canAssign)
 
 static void grouping(bool canAssign)
 {
+  (void)canAssign;
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
@@ -930,6 +935,7 @@ static void list(bool canAssign) {
 
 static void hashmap(bool canAssign)
 {
+  (void)canAssign;
   int itemCount = 0;
   emitByte(OP_NEW_HASHMAP);
 
@@ -985,6 +991,7 @@ static void synchronize()
 
     default:; // do nothing
     }
+    advance();
   }
 }
 
@@ -1059,12 +1066,14 @@ static void statement()
 
 static void number(bool canAssign)
 {
+  (void)canAssign;
   double value = strtod(parser.previous.start, NULL);
   emitConstant(NUMBER_VAL(value));
 }
 
 static void or_(bool canAssign)
 {
+  (void)canAssign;
   int elseJump = emitJump(OP_JUMP_IF_FALSE);
   int endJump = emitJump(OP_JUMP);
 
@@ -1077,6 +1086,7 @@ static void or_(bool canAssign)
 
 static void string(bool canAssign)
 {
+  (void)canAssign;
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
@@ -1125,6 +1135,7 @@ static Token syntheticToken(const char *text)
 
 static void super_(bool canAssign)
 {
+  (void)canAssign;
   if (currentClass == NULL)
   {
     error("Can't use 'super' outside of a class.");
@@ -1166,6 +1177,7 @@ static void this_(bool canAssign)
 
 static void unary(bool canAssign)
 {
+  (void)canAssign;
   TokenType operatorType = parser.previous.type;
 
   parsePrecedence(PREC_UNARY);

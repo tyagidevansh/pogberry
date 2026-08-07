@@ -70,33 +70,38 @@ static void blackenObject(Obj* object) {
   printf("\n");
 #endif
   switch (object->type) {
-    case OBJ_FUNCTION:
+    case OBJ_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
       markObject((Obj*)function->name);
       markArray(&function->chunk.constants);
       break;
-    case OBJ_LIST:
+    }
+    case OBJ_LIST: {
       ObjList* list = (ObjList*)object;
       markArray(&list->items);
       break;
-    case OBJ_HASHMAP:
+    }
+    case OBJ_HASHMAP: {
       ObjHashmap* map = (ObjHashmap*)object;
       markMap(&map->items);
       break;
+    }
     case OBJ_NATIVE:
       break;
     case OBJ_STRING:
       break;
-    case OBJ_CLASS:
+    case OBJ_CLASS: {
       ObjClass* klass = (ObjClass*)object;
       markObject((Obj*)klass->name);
       markTable(&klass->methods);
       break;
-    case OBJ_INSTANCE:
+    }
+    case OBJ_INSTANCE: {
       ObjInstance* instance = (ObjInstance*) object;
       markObject((Obj*)instance->klass);
       markTable(&instance->fields);
       break;
+    }
     case OBJ_BOUND_METHOD: {
       ObjBoundMethod* bound = (ObjBoundMethod*)object;
       markValue(bound->receiver);

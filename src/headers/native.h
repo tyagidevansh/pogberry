@@ -27,6 +27,9 @@ Value mapHasNative(int argCount, Value *args);
 Value mapGetNative(int argCount, Value *args);
 Value mapDeleteNative(int argCount, Value *args);
 Value mapClearNative(int argCount, Value *args);
+Value lenNative(int argCount, Value *args);
+Value typeNative(int argCount, Value *args);
+Value strNative(int argCount, Value *args);
 Value getTime(int argCount, Value* args);
 
 // raylib native functions (where do i put these???)

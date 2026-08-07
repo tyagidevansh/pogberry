@@ -128,6 +128,9 @@ void initVM()
   defineNative("sqrt", sqrtNative);
   defineNative("abs", absNative);
   defineNative("getTime", getTime);
+  defineNative("len", lenNative);
+  defineNative("type", typeNative);
+  defineNative("str", strNative);
 }
 
 POGBERRY_API void ext_initVM()
@@ -156,6 +159,9 @@ POGBERRY_API void ext_initVM()
   defineNative("sqrt", sqrtNative);
   defineNative("abs", absNative);
   defineNative("getTime", getTime);
+  defineNative("len", lenNative);
+  defineNative("type", typeNative);
+  defineNative("str", strNative);
 }
 
 #ifdef _WIN32
@@ -425,7 +431,6 @@ static bool callValue(Value callee, int argCount)
     }
     case OBJ_BOUND_METHOD:
     {
-      printf("inside obj bound");
       ObjBoundMethod *bound = AS_BOUND_METHOD(callee);
       vm.stackTop[-argCount - 1] = bound->receiver;
       return call(bound->method, argCount);
@@ -980,7 +985,6 @@ static InterpretResult run()
       int argCount = READ_BYTE();
       if (!callValue(peek(argCount), argCount))
       {
-        printf("rintime errpr inside call");
         return INTERPRET_RUNTIME_ERROR;
       }
       frame = &vm.frames[vm.frameCount - 1];
@@ -1022,6 +1026,11 @@ static InterpretResult run()
         }
 
         ObjString *string = AS_STRING(container);
+        if (stringIndex < 0 || stringIndex >= string->length)
+        {
+          runtimeError("String index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
         char chars[2] = {string->chars[(int)stringIndex], '\0'};
 
         ObjString *result = copyString(chars, 1);

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "headers/object.h"
@@ -115,4 +116,159 @@ bool valuesEqual(Value left, Value right) {
   }
 
   return false;
+}
+
+typedef struct {
+  char* chars;
+  int count;
+  int capacity;
+  Obj** active;
+  int activeCount;
+  int activeCapacity;
+} StringBuilder;
+
+static void appendChars(StringBuilder* builder, const char* chars, int length) {
+  if (builder->count + length + 1 > builder->capacity) {
+    int capacity = builder->capacity < 8 ? 8 : builder->capacity;
+    while (builder->count + length + 1 > capacity) capacity *= 2;
+    char* charsBuffer = (char*)realloc(builder->chars, (size_t)capacity);
+    if (charsBuffer == NULL) exit(1);
+    builder->chars = charsBuffer;
+    builder->capacity = capacity;
+  }
+
+  memcpy(builder->chars + builder->count, chars, (size_t)length);
+  builder->count += length;
+  builder->chars[builder->count] = '\0';
+}
+
+static void appendCString(StringBuilder* builder, const char* chars) {
+  appendChars(builder, chars, (int)strlen(chars));
+}
+
+static bool isActive(StringBuilder* builder, Obj* object) {
+  for (int i = 0; i < builder->activeCount; i++) {
+    if (builder->active[i] == object) return true;
+  }
+  return false;
+}
+
+static void pushActive(StringBuilder* builder, Obj* object) {
+  if (builder->activeCount == builder->activeCapacity) {
+    int capacity = builder->activeCapacity < 8 ? 8 : builder->activeCapacity * 2;
+    Obj** active = (Obj**)realloc(builder->active, sizeof(Obj*) * (size_t)capacity);
+    if (active == NULL) exit(1);
+    builder->active = active;
+    builder->activeCapacity = capacity;
+  }
+  builder->active[builder->activeCount++] = object;
+}
+
+static void appendValue(StringBuilder* builder, Value value) {
+  char number[32];
+
+  switch (value.type) {
+    case VAL_BOOL:
+      appendCString(builder, AS_BOOL(value) ? "true" : "false");
+      return;
+    case VAL_NIL:
+      appendCString(builder, "nil");
+      return;
+    case VAL_NUMBER:
+      snprintf(number, sizeof(number), "%g", AS_NUMBER(value));
+      appendCString(builder, number);
+      return;
+    case VAL_OBJ:
+      break;
+  }
+
+  Obj* object = AS_OBJ(value);
+  if (object->type == OBJ_STRING) {
+    appendChars(builder, AS_STRING(value)->chars, AS_STRING(value)->length);
+    return;
+  }
+
+  if (object->type == OBJ_LIST) {
+    if (isActive(builder, object)) {
+      appendCString(builder, "<cycle>");
+      return;
+    }
+    pushActive(builder, object);
+    ObjList* list = AS_LIST(value);
+    appendCString(builder, "[");
+    for (int i = 0; i < list->items.count; i++) {
+      if (i > 0) appendCString(builder, ", ");
+      appendValue(builder, list->items.values[i]);
+    }
+    appendCString(builder, "]");
+    builder->activeCount--;
+    return;
+  }
+
+  if (object->type == OBJ_HASHMAP) {
+    if (isActive(builder, object)) {
+      appendCString(builder, "<cycle>");
+      return;
+    }
+    pushActive(builder, object);
+    ObjHashmap* map = AS_HASHMAP(value);
+    appendCString(builder, "{");
+    bool first = true;
+    for (int index = mapFirstEntry(&map->items); index != -1;
+         index = mapNextEntry(&map->items, index)) {
+      MapEntry* entry = mapEntryAt(&map->items, index);
+      if (!first) appendCString(builder, ", ");
+      first = false;
+      appendValue(builder, entry->key);
+      appendCString(builder, ": ");
+      appendValue(builder, entry->value);
+    }
+    appendCString(builder, "}");
+    builder->activeCount--;
+    return;
+  }
+
+  if (object->type == OBJ_FUNCTION) {
+    ObjFunction* function = AS_FUNCTION(value);
+    if (function->name == NULL) {
+      appendCString(builder, "<script>");
+    } else {
+      appendCString(builder, "<fn ");
+      appendChars(builder, function->name->chars, function->name->length);
+      appendCString(builder, ">");
+    }
+    return;
+  }
+
+  if (object->type == OBJ_NATIVE) {
+    appendCString(builder, "<native fn>");
+    return;
+  }
+
+  if (object->type == OBJ_CLASS) {
+    ObjClass* klass = AS_CLASS(value);
+    appendChars(builder, klass->name->chars, klass->name->length);
+    return;
+  }
+
+  if (object->type == OBJ_INSTANCE) {
+    ObjInstance* instance = AS_INSTANCE(value);
+    appendChars(builder, instance->klass->name->chars, instance->klass->name->length);
+    appendCString(builder, " instance");
+    return;
+  }
+
+  ObjBoundMethod* method = AS_BOUND_METHOD(value);
+  appendCString(builder, "<fn ");
+  appendChars(builder, method->method->name->chars, method->method->name->length);
+  appendCString(builder, ">");
+}
+
+ObjString* valueToString(Value value) {
+  StringBuilder builder = {0};
+  appendValue(&builder, value);
+  ObjString* string = copyString(builder.chars, builder.count);
+  free(builder.chars);
+  free(builder.active);
+  return string;
 }
