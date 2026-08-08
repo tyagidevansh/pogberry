@@ -24,6 +24,8 @@
 // global declaration of VM (fuck it we ball)
 VM vm;
 
+static void closeUpvalues(Value *last);
+
 // global defintion of all the function pointers for raylib
 #ifdef _WIN32
 HINSTANCE dllHandle = NULL;
@@ -69,6 +71,7 @@ static void resetStack()
 {
   vm.stackTop = vm.stack;
   vm.frameCount = 0;
+  vm.openUpvalues = NULL;
 }
 
 void runtimeError(const char *format, ...)
@@ -86,7 +89,7 @@ void runtimeError(const char *format, ...)
   for (int i = vm.frameCount - 1; i >= 0; i--)
   {
     CallFrame *frame = &vm.frames[i];
-    ObjFunction *function = frame->function;
+    ObjFunction *function = frame->closure->function;
     size_t instruction = frame->ip - function->chunk.code - 1;
     fprintf(stderr, "[line %d] in ",
             function->chunk.lines[instruction]);
@@ -99,6 +102,7 @@ void runtimeError(const char *format, ...)
       fprintf(stderr, "%s()\n", function->name->chars);
     }
   }
+  closeUpvalues(vm.stack);
   resetStack();
 }
 
@@ -353,25 +357,42 @@ void freeVM()
 #endif
 }
 
-void push(Value value)
+bool push(Value value)
 {
+  if (vm.stackTop >= vm.stack + STACK_MAX)
+  {
+    runtimeError("Stack overflow.");
+    return false;
+  }
   *vm.stackTop = value; // put the new value in the empty spot
   vm.stackTop++;        // increase stackTop to point to the next empty spot
+  return true;
 }
 
 Value pop()
 {
+  if (vm.stackTop <= vm.stack)
+  {
+    runtimeError("Stack underflow.");
+    return NIL_VAL;
+  }
   vm.stackTop--;
   return *vm.stackTop;
 }
 
 static Value peek(int distance)
 {
+  if (distance < 0 || vm.stackTop - vm.stack <= distance)
+  {
+    runtimeError("Stack underflow.");
+    return NIL_VAL;
+  }
   return vm.stackTop[-1 - distance];
 }
 
-bool call(ObjFunction *function, int argCount)
+bool call(ObjClosure *closure, int argCount)
 {
+  ObjFunction *function = closure->function;
   if (argCount != function->arity)
   {
     runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
@@ -385,7 +406,7 @@ bool call(ObjFunction *function, int argCount)
   }
 
   CallFrame *frame = &vm.frames[vm.frameCount++];
-  frame->function = function;
+  frame->closure = closure;
   frame->ip = function->chunk.code;
 
   frame->slots = vm.stackTop - argCount - 1;
@@ -399,8 +420,8 @@ static bool callValue(Value callee, int argCount)
   {
     switch (OBJ_TYPE(callee))
     {
-    case OBJ_FUNCTION:
-      return call(AS_FUNCTION(callee), argCount);
+    case OBJ_CLOSURE:
+      return call(AS_CLOSURE(callee), argCount);
     case OBJ_NATIVE:
     {
       NativeFn native = AS_NATIVE(callee);
@@ -420,7 +441,7 @@ static bool callValue(Value callee, int argCount)
       Value initializer;
       if (tableGet(&klass->methods, vm.initString, &initializer))
       {
-        return call(AS_FUNCTION(initializer), argCount);
+        return call(AS_CLOSURE(initializer), argCount);
       }
       else if (argCount != 0)
       {
@@ -451,7 +472,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount)
     runtimeError("Undefined property '%s'.", name->chars);
     return false;
   }
-  return call(AS_FUNCTION(method), argCount);
+  return call(AS_CLOSURE(method), argCount);
 }
 
 static bool invokeListMethod(ObjString *name, int argCount)
@@ -597,7 +618,7 @@ static bool bindMethod(ObjClass *klass, ObjString *name)
     return false;
   }
 
-  ObjBoundMethod *bound = newBoundMethod(peek(0), AS_FUNCTION(method));
+  ObjBoundMethod *bound = newBoundMethod(peek(0), AS_CLOSURE(method));
   pop();
   push(OBJ_VAL(bound));
   return true;
@@ -609,13 +630,41 @@ static bool isFalsey(Value value)
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-static char *formatNumber(Value value)
+static ObjUpvalue *captureUpvalue(Value *local)
 {
-  if (!IS_NUMBER(value))
-    return "NaN";
-  char *buffer = ALLOCATE(char, 32);
-  snprintf(buffer, 32, "%g", AS_NUMBER(value));
-  return buffer;
+  ObjUpvalue *previous = NULL;
+  ObjUpvalue *upvalue = vm.openUpvalues;
+
+  while (upvalue != NULL && upvalue->location > local)
+  {
+    previous = upvalue;
+    upvalue = upvalue->next;
+  }
+
+  if (upvalue != NULL && upvalue->location == local) return upvalue;
+
+  ObjUpvalue *created = newUpvalue(local);
+  created->next = upvalue;
+  if (previous == NULL)
+  {
+    vm.openUpvalues = created;
+  }
+  else
+  {
+    previous->next = created;
+  }
+  return created;
+}
+
+static void closeUpvalues(Value *last)
+{
+  while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last)
+  {
+    ObjUpvalue *upvalue = vm.openUpvalues;
+    upvalue->closed = *upvalue->location;
+    upvalue->location = &upvalue->closed;
+    vm.openUpvalues = upvalue->next;
+  }
 }
 
 static void concatenate()
@@ -623,11 +672,8 @@ static void concatenate()
   Value b = peek(0);
   Value a = peek(1);
 
-  ObjString *strA = IS_STRING(a) ? AS_STRING(a) : copyString(formatNumber(a), strlen(formatNumber(a)));
-  ObjString *strB = IS_STRING(b) ? AS_STRING(b) : copyString(formatNumber(b), strlen(formatNumber(b)));
-
-  push(OBJ_VAL(strA));
-  push(OBJ_VAL(strB));
+  ObjString *strA = AS_STRING(a);
+  ObjString *strB = AS_STRING(b);
 
   int length = strA->length + strB->length;
   char *chars = ALLOCATE(char, length + 1);
@@ -635,9 +681,6 @@ static void concatenate()
   memcpy(chars + strA->length, strB->chars, strB->length);
   chars[length] = '\0';
 
-  // the gc makes you do weird shit man
-  pop();
-  pop();
   pop();
   pop();
 
@@ -694,7 +737,7 @@ static InterpretResult run()
    (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 
 #define READ_CONSTANT() \
-  (frame->function->chunk.constants.values[READ_BYTE()])
+  (frame->closure->function->chunk.constants.values[READ_BYTE()])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 // awkward do-while and then while(false) just to run it once so that this preprocessor can be defined at all. this faux loop is a workaround allowing preprocessor to take multiple statements
@@ -723,8 +766,8 @@ static InterpretResult run()
       printf(" ]");
     }
     printf("\n");
-    disassembleInstruction(&frame->function->chunk,
-                           (int)(frame->ip - frame->function->chunk.code));
+    disassembleInstruction(&frame->closure->function->chunk,
+                           (int)(frame->ip - frame->closure->function->chunk.code));
 #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE())
@@ -757,6 +800,18 @@ static InterpretResult run()
     {
       uint8_t slot = READ_BYTE();
       frame->slots[slot] = peek(0);
+      break;
+    }
+    case OP_GET_UPVALUE:
+    {
+      uint8_t slot = READ_BYTE();
+      push(*frame->closure->upvalues[slot]->location);
+      break;
+    }
+    case OP_SET_UPVALUE:
+    {
+      uint8_t slot = READ_BYTE();
+      *frame->closure->upvalues[slot]->location = peek(0);
       break;
     }
     case OP_GET_GLOBAL:
@@ -883,7 +938,9 @@ static InterpretResult run()
     {
       Value a = pop();
       Value b = pop();
-      push(BOOL_VAL(valuesEqual(a, b)));
+      bool equal = valuesEqual(a, b);
+      if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+      push(BOOL_VAL(equal));
       break;
     }
     case OP_GREATER:
@@ -894,7 +951,7 @@ static InterpretResult run()
       break;
     case OP_ADD:
     {
-      if (IS_STRING(peek(0)) || IS_STRING(peek(1)))
+      if (IS_STRING(peek(0)) && IS_STRING(peek(1)))
       {
         concatenate();
       }
@@ -918,8 +975,24 @@ static InterpretResult run()
       BINARY_OP(NUMBER_VAL, *);
       break;
     case OP_DIVIDE:
-      BINARY_OP(NUMBER_VAL, /);
+    {
+      if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1)))
+      {
+        runtimeError("Operands must be numbers.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      double divisor = AS_NUMBER(pop());
+      double dividend = AS_NUMBER(pop());
+      if (divisor == 0)
+      {
+        runtimeError("Division by zero.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      push(NUMBER_VAL(dividend / divisor));
       break;
+    }
     case OP_MODULO:
       if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1)))
       {
@@ -930,16 +1003,19 @@ static InterpretResult run()
       double b = AS_NUMBER(pop());
       double a = AS_NUMBER(pop());
 
-      if (floor(b) != b || floor(a) != a)
-      { // integer check
-        runtimeError("Modulo only accepts integer operands.");
+      if (b == 0)
+      {
+        runtimeError("Modulo by zero.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      int intA = (int)a;
-      int intB = (int)b;
+      if (!isfinite(a) || !isfinite(b) || floor(b) != b || floor(a) != a)
+      {
+        runtimeError("Modulo only accepts finite integer operands.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
 
-      push(NUMBER_VAL(intA % intB));
+      push(NUMBER_VAL(fmod(a, b)));
       break;
     case OP_NOT:
       push(BOOL_VAL(isFalsey(pop())));
@@ -1174,9 +1250,29 @@ static InterpretResult run()
       push(OBJ_VAL(hashmap));
       break;
     }
+    case OP_CLOSURE:
+    {
+      ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
+      ObjClosure *closure = newClosure(function);
+      if (!push(OBJ_VAL(closure))) return INTERPRET_RUNTIME_ERROR;
+      for (int i = 0; i < closure->upvalueCount; i++)
+      {
+        uint8_t isLocal = READ_BYTE();
+        uint8_t index = READ_BYTE();
+        closure->upvalues[i] = isLocal
+            ? captureUpvalue(frame->slots + index)
+            : frame->closure->upvalues[index];
+      }
+      break;
+    }
+    case OP_CLOSE_UPVALUE:
+      closeUpvalues(vm.stackTop - 1);
+      pop();
+      break;
     case OP_RETURN:
     {
       Value result = pop();
+      closeUpvalues(frame->slots);
       vm.frameCount--;
       if (vm.frameCount == 0)
       {
@@ -1232,6 +1328,7 @@ static InterpretResult run()
       break;
     }
     }
+    if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
   }
 #undef BINARY_OP
 #undef READ_CONSTANT
@@ -1248,8 +1345,11 @@ InterpretResult interpret(const char *source)
   if (function == NULL)
     return INTERPRET_COMPILE_ERROR;
 
-  push(OBJ_VAL(function));
-  if (!call(function, 0))
+  if (!push(OBJ_VAL(function))) return INTERPRET_RUNTIME_ERROR;
+  ObjClosure *closure = newClosure(function);
+  pop();
+  if (!push(OBJ_VAL(closure))) return INTERPRET_RUNTIME_ERROR;
+  if (!call(closure, 0))
   {
     return INTERPRET_RUNTIME_ERROR;
   }
@@ -1265,8 +1365,11 @@ POGBERRY_API InterpretResult ext_interpret(const char *source)
   if (function == NULL)
     return INTERPRET_COMPILE_ERROR;
 
-  push(OBJ_VAL(function));
-  if (!call(function, 0))
+  if (!push(OBJ_VAL(function))) return INTERPRET_RUNTIME_ERROR;
+  ObjClosure *closure = newClosure(function);
+  pop();
+  if (!push(OBJ_VAL(closure))) return INTERPRET_RUNTIME_ERROR;
+  if (!call(closure, 0))
   {
     return INTERPRET_RUNTIME_ERROR;
   }

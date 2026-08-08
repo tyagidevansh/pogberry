@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "headers/debug.h"
+#include "headers/object.h"
 #include "headers/value.h"
 
 void disassembleChunk(Chunk *chunk, const char *name)
@@ -64,6 +65,25 @@ static int jumpInstruction(const char *name, int sign,
   return offset + 3;
 }
 
+static int closureInstruction(Chunk *chunk, int offset)
+{
+  offset++;
+  uint8_t constant = chunk->code[offset++];
+  printf("%-16s %4d '", "OP_CLOSURE", constant);
+  printValue(chunk->constants.values[constant]);
+  printf("'\n");
+
+  ObjFunction *function = AS_FUNCTION(chunk->constants.values[constant]);
+  for (int i = 0; i < function->upvalueCount; i++)
+  {
+    int isLocal = chunk->code[offset++];
+    int index = chunk->code[offset++];
+    printf("%04d      |                     %s %d\n",
+           offset - 2, isLocal ? "local" : "upvalue", index);
+  }
+  return offset;
+}
+
 int disassembleInstruction(Chunk *chunk, int offset)
 {
   printf("%04d ", offset);
@@ -98,6 +118,10 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return byteInstruction("OP_GET_LOCAL", chunk, offset);
   case OP_SET_LOCAL:
     return byteInstruction("OP_SET_LOCAL", chunk, offset);
+  case OP_GET_UPVALUE:
+    return byteInstruction("OP_GET_UPVALUE", chunk, offset);
+  case OP_SET_UPVALUE:
+    return byteInstruction("OP_SET_UPVALUE", chunk, offset);
   case OP_GET_GLOBAL:
     return constantInstruction("OP_GET_GLOBAL", chunk, offset);
   case OP_DEFINE_GLOBAL:
@@ -154,6 +178,10 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_NEW_HASHMAP", offset);
   case OP_HASHMAP_LITERAL_INSERT:
     return simpleInstruction("OP_HASHMAP_LITERAL_INSERT", offset);
+  case OP_CLOSURE:
+    return closureInstruction(chunk, offset);
+  case OP_CLOSE_UPVALUE:
+    return simpleInstruction("OP_CLOSE_UPVALUE", offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   case OP_CLASS:

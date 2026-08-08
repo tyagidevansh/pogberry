@@ -101,7 +101,7 @@ extern GetFPSFunc getFPS;
 
 typedef struct
 {
-  ObjFunction *function;
+  ObjClosure *closure;
   uint8_t *ip;
   Value *slots;
 } CallFrame;
@@ -117,6 +117,7 @@ typedef struct
   Table globals;
   Table strings; // for interning strings, each unique string will only be stored once in memory, so "=" operation can be carried out fast -> just compare the memory address rather than comparing the string character by character
   ObjString *initString;
+  ObjUpvalue *openUpvalues;
 
   size_t bytesAllocated;
   size_t nextGC;
@@ -132,7 +133,7 @@ void initVM();
 void freeVM();
 InterpretResult interpret(const char *source); // run the chunk and respond with a value from enum declared above
 void runtimeError(const char *format, ...);
-void push(Value value);
+bool push(Value value);
 Value pop();
 
 #endif

@@ -505,10 +505,22 @@ These requirements exist to keep language semantics separate from VM details:
 
 ## 13. Progress
 
-### Milestone A - safe core [Under Progress]
-
-- Immutable strings and a Map implementation with the key rules above.
-- One runtime-error mechanism; no unchecked collection operation.
-- One value-printing/string-conversion implementation.
-- A proper testing suite.
-- Minor language improvement such as formatted print
+- Added `let` alongside `var`, with block scoping and assignment.
+- Functions support recursion and lexical closures. Classes support
+  inheritance, `this`, `super`, and bound methods.
+- List and Map literals support direct and chained indexing and assignment.
+- Lists now have the full method set described above, including negative
+  indexes and checked runtime errors.
+- Maps now enforce safe key types, preserve insertion order, and provide the
+  specified methods and `length` property.
+- Strings support validated escapes, compare by content, and only concatenate
+  with other Strings. Lists and Maps have safe structural equality.
+- Added the `len`, `type`, and `str` prelude functions, including cycle-safe
+  conversion in `str`.
+- Division, modulo, collection operations, and core natives use checked runtime
+  errors and stack traces instead of crashing the process.
+- `break` cleans up locals and captured variables correctly, including in
+  nested loops and functions.
+- Recursive containers render safely, and the VM checks stack boundaries.
+- Added an organised language test suite covering the core syntax,
+  collections, standard functions, errors, and regressions.

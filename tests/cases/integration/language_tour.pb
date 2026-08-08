@@ -14,7 +14,7 @@ class Player {
     this.data = data;
   }
   summary() {
-    return this.data["name"] + ": " + total(this.data["scores"]);
+    return this.data["name"] + ": " + str(total(this.data["scores"]));
   }
 }
 print(Player(player).summary());

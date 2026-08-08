@@ -43,8 +43,8 @@ fun drawGame(timeLeft) {
 
     drawRectangle(moleX * BLOCK_SIZE, moleY * BLOCK_SIZE, BLOCK_SIZE - 2, BLOCK_SIZE - 2, 200, 50, 50);
 
-    drawText("Score: " + score, 10, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 255, 255, 255);
-    drawText("Time: " + floor(timeLeft), 400, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 200, 200, 0);
+    drawText("Score: " + str(score), 10, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 255, 255, 255);
+    drawText("Time: " + str(floor(timeLeft)), 400, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 200, 200, 0);
 
     endDrawing();
 }
@@ -54,7 +54,7 @@ fun drawGameOver() {
     clearBackground(20, 20, 20);
 
     drawText("Time's Up!", 100, 100, 32, 255, 100, 100);
-    drawText("Final Score: " + score, 100, 150, 28, 255, 255, 255);
+    drawText("Final Score: " + str(score), 100, 150, 28, 255, 255, 255);
     drawText("Click to Restart", 100, 200, 24, 100, 255, 100);
 
     endDrawing();

@@ -25,10 +25,30 @@ static Obj* allocateObject(size_t size, ObjType type) {
 ObjFunction* newFunction() {
   ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
   function->arity = 0;
+  function->upvalueCount = 0;
   function->name = NULL;
   initChunk(&function->chunk);
 
   return function;
+}
+
+ObjClosure* newClosure(ObjFunction* function) {
+  ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
+  for (int i = 0; i < function->upvalueCount; i++) upvalues[i] = NULL;
+
+  ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+  closure->function = function;
+  closure->upvalues = upvalues;
+  closure->upvalueCount = function->upvalueCount;
+  return closure;
+}
+
+ObjUpvalue* newUpvalue(Value* slot) {
+  ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
+  upvalue->location = slot;
+  upvalue->closed = NIL_VAL;
+  upvalue->next = NULL;
+  return upvalue;
 }
 
 ObjNative* newNative(NativeFn function) {
@@ -107,7 +127,7 @@ ObjInstance* newInstance(ObjClass* klass) {
   return instance;
 }
 
-ObjBoundMethod* newBoundMethod(Value receiver, ObjFunction* method) {
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
   ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
   bound->receiver = receiver;
   bound->method = method;
@@ -153,6 +173,12 @@ void printObject(Value value) {
     case OBJ_FUNCTION:
       printFunction(AS_FUNCTION(value));
       break;
+    case OBJ_CLOSURE:
+      printFunction(AS_CLOSURE(value)->function);
+      break;
+    case OBJ_UPVALUE:
+      printf("upvalue");
+      break;
     case OBJ_NATIVE:
       printf("<native fn>");
       break;
@@ -172,7 +198,7 @@ void printObject(Value value) {
       printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
       break; // vm debugger was crashing bc i forgot this, spent over an hour finding trouble elsewhere
     case OBJ_BOUND_METHOD:
-      printFunction(AS_BOUND_METHOD(value)->method);
+      printFunction(AS_BOUND_METHOD(value)->method->function);
       break;
   }
 }

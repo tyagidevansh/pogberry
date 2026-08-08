@@ -2,7 +2,7 @@ var word = "pogberry";
 print(word[0]);
 print(word[7]);
 print("hello " + "world");
-print("score: " + 12);
+print("score: " + str(12));
 print(len(word));
 print("" == "");
 // EXPECTED STATUS: 0

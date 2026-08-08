@@ -5,6 +5,7 @@
 #include "headers/object.h"
 #include "headers/memory.h"
 #include "headers/value.h"
+#include "headers/vm.h"
 
 void initValueArray(ValueArray* array) {
   array->values = NULL;
@@ -29,54 +30,81 @@ void freeValueArray(ValueArray* array) {
 }
 
 void printValue(Value value) {
-  switch (value.type) {
-    case VAL_BOOL:
-      printf(AS_BOOL(value) ? "true" : "false");
-      break;
-    case VAL_NIL: printf("nil"); break;
-    case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
-    case VAL_OBJ: printObject(value); break;
-  }
+  ObjString* rendered = valueToString(value);
+  fwrite(rendered->chars, sizeof(char), (size_t)rendered->length, stdout);
 }
 
 static bool stringsEqual(ObjString* left, ObjString* right) {
   return left->length == right->length && memcmp(left->chars, right->chars, (size_t)left->length) == 0;
 }
 
-static bool listsEqual(ObjList* left, ObjList* right) {
-  if (left == right) return true;
-  if (left->items.count != right->items.count) {
-    return false;
-  }
+#define EQUALITY_MAX_DEPTH 256
 
-  for (int i = 0; i < left->items.count; i++) {
-    if (!valuesEqual(left->items.values[i], right->items.values[i])) {
+typedef struct {
+  Obj* left[EQUALITY_MAX_DEPTH];
+  Obj* right[EQUALITY_MAX_DEPTH];
+  int count;
+} EqualityContext;
+
+static bool valuesEqualInternal(Value left, Value right, EqualityContext* context);
+
+static bool beginContainerComparison(EqualityContext* context, Obj* left, Obj* right) {
+  for (int i = 0; i < context->count; i++) {
+    if ((context->left[i] == left && context->right[i] == right) ||
+        (context->left[i] == right && context->right[i] == left)) {
+      runtimeError("Cannot compare recursive containers.");
       return false;
     }
   }
 
+  if (context->count == EQUALITY_MAX_DEPTH) {
+    runtimeError("Collection equality exceeded the maximum depth.");
+    return false;
+  }
+
+  context->left[context->count] = left;
+  context->right[context->count] = right;
+  context->count++;
   return true;
 }
 
-static bool hashmapsEqual(ObjHashmap* left, ObjHashmap* right) {
-  if (left == right) return true;
+static bool listsEqual(ObjList* left, ObjList* right, EqualityContext* context) {
+  if (left->items.count != right->items.count) return false;
+  if (!beginContainerComparison(context, (Obj*)left, (Obj*)right)) return false;
 
+  bool equal = true;
+  for (int i = 0; i < left->items.count; i++) {
+    if (!valuesEqualInternal(left->items.values[i], right->items.values[i], context)) {
+      equal = false;
+      break;
+    }
+  }
+
+  context->count--;
+  return equal;
+}
+
+static bool hashmapsEqual(ObjHashmap* left, ObjHashmap* right, EqualityContext* context) {
   if (mapCount(&left->items) != mapCount(&right->items)) return false;
+  if (!beginContainerComparison(context, (Obj*)left, (Obj*)right)) return false;
 
+  bool equal = true;
   for (int index = mapFirstEntry(&left->items); index != -1;
        index = mapNextEntry(&left->items, index)) {
     MapEntry* entry = mapEntryAt(&left->items, index);
-
     Value rightValue;
-    if (!mapGet(&right->items, entry->key, &rightValue)) return false;
-
-    if (!valuesEqual(entry->value, rightValue)) return false;
+    if (!mapGet(&right->items, entry->key, &rightValue) ||
+        !valuesEqualInternal(entry->value, rightValue, context)) {
+      equal = false;
+      break;
+    }
   }
 
-  return true;
+  context->count--;
+  return equal;
 }
 
-static bool objectsEqual(Value left, Value right) {
+static bool objectsEqual(Value left, Value right, EqualityContext* context) {
   Obj* leftObject = AS_OBJ(left);
   Obj* rightObject = AS_OBJ(right);
 
@@ -88,17 +116,17 @@ static bool objectsEqual(Value left, Value right) {
       return stringsEqual((ObjString*)leftObject, (ObjString*)rightObject);
 
     case OBJ_LIST:
-      return listsEqual((ObjList*)leftObject, (ObjList*)rightObject);
+      return listsEqual((ObjList*)leftObject, (ObjList*)rightObject, context);
     
     case OBJ_HASHMAP:
-      return hashmapsEqual((ObjHashmap*)leftObject, (ObjHashmap*)rightObject);
+      return hashmapsEqual((ObjHashmap*)leftObject, (ObjHashmap*)rightObject, context);
     
     default:
       return false;
   }
 }
 
-bool valuesEqual(Value left, Value right) {
+static bool valuesEqualInternal(Value left, Value right, EqualityContext* context) {
   if (left.type != right.type) return false;
 
   switch (left.type) {
@@ -112,7 +140,7 @@ bool valuesEqual(Value left, Value right) {
       return true;
     
     case VAL_OBJ:
-      return objectsEqual(left, right);
+      return objectsEqual(left, right, context);
   }
 
   return false;
@@ -151,6 +179,11 @@ static bool isActive(StringBuilder* builder, Obj* object) {
     if (builder->active[i] == object) return true;
   }
   return false;
+}
+
+bool valuesEqual(Value left, Value right) {
+  EqualityContext context = {0};
+  return valuesEqualInternal(left, right, &context);
 }
 
 static void pushActive(StringBuilder* builder, Obj* object) {
@@ -240,6 +273,23 @@ static void appendValue(StringBuilder* builder, Value value) {
     return;
   }
 
+  if (object->type == OBJ_CLOSURE) {
+    ObjFunction* function = AS_CLOSURE(value)->function;
+    if (function->name == NULL) {
+      appendCString(builder, "<script>");
+    } else {
+      appendCString(builder, "<fn ");
+      appendChars(builder, function->name->chars, function->name->length);
+      appendCString(builder, ">");
+    }
+    return;
+  }
+
+  if (object->type == OBJ_UPVALUE) {
+    appendCString(builder, "<upvalue>");
+    return;
+  }
+
   if (object->type == OBJ_NATIVE) {
     appendCString(builder, "<native fn>");
     return;
@@ -260,7 +310,8 @@ static void appendValue(StringBuilder* builder, Value value) {
 
   ObjBoundMethod* method = AS_BOUND_METHOD(value);
   appendCString(builder, "<fn ");
-  appendChars(builder, method->method->name->chars, method->method->name->length);
+  appendChars(builder, method->method->function->name->chars,
+              method->method->function->name->length);
   appendCString(builder, ">");
 }
 

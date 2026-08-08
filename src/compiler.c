@@ -47,7 +47,14 @@ typedef struct
 {
   Token name;
   int depth;
+  bool isCaptured;
 } Local;
+
+typedef struct
+{
+  uint8_t index;
+  bool isLocal;
+} Upvalue;
 
 typedef enum
 {
@@ -64,6 +71,7 @@ typedef struct Compiler
   FunctionType type;
 
   Local locals[UINT8_COUNT];
+  Upvalue upvalues[UINT8_COUNT];
   int localCount;
   int scopeDepth;
 } Compiler;
@@ -74,12 +82,13 @@ typedef struct ClassCompiler
   bool hasSuperclass;
 } ClassCompiler;
 
-#define MAX_BREAKS 256
 typedef struct LoopCompiler
 {
   struct LoopCompiler *enclosing;
-  int breakJumpOffsets[MAX_BREAKS];
+  int *breakJumpOffsets;
   int breakCount;
+  int breakCapacity;
+  int scopeDepth;
 } LoopCompiler;
 
 static LoopCompiler *currentLoop = NULL;
@@ -104,8 +113,8 @@ void print_line(const char *s, int n)
     if (j == n)
     {
       while (s[i] && s[i] != '\n')
-        putchar(s[i++]);
-      putchar('\n');
+        fputc(s[i++], stderr);
+      fputc('\n', stderr);
       return;
     }
     if (s[i++] == '\n')
@@ -117,9 +126,9 @@ static void printErrorMarker(int column)
 {
   for (int i = 0; i < column - 2; i++)
   {
-    putchar(' ');
+    fputc(' ', stderr);
   }
-  printf("^\n");
+  fputs("^\n", stderr);
 }
 
 static void errorAt(Token *token, const char *message)
@@ -286,6 +295,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
 
   Local *local = &current->locals[current->localCount++];
   local->depth = 0;
+  local->isCaptured = false;
   if (type != TYPE_FUNCTION)
   {
     local->name.start = "this";
@@ -326,7 +336,9 @@ static void endScope()
 
   while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth)
   {
-    emitByte(OP_POP);
+    emitByte(current->locals[current->localCount - 1].isCaptured
+                 ? OP_CLOSE_UPVALUE
+                 : OP_POP);
     current->localCount--;
   }
 }
@@ -368,6 +380,46 @@ static int resolveLocal(Compiler *compiler, Token *name)
   return -1;
 }
 
+static int addUpvalue(Compiler *compiler, uint8_t index, bool isLocal)
+{
+  int upvalueCount = compiler->function->upvalueCount;
+  for (int i = 0; i < upvalueCount; i++)
+  {
+    Upvalue *upvalue = &compiler->upvalues[i];
+    if (upvalue->index == index && upvalue->isLocal == isLocal) return i;
+  }
+
+  if (upvalueCount == UINT8_COUNT)
+  {
+    error("Too many closure variables in function.");
+    return 0;
+  }
+
+  compiler->upvalues[upvalueCount].isLocal = isLocal;
+  compiler->upvalues[upvalueCount].index = index;
+  return compiler->function->upvalueCount++;
+}
+
+static int resolveUpvalue(Compiler *compiler, Token *name)
+{
+  if (compiler->enclosing == NULL) return -1;
+
+  int local = resolveLocal(compiler->enclosing, name);
+  if (local != -1)
+  {
+    compiler->enclosing->locals[local].isCaptured = true;
+    return addUpvalue(compiler, (uint8_t)local, true);
+  }
+
+  int upvalue = resolveUpvalue(compiler->enclosing, name);
+  if (upvalue != -1)
+  {
+    return addUpvalue(compiler, (uint8_t)upvalue, false);
+  }
+
+  return -1;
+}
+
 static void addLocal(Token name)
 {
   // only 256 local variables lmao
@@ -380,6 +432,7 @@ static void addLocal(Token name)
   Local *local = &current->locals[current->localCount++];
   local->name = name;
   local->depth = -1;
+  local->isCaptured = false;
 }
 
 static void declareVariable()
@@ -583,6 +636,9 @@ static void block()
 
 static void function(FunctionType type)
 {
+  LoopCompiler *enclosingLoop = currentLoop;
+  currentLoop = NULL;
+
   Compiler compiler;
   initCompiler(&compiler, type);
   beginScope();
@@ -606,7 +662,13 @@ static void function(FunctionType type)
   block();
 
   ObjFunction *function = endCompiler();
-  emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+  currentLoop = enclosingLoop;
+  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+  for (int i = 0; i < function->upvalueCount; i++)
+  {
+    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+    emitByte(compiler.upvalues[i].index);
+  }
 }
 
 static void method()
@@ -711,7 +773,10 @@ static void forStatement()
 {
   LoopCompiler loopCompiler;
   loopCompiler.enclosing = currentLoop;
+  loopCompiler.breakJumpOffsets = NULL;
   loopCompiler.breakCount = 0;
+  loopCompiler.breakCapacity = 0;
+  loopCompiler.scopeDepth = current->scopeDepth;
   currentLoop = &loopCompiler;
 
   beginScope(); // wrap the whole statement in a block for proper scoping for variables
@@ -771,6 +836,7 @@ static void forStatement()
     patchJump(currentLoop->breakJumpOffsets[i]);
   }
 
+  free(currentLoop->breakJumpOffsets);
   currentLoop = currentLoop->enclosing;
 }
 
@@ -867,11 +933,29 @@ static void breakStatement(void)
     error("Can't use 'break' outside of a loop.");
     return;
   }
-  int jumpOffset = emitJump(OP_JUMP);
-  if (currentLoop->breakCount < MAX_BREAKS)
+  for (int i = current->localCount - 1;
+       i >= 0 && current->locals[i].depth > currentLoop->scopeDepth;
+       i--)
   {
-    currentLoop->breakJumpOffsets[currentLoop->breakCount++] = jumpOffset;
+    emitByte(current->locals[i].isCaptured ? OP_CLOSE_UPVALUE : OP_POP);
   }
+
+  if (currentLoop->breakCount == currentLoop->breakCapacity)
+  {
+    int oldCapacity = currentLoop->breakCapacity;
+    int newCapacity = oldCapacity < 8 ? 8 : oldCapacity * 2;
+    int *offsets = (int *)realloc(currentLoop->breakJumpOffsets,
+                                 sizeof(int) * newCapacity);
+    if (offsets == NULL)
+    {
+      error("Not enough memory to compile loop breaks.");
+      return;
+    }
+    currentLoop->breakJumpOffsets = offsets;
+    currentLoop->breakCapacity = newCapacity;
+  }
+
+  currentLoop->breakJumpOffsets[currentLoop->breakCount++] = emitJump(OP_JUMP);
   consume(TOKEN_SEMICOLON, "Expect ';' after 'break'.");
 }
 
@@ -879,7 +963,10 @@ static void whileStatement()
 {
   LoopCompiler loopCompiler;
   loopCompiler.enclosing = currentLoop;
+  loopCompiler.breakJumpOffsets = NULL;
   loopCompiler.breakCount = 0;
+  loopCompiler.breakCapacity = 0;
+  loopCompiler.scopeDepth = current->scopeDepth;
   currentLoop = &loopCompiler;
 
   int loopStart = currentChunk()->count;
@@ -900,6 +987,7 @@ static void whileStatement()
     patchJump(currentLoop->breakJumpOffsets[i]);
   }
 
+  free(currentLoop->breakJumpOffsets);
   currentLoop = currentLoop->enclosing;
 }
 
@@ -936,7 +1024,6 @@ static void list(bool canAssign) {
 static void hashmap(bool canAssign)
 {
   (void)canAssign;
-  int itemCount = 0;
   emitByte(OP_NEW_HASHMAP);
 
   if (!check(TOKEN_RIGHT_BRACE))
@@ -947,7 +1034,6 @@ static void hashmap(bool canAssign)
       consume(TOKEN_COLON, "Expect ':' between key and value.");
       expression();
       emitByte(OP_HASHMAP_LITERAL_INSERT);
-      itemCount++;
     } while (match(TOKEN_COMMA));
   }
 
@@ -1087,7 +1173,36 @@ static void or_(bool canAssign)
 static void string(bool canAssign)
 {
   (void)canAssign;
-  emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
+  int rawLength = parser.previous.length - 2;
+  char *chars = ALLOCATE(char, rawLength + 1);
+  int length = 0;
+
+  for (int i = 0; i < rawLength; i++)
+  {
+    char c = parser.previous.start[i + 1];
+    if (c != '\\')
+    {
+      chars[length++] = c;
+      continue;
+    }
+
+    char escaped = parser.previous.start[++i + 1];
+    switch (escaped)
+    {
+    case '\\': chars[length++] = '\\'; break;
+    case '"': chars[length++] = '"'; break;
+    case 'n': chars[length++] = '\n'; break;
+    case 'r': chars[length++] = '\r'; break;
+    case 't': chars[length++] = '\t'; break;
+    default:
+      FREE_ARRAY(char, chars, rawLength + 1);
+      error("Unknown string escape.");
+      return;
+    }
+  }
+
+  chars[length] = '\0';
+  emitConstant(OBJ_VAL(takeString(chars, length)));
 }
 
 static void namedVariable(Token name, bool canAssign)
@@ -1101,9 +1216,18 @@ static void namedVariable(Token name, bool canAssign)
   }
   else
   {
-    arg = identifierConstant(&name);
-    getOp = OP_GET_GLOBAL;
-    setOp = OP_SET_GLOBAL;
+    arg = resolveUpvalue(current, &name);
+    if (arg != -1)
+    {
+      getOp = OP_GET_UPVALUE;
+      setOp = OP_SET_UPVALUE;
+    }
+    else
+    {
+      arg = identifierConstant(&name);
+      getOp = OP_GET_GLOBAL;
+      setOp = OP_SET_GLOBAL;
+    }
   }
 
   if (canAssign && match(TOKEN_EQUAL)) {

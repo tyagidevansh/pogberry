@@ -509,6 +509,7 @@ Value listRemoveNative(int argCount, Value *args)
     ObjList *list = AS_LIST(args[0]);
     for (int i = 0; i < list->items.count; i++) {
         if (!valuesEqual(list->items.values[i], args[1])) {
+            if (vm.hadRuntimeError) return NIL_VAL;
             continue;
         }
 
@@ -586,6 +587,7 @@ Value listIndexNative(int argCount, Value *args)
         if (valuesEqual(list->items.values[i], args[1])) {
             return NUMBER_VAL(i);
         }
+        if (vm.hadRuntimeError) return NIL_VAL;
     }
 
     runtimeError("List value not found.");
@@ -605,6 +607,7 @@ Value listCountNative(int argCount, Value *args)
         if (valuesEqual(list->items.values[i], args[1])) {
             count++;
         }
+        if (vm.hadRuntimeError) return NIL_VAL;
     }
 
     return NUMBER_VAL(count);
@@ -715,7 +718,7 @@ Value typeNative(int argCount, Value *args)
     else if (IS_STRING(args[0])) name = "string";
     else if (IS_LIST(args[0])) name = "list";
     else if (IS_HASHMAP(args[0])) name = "map";
-    else if (IS_FUNCTION(args[0])) name = "function";
+    else if (IS_CLOSURE(args[0])) name = "function";
     else if (IS_NATIVE(args[0])) name = "native";
     else if (IS_CLASS(args[0])) name = "class";
     else if (IS_INSTANCE(args[0])) name = "instance";

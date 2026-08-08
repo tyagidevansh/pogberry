@@ -254,6 +254,25 @@ static Token string()
 {
   while (peek() != '"' && !isAtEnd())
   {
+    if (peek() == '\\')
+    {
+      advance();
+      if (isAtEnd()) return errorToken("Unterminated string escape.");
+      char escaped = peek();
+      if (escaped != '\\' && escaped != '"' && escaped != 'n' &&
+          escaped != 'r' && escaped != 't')
+      {
+        advance();
+        int errorColumn = scanner.column;
+        while (peek() != '"' && !isAtEnd()) advance();
+        if (!isAtEnd()) advance();
+        Token token = errorToken("Unknown string escape.");
+        token.column = errorColumn;
+        return token;
+      }
+      advance();
+      continue;
+    }
     if (peek() == '\n'){
         scanner.line++;
         scanner.column = 0;
