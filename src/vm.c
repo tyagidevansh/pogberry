@@ -4,17 +4,10 @@
 #include <time.h>
 #include <math.h>
 
-#ifdef _WIN32 // glorious
-#include <windows.h>
-#elif defined(__linux__)
-#include <dlfcn.h>
-#else
-#error "Unsupported Platform"
-#endif
-
 #include "headers/common.h"
 #include "headers/compiler.h"
 #include "headers/debug.h"
+#include "headers/gui.h"
 #include "headers/object.h"
 #include "headers/memory.h"
 #include "headers/vm.h"
@@ -25,47 +18,6 @@
 VM vm;
 
 static void closeUpvalues(Value *last);
-
-// global defintion of all the function pointers for raylib
-#ifdef _WIN32
-HINSTANCE dllHandle = NULL;
-#elif defined(__linux__)
-void *handle = NULL;
-#endif
-
-InitWindowFunc initWindow = NULL;
-WindowShouldCloseFunc windowShouldClose = NULL;
-SetTargetFPSFunc setTargetFPS = NULL;
-BeginDrawingFunc beginDrawing = NULL;
-EndDrawingFunc endDrawing = NULL;
-ClearBackgroundFunc clearBackground = NULL;
-DrawTextFunc drawText = NULL;
-DrawRectangleFunc drawRectangle = NULL;
-DrawCircleFunc drawCircle = NULL;
-IsKeyPressedFunc isKeyPressed = NULL;
-IsKeyDownFunc isKeyDown = NULL;
-IsMouseButtonPressedFunc isMouseButtonPressed = NULL;
-IsMouseButtonDownFunc isMouseButtonDown = NULL;
-GetMousePositionFunc getMousePosition = NULL;
-DrawLineFunc drawLine = NULL;
-IsKeyUpFunc isKeyUp = NULL;
-IsKeyReleasedFunc isKeyReleased = NULL;
-GetKeyPressedFunc getKeyPressed = NULL;
-GetCharPressedFunc getCharPressed = NULL;
-SetExitKeyFunc setExitKey = NULL;
-IsMouseButtonUpFunc isMouseButtonUp = NULL;
-IsMouseButtonReleasedFunc isMouseButtonReleased = NULL;
-GetMouseXFunc getMouseX = NULL;
-GetMouseYFunc getMouseY = NULL;
-DrawPixelFunc drawPixel = NULL;
-DrawEllipseFunc drawEllipse = NULL;
-CloseWindowFunc closeWindow = NULL;
-GetFPSFunc getFPS = NULL;
-GetScreenHeightFunc getScreenHeight = NULL;
-GetScreenWidthFunc getScreenWidth = NULL;
-SwapScreenBufferFunc swapScreenBuffer = NULL;
-ToggleBorderlessWindowedFunc toggleBorderlessWindowed = NULL;
-IsWindowMinimizedFunc isWindowMinimized = NULL;
 
 static void resetStack()
 {
@@ -168,193 +120,13 @@ POGBERRY_API void ext_initVM()
   defineNative("str", strNative);
 }
 
-#ifdef _WIN32
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-#endif
-void initialiseRaylibWin()
-{
-  char exePath[MAX_PATH] = {0};
-  GetModuleFileNameA(NULL, exePath, MAX_PATH);
-
-  char *lastSlash = strrchr(exePath, '\\');
-  if (lastSlash != NULL)
-  {
-    *lastSlash = '\0';
-  }
-
-  char dllPath[MAX_PATH] = {0};
-  sprintf(dllPath, "%s\\lib\\pogberry_gui_windows.dll", exePath);
-
-  dllHandle = LoadLibrary(dllPath);
-  if (!dllHandle)
-  {
-    printf("Failed to load pogberry_gui.dll. Error code: %lu\n", GetLastError());
-    return;
-  }
-
-  // Load function pointers
-  initWindow = (InitWindowFunc)GetProcAddress(dllHandle, "initWindow");
-  beginDrawing = (BeginDrawingFunc)GetProcAddress(dllHandle, "beginDrawing");
-  clearBackground = (ClearBackgroundFunc)GetProcAddress(dllHandle, "clearBackground");
-  drawText = (DrawTextFunc)GetProcAddress(dllHandle, "drawText");
-  endDrawing = (EndDrawingFunc)GetProcAddress(dllHandle, "endDrawing");
-  windowShouldClose = (WindowShouldCloseFunc)GetProcAddress(dllHandle, "windowShouldClose");
-  drawRectangle = (DrawRectangleFunc)GetProcAddress(dllHandle, "drawRectangle");
-  drawCircle = (DrawCircleFunc)GetProcAddress(dllHandle, "drawCircle");
-  drawLine = (DrawLineFunc)GetProcAddress(dllHandle, "drawLine");
-  // ! does not work for unknown reasons (always returns true)
-  // isKeyDown = (IsKeyDownFunc)GetProcAddress(dllHandle, "isKeyDown");
-  isKeyPressed = (IsKeyPressedFunc)GetProcAddress(dllHandle, "isKeyPressed");
-  isMouseButtonDown = (IsMouseButtonDownFunc)GetProcAddress(dllHandle, "isMouseButtonDown");
-  setTargetFPS = (SetTargetFPSFunc)GetProcAddress(dllHandle, "setTargetFPS");
-  getFPS = (GetFPSFunc)GetProcAddress(dllHandle, "getFPS");
-  closeWindow = (CloseWindowFunc)GetProcAddress(dllHandle, "closeWindow");
-  isWindowMinimized = (IsWindowMinimizedFunc)GetProcAddress(dllHandle, "isWindowMinimized");
-  toggleBorderlessWindowed = (ToggleBorderlessWindowedFunc)GetProcAddress(dllHandle, "toggleBorderlessWindowed");
-  getScreenWidth = (GetScreenWidthFunc)GetProcAddress(dllHandle, "getScreenWidth");
-  getScreenHeight = (GetScreenHeightFunc)GetProcAddress(dllHandle, "getScreenHeight");
-  swapScreenBuffer = (SwapScreenBufferFunc)GetProcAddress(dllHandle, "swapScreenBuffer");
-  getMouseX = (GetMouseXFunc)GetProcAddress(dllHandle, "getMouseX");
-  getMouseY = (GetMouseYFunc)GetProcAddress(dllHandle, "getMouseY");
-  isMouseButtonUp = (IsMouseButtonUpFunc)GetProcAddress(dllHandle, "isMouseButtonUp");
-  isMouseButtonReleased = (IsMouseButtonReleasedFunc)GetProcAddress(dllHandle, "isMouseButtonReleased");
-  isMouseButtonPressed = (IsMouseButtonPressedFunc)GetProcAddress(dllHandle, "isMouseButtonPressed");
-  setExitKey = (SetExitKeyFunc)GetProcAddress(dllHandle, "setExitKey");
-  getKeyPressed = (GetKeyPressedFunc)GetProcAddress(dllHandle, "getKeyPressed");
-  getCharPressed = (GetCharPressedFunc)GetProcAddress(dllHandle, "getCharPressed");
-  isKeyUp = (IsKeyUpFunc)GetProcAddress(dllHandle, "isKeyUp");
-  isKeyReleased = (IsKeyReleasedFunc)GetProcAddress(dllHandle, "isKeyReleased");
-  drawPixel = (DrawPixelFunc)GetProcAddress(dllHandle, "drawPixel");
-  drawEllipse = (DrawEllipseFunc)GetProcAddress(dllHandle, "drawEllipse");
-
-  defineNative("initWindow", initWindowNative);
-  defineNative("beginDrawing", beginDrawingNative);
-  defineNative("clearBackground", clearBackgroundNative);
-  defineNative("drawText", drawTextNative);
-  defineNative("endDrawing", endDrawingNative);
-  defineNative("windowShouldClose", windowShouldCloseNative);
-  defineNative("drawRectangle", drawRectangleNative);
-  defineNative("drawCircle", drawCircleNative);
-  defineNative("drawLine", drawLineNative);
-  defineNative("setTargetFPS", setTargetFPSNative);
-  // defineNative("isKeyDown", isKeyDownNative);
-  defineNative("isKeyPressed", isKeyPressedNative);
-  defineNative("closeWindow", closeWindowNative);
-  defineNative("isWindowMinimized", isWindowMinimizedNative);
-  defineNative("toggleBorderlessWindowed", toggleBorderlessWindowedNative);
-  defineNative("getScreenWidth", getScreenWidthNative);
-  defineNative("getScreenHeight", getScreenHeightNative);
-  defineNative("getFPS", getFPSNative);
-  defineNative("getMouseX", getMouseXNative);
-  defineNative("getMouseY", getMouseYNative);
-  defineNative("isMouseButtonUp", isMouseButtonUpNative);
-  defineNative("isMouseButtonReleased", isMouseButtonReleasedNative);
-  defineNative("isMouseButtonPressed", isMouseButtonPressedNative);
-  defineNative("isMouseButtonDown", isMouseButtonDownNative);
-  defineNative("setExitKey", setExitKeyNative);
-  defineNative("getKeyPressed", getKeyPressedNative);
-  defineNative("getCharPressed", getCharPressedNative);
-  defineNative("isKeyUp", isKeyUpNative);
-  defineNative("isKeyReleased", isKeyReleasedNative);
-  defineNative("drawPixel", drawPixelNative);
-  defineNative("drawEllipse", drawEllipseNative);
-  defineNative("swapScreenBuffer", swapScreenBufferNative);
-}
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-
-#elif defined(__linux__)
-void initialiseRaylibLinux()
-{
-  handle = dlopen("lib/pogberry_gui_linux.so", RTLD_LAZY);
-  if (!handle)
-  {
-    fprintf(stderr, "Failed to load shared library: %s\n", dlerror());
-    return;
-  }
-
-  dlerror();
-
-  initWindow = (InitWindowFunc)dlsym(handle, "initWindow");
-  beginDrawing = (BeginDrawingFunc)dlsym(handle, "beginDrawing");
-  clearBackground = (ClearBackgroundFunc)dlsym(handle, "clearBackground");
-  drawText = (DrawTextFunc)dlsym(handle, "drawText");
-  endDrawing = (EndDrawingFunc)dlsym(handle, "endDrawing");
-  windowShouldClose = (WindowShouldCloseFunc)dlsym(handle, "windowShouldClose");
-  drawRectangle = (DrawRectangleFunc)dlsym(handle, "drawRectangle");
-  drawCircle = (DrawCircleFunc)dlsym(handle, "drawCircle");
-  drawLine = (DrawLineFunc)dlsym(handle, "drawLine");
-  // isKeyDown = (IsKeyDownFunc)dlsym(handle, "isKeyDown");
-  isKeyPressed = (IsKeyPressedFunc)dlsym(handle, "isKeyPressed");
-  isMouseButtonDown = (IsMouseButtonDownFunc)dlsym(handle, "isMouseButtonDown");
-  isMouseButtonPressed = (IsMouseButtonPressedFunc)dlsym(handle, "IsMouseButtonPressed");
-  setTargetFPS = (SetTargetFPSFunc)dlsym(handle, "setTargetFPS");
-  getFPS = (GetFPSFunc)dlsym(handle, "getFPS");
-  swapScreenBuffer = (SwapScreenBufferFunc)dlsym(handle, "swapScreenBuffer");
-  closeWindow = (CloseWindowFunc)dlsym(handle, "closeWindow");
-  isWindowMinimized = (IsWindowMinimizedFunc)dlsym(handle, "isWindowMinimized");
-  toggleBorderlessWindowed = (ToggleBorderlessWindowedFunc)dlsym(handle, "toggleBorderlessWindowed");
-  getScreenWidth = (GetScreenWidthFunc)dlsym(handle, "getScreenWidth");
-  getScreenHeight = (GetScreenHeightFunc)dlsym(handle, "getScreenHeight");
-  getMouseX = (GetMouseXFunc)dlsym(handle, "getMouseX");
-  getMouseY = (GetMouseYFunc)dlsym(handle, "getMouseY");
-  isMouseButtonUp = (IsMouseButtonUpFunc)dlsym(handle, "isMouseButtonUp");
-  isMouseButtonReleased = (IsMouseButtonReleasedFunc)dlsym(handle, "isMouseButtonReleased");
-  setExitKey = (SetExitKeyFunc)dlsym(handle, "setExitKey");
-  getKeyPressed = (GetKeyPressedFunc)dlsym(handle, "getKeyPressed");
-  getCharPressed = (GetCharPressedFunc)dlsym(handle, "getCharPressed");
-  isKeyUp = (IsKeyUpFunc)dlsym(handle, "isKeyUp");
-  isKeyReleased = (IsKeyReleasedFunc)dlsym(handle, "isKeyReleased");
-  drawPixel = (DrawPixelFunc)dlsym(handle, "drawPixel");
-  drawEllipse = (DrawEllipseFunc)dlsym(handle, "drawEllipse");
-
-  defineNative("initWindow", initWindowNative);
-  defineNative("beginDrawing", beginDrawingNative);
-  defineNative("clearBackground", clearBackgroundNative);
-  defineNative("drawText", drawTextNative);
-  defineNative("endDrawing", endDrawingNative);
-  defineNative("windowShouldClose", windowShouldCloseNative);
-  defineNative("drawRectangle", drawRectangleNative);
-  defineNative("drawCircle", drawCircleNative);
-  defineNative("drawLine", drawLineNative);
-  defineNative("setTargetFPS", setTargetFPSNative);
-  // defineNative("isKeyDown", isKeyDownNative);
-  defineNative("isKeyPressed", isKeyPressedNative);
-  defineNative("getFPS", getFPSNative);
-  defineNative("getMouseX", getMouseXNative);
-  defineNative("getMouseY", getMouseYNative);
-  defineNative("isMouseButtonUp", isMouseButtonUpNative);
-  defineNative("isMouseButtonReleased", isMouseButtonReleasedNative);
-  defineNative("isMouseButtonPressed", isMouseButtonPressedNative);
-  defineNative("isMouseButtonDown", isMouseButtonDownNative);
-  defineNative("closeWindow", closeWindowNative);
-  defineNative("isWindowMinimized", isWindowMinimizedNative);
-  defineNative("getScreenHeight", getScreenHeightNative);
-  defineNative("getScreenWidth", getScreenWidthNative);
-  defineNative("toggleBorderlessWindowed", toggleBorderlessWindowedNative);
-  defineNative("setExitKey", setExitKeyNative);
-  defineNative("getKeyPressed", getKeyPressedNative);
-  defineNative("getCharPressed", getCharPressedNative);
-  defineNative("isKeyUp", isKeyUpNative);
-  defineNative("isKeyReleased", isKeyReleasedNative);
-  defineNative("drawPixel", drawPixelNative);
-  defineNative("drawEllipse", drawEllipseNative);
-  defineNative("swapScreenBuffer", swapScreenBufferNative);
-}
-#endif
-
 void freeVM()
 {
+  freeGui();
   freeTable(&vm.globals);
   freeTable(&vm.strings);
   vm.initString = NULL;
   freeObjects();
-#ifdef _WIN32
-  FreeLibrary(dllHandle);
-#endif
 }
 
 bool push(Value value)
@@ -1319,11 +1091,8 @@ static InterpretResult run()
       ObjString *namestr = AS_STRING(name);
       if (strcmp(namestr->chars, "pogberry_gui") == 0)
       {
-#ifdef _WIN32
-        initialiseRaylibWin();
-#elif defined(__linux__)
-        initialiseRaylibLinux();
-#endif
+        if (!initialiseGui())
+          return INTERPRET_RUNTIME_ERROR;
       }
       break;
     }
