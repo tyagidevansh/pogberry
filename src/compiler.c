@@ -112,9 +112,17 @@ void print_line(const char *s, int n)
   {
     if (j == n)
     {
+      int start = i;
       while (s[i] && s[i] != '\n')
-        fputc(s[i++], stderr);
-      fputc('\n', stderr);
+        i++;
+      int length = i - start;
+      char *line = (char *)malloc((size_t)length + 1);
+      if (line == NULL)
+        return;
+      memcpy(line, s + start, (size_t)length);
+      line[length] = '\0';
+      reportDiagnostic(POGBERRY_DIAGNOSTIC_COMPILE, line);
+      free(line);
       return;
     }
     if (s[i++] == '\n')
@@ -124,11 +132,15 @@ void print_line(const char *s, int n)
 
 static void printErrorMarker(int column)
 {
-  for (int i = 0; i < column - 2; i++)
-  {
-    fputc(' ', stderr);
-  }
-  fputs("^\n", stderr);
+  int spaces = column > 1 ? column - 2 : 0;
+  char *marker = (char *)malloc((size_t)spaces + 2);
+  if (marker == NULL)
+    return;
+  memset(marker, ' ', (size_t)spaces);
+  marker[spaces] = '^';
+  marker[spaces + 1] = '\0';
+  reportDiagnostic(POGBERRY_DIAGNOSTIC_COMPILE, marker);
+  free(marker);
 }
 
 static void errorAt(Token *token, const char *message)
@@ -140,18 +152,41 @@ static void errorAt(Token *token, const char *message)
   print_line(src, token->line);
   printErrorMarker(token->column);
 
-  fprintf(stderr, "[line %d] Error", token->line);
-
+  int length;
   if (token->type == TOKEN_EOF)
   {
-    fprintf(stderr, " at end");
+    length = snprintf(NULL, 0, "[line %d] Error at end: %s",
+                      token->line, message);
   }
   else if (token->type != TOKEN_ERROR)
   {
-    fprintf(stderr, " at '%.*s'", token->length, token->start);
+    length = snprintf(NULL, 0, "[line %d] Error at '%.*s': %s",
+                      token->line, token->length, token->start, message);
+  }
+  else
+  {
+    length = snprintf(NULL, 0, "[line %d] Error: %s", token->line, message);
   }
 
-  fprintf(stderr, ": %s\n", message);
+  if (length >= 0)
+  {
+    char *diagnostic = (char *)malloc((size_t)length + 1);
+    if (diagnostic != NULL)
+    {
+      if (token->type == TOKEN_EOF)
+        snprintf(diagnostic, (size_t)length + 1, "[line %d] Error at end: %s",
+                 token->line, message);
+      else if (token->type != TOKEN_ERROR)
+        snprintf(diagnostic, (size_t)length + 1,
+                 "[line %d] Error at '%.*s': %s", token->line,
+                 token->length, token->start, message);
+      else
+        snprintf(diagnostic, (size_t)length + 1, "[line %d] Error: %s",
+                 token->line, message);
+      reportDiagnostic(POGBERRY_DIAGNOSTIC_COMPILE, diagnostic);
+      free(diagnostic);
+    }
+  }
   parser.hadError = true;
 }
 

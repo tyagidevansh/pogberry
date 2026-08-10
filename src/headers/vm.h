@@ -18,6 +18,14 @@ typedef struct
 
 typedef struct
 {
+  char *name;
+  PogberryNativeDefinition *definitions;
+  size_t definitionCount;
+  bool loaded;
+} HostCapability;
+
+struct PogberryVM
+{
   CallFrame frames[FRAMES_MAX];
   int frameCount;
   bool hadRuntimeError;
@@ -35,14 +43,29 @@ typedef struct
   int grayCount;
   int grayCapacity;
   Obj **grayStack;
-} VM;
 
-extern VM vm;
+  PogberryConfig config;
+  HostCapability *capabilities;
+  size_t capabilityCount;
+  size_t capabilityCapacity;
+  Value lastReturnValue;
+  bool hasLastReturnValue;
+  bool legacyGuiLoaded;
+  uint32_t randomState;
+};
 
-void initVM();
-void freeVM();
+typedef PogberryVM VM;
+
+extern VM *activeVM;
+#define vm (*activeVM)
+
+void initVM(void);
+void freeVM(void);
 InterpretResult interpret(const char *source); // run the chunk and respond with a value from enum declared above
 void runtimeError(const char *format, ...);
+void writeVMOutput(const char *text, size_t length);
+void reportDiagnostic(PogberryDiagnosticKind kind, const char *message);
+bool resolveCapability(const char *name);
 bool push(Value value);
 Value pop();
 

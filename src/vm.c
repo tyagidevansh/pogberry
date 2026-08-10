@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <limits.h>
 
 #include "headers/common.h"
 #include "headers/compiler.h"
@@ -14,8 +15,9 @@
 #include "headers/native.h"
 #include "headers/pogberry.h"
 
-// global declaration of VM (fuck it we ball)
-VM vm;
+VM *activeVM = NULL;
+static VM defaultVM;
+static bool defaultVMInitialised = false;
 
 static void closeUpvalues(Value *last);
 
@@ -27,56 +29,90 @@ static void resetStack()
 }
 
 void runtimeError(const char *format, ...)
-{ // variadic function
+{
   if (vm.hadRuntimeError)
     return;
   vm.hadRuntimeError = true;
 
   va_list args;
   va_start(args, format);
-  vfprintf(stderr, format, args);
+  va_list argsCopy;
+  va_copy(argsCopy, args);
+  int length = vsnprintf(NULL, 0, format, argsCopy);
+  va_end(argsCopy);
+
+  if (length >= 0)
+  {
+    char *message = (char *)malloc((size_t)length + 1);
+    if (message != NULL)
+    {
+      vsnprintf(message, (size_t)length + 1, format, args);
+      reportDiagnostic(POGBERRY_DIAGNOSTIC_RUNTIME, message);
+      free(message);
+    }
+  }
   va_end(args);
-  fputs("\n", stderr);
 
   for (int i = vm.frameCount - 1; i >= 0; i--)
   {
     CallFrame *frame = &vm.frames[i];
     ObjFunction *function = frame->closure->function;
     size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in ",
-            function->chunk.lines[instruction]);
+    char trace[256];
     if (function->name == NULL)
     {
-      fprintf(stderr, "script\n");
+      snprintf(trace, sizeof(trace), "[line %d] in script",
+               function->chunk.lines[instruction]);
     }
     else
     {
-      fprintf(stderr, "%s()\n", function->name->chars);
+      snprintf(trace, sizeof(trace), "[line %d] in %s()",
+               function->chunk.lines[instruction], function->name->chars);
     }
+    reportDiagnostic(POGBERRY_DIAGNOSTIC_RUNTIME, trace);
   }
   closeUpvalues(vm.stack);
   resetStack();
 }
 
-void initVM()
+void writeVMOutput(const char *text, size_t length)
 {
+  if (vm.config.write != NULL)
+  {
+    vm.config.write(activeVM, text, length, vm.config.userData);
+    return;
+  }
+  fwrite(text, sizeof(char), length, stdout);
+}
+
+void reportDiagnostic(PogberryDiagnosticKind kind, const char *message)
+{
+  if (vm.config.diagnostic != NULL)
+  {
+    vm.config.diagnostic(activeVM, kind, message, vm.config.userData);
+    return;
+  }
+  fprintf(stderr, "%s\n", message);
+}
+
+static void initialiseActiveVM(const PogberryConfig *config)
+{
+  memset(activeVM, 0, sizeof(*activeVM));
+  if (config != NULL)
+    vm.config = *config;
+
   resetStack();
   vm.hadRuntimeError = false;
-  vm.objects = NULL;
-  vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
-
-  vm.grayCount = 0;
-  vm.grayCapacity = 0;
-  vm.grayStack = NULL;
 
   initTable(&vm.globals);
   initTable(&vm.strings);
 
-  vm.initString = NULL; // GC reasons (again)
   vm.initString = copyString("init", 4);
 
-  srand(time(NULL)); // for the native function
+  vm.randomState = (uint32_t)time(NULL) ^ (uint32_t)(uintptr_t)activeVM;
+  if (vm.randomState == 0)
+    vm.randomState = 0x9e3779b9u;
   defineNative("clock", clockNative);
   defineNative("rand", randNative);
   defineNative("floor", floorNative);
@@ -89,44 +125,53 @@ void initVM()
   defineNative("str", strNative);
 }
 
-POGBERRY_API void ext_initVM()
+static void freeCapabilities(void)
 {
-  resetStack();
-  vm.hadRuntimeError = false;
-  vm.objects = NULL;
-  vm.bytesAllocated = 0;
-  vm.nextGC = 1024 * 1024;
-
-  vm.grayCount = 0;
-  vm.grayCapacity = 0;
-  vm.grayStack = NULL;
-
-  initTable(&vm.globals);
-  initTable(&vm.strings);
-
-  vm.initString = NULL; // GC reasons (again)
-  vm.initString = copyString("init", 4);
-
-  srand(time(NULL)); // for the native function
-  defineNative("clock", clockNative);
-  defineNative("rand", randNative);
-  defineNative("floor", floorNative);
-  defineNative("strInput", strInputNative);
-  defineNative("sqrt", sqrtNative);
-  defineNative("abs", absNative);
-  defineNative("getTime", getTime);
-  defineNative("len", lenNative);
-  defineNative("type", typeNative);
-  defineNative("str", strNative);
+  for (size_t i = 0; i < vm.capabilityCount; i++)
+  {
+    HostCapability *capability = &vm.capabilities[i];
+    free(capability->name);
+    for (size_t j = 0; j < capability->definitionCount; j++)
+      free((char *)capability->definitions[j].name);
+    free(capability->definitions);
+  }
+  free(vm.capabilities);
+  vm.capabilities = NULL;
+  vm.capabilityCount = 0;
+  vm.capabilityCapacity = 0;
 }
 
-void freeVM()
+static void freeActiveVM(void)
 {
   freeGui();
   freeTable(&vm.globals);
   freeTable(&vm.strings);
   vm.initString = NULL;
   freeObjects();
+  freeCapabilities();
+}
+
+void initVM(void)
+{
+  if (defaultVMInitialised)
+  {
+    activeVM = &defaultVM;
+    freeActiveVM();
+  }
+  activeVM = &defaultVM;
+  initialiseActiveVM(NULL);
+  defaultVMInitialised = true;
+}
+
+void freeVM(void)
+{
+  if (!defaultVMInitialised)
+    return;
+  activeVM = &defaultVM;
+  freeActiveVM();
+  memset(&defaultVM, 0, sizeof(defaultVM));
+  defaultVMInitialised = false;
+  activeVM = NULL;
 }
 
 bool push(Value value)
@@ -186,6 +231,106 @@ bool call(ObjClosure *closure, int argCount)
   return true;
 }
 
+static PogberryValue valueToHost(Value value)
+{
+  PogberryValue result = pogberryNilValue();
+  if (IS_NIL(value))
+    return result;
+  if (IS_BOOL(value))
+    return pogberryBoolValue(AS_BOOL(value));
+  if (IS_NUMBER(value))
+    return pogberryNumberValue(AS_NUMBER(value));
+  if (IS_STRING(value))
+  {
+    result.type = POGBERRY_VALUE_STRING;
+    result.as.string.chars = AS_CSTRING(value);
+    result.as.string.length = (size_t)AS_STRING(value)->length;
+    return result;
+  }
+  result.type = POGBERRY_VALUE_OBJECT;
+  result.as.object = AS_OBJ(value);
+  return result;
+}
+
+static bool activeVMOwnsObject(const void *pointer)
+{
+  for (Obj *object = vm.objects; object != NULL; object = object->next)
+  {
+    if (object == pointer)
+      return true;
+  }
+  return false;
+}
+
+static bool hostToValue(PogberryValue value, Value *result)
+{
+  switch (value.type)
+  {
+  case POGBERRY_VALUE_NIL:
+    *result = NIL_VAL;
+    return true;
+  case POGBERRY_VALUE_BOOL:
+    *result = BOOL_VAL(value.as.boolean);
+    return true;
+  case POGBERRY_VALUE_NUMBER:
+    *result = NUMBER_VAL(value.as.number);
+    return true;
+  case POGBERRY_VALUE_STRING:
+    if ((value.as.string.chars == NULL && value.as.string.length != 0) ||
+        value.as.string.length > INT_MAX)
+    {
+      runtimeError("Host supplied an invalid string value.");
+      return false;
+    }
+    *result = OBJ_VAL(copyString(value.as.string.chars != NULL
+                                     ? value.as.string.chars
+                                     : "",
+                                 (int)value.as.string.length));
+    return true;
+  case POGBERRY_VALUE_OBJECT:
+    if (!activeVMOwnsObject(value.as.object))
+    {
+      runtimeError("Host supplied an object that does not belong to this VM.");
+      return false;
+    }
+    *result = OBJ_VAL((Obj *)value.as.object);
+    return true;
+  }
+  runtimeError("Host supplied an unknown value type.");
+  return false;
+}
+
+static bool callNativeObject(ObjNative *native, int argCount, Value *args,
+                             Value *result)
+{
+  if (native->legacyFunction != NULL)
+  {
+    *result = native->legacyFunction(argCount, args);
+    return !vm.hadRuntimeError;
+  }
+
+  PogberryValue *hostArgs = NULL;
+  if (argCount > 0)
+  {
+    hostArgs = (PogberryValue *)malloc(sizeof(PogberryValue) * (size_t)argCount);
+    if (hostArgs == NULL)
+    {
+      runtimeError("Could not allocate host-call arguments.");
+      return false;
+    }
+    for (int i = 0; i < argCount; i++)
+      hostArgs[i] = valueToHost(args[i]);
+  }
+
+  PogberryValue hostResult = native->hostFunction(
+      activeVM, argCount, hostArgs, native->userData);
+  free(hostArgs);
+
+  if (vm.hadRuntimeError)
+    return false;
+  return hostToValue(hostResult, result);
+}
+
 static bool callValue(Value callee, int argCount)
 {
   if (IS_OBJ(callee))
@@ -196,10 +341,9 @@ static bool callValue(Value callee, int argCount)
       return call(AS_CLOSURE(callee), argCount);
     case OBJ_NATIVE:
     {
-      NativeFn native = AS_NATIVE(callee);
-      Value result = native(argCount, vm.stackTop - argCount);
-
-      if (vm.hadRuntimeError)
+      Value result;
+      if (!callNativeObject(AS_NATIVE(callee), argCount,
+                            vm.stackTop - argCount, &result))
         return false;
 
       vm.stackTop -= argCount + 1;
@@ -801,14 +945,20 @@ static InterpretResult run()
       push(NUMBER_VAL(-AS_NUMBER(pop())));
       break;
     case OP_PRINT:
-      printValue(peek(0));
+    {
+      ObjString *rendered = valueToString(peek(0));
+      writeVMOutput(rendered->chars, (size_t)rendered->length);
       pop();
-      printf("\n");
+      writeVMOutput("\n", 1);
       break;
+    }
     case OP_PRINT_NO_NEWLINE:
-      printValue(peek(0));
+    {
+      ObjString *rendered = valueToString(peek(0));
+      writeVMOutput(rendered->chars, (size_t)rendered->length);
       pop();
       break;
+    }
     case OP_JUMP:
     {
       uint16_t offset = READ_SHORT();
@@ -1048,7 +1198,9 @@ static InterpretResult run()
       vm.frameCount--;
       if (vm.frameCount == 0)
       {
-        pop();
+        vm.lastReturnValue = result;
+        vm.hasLastReturnValue = true;
+        vm.stackTop = frame->slots;
         return INTERPRET_OK;
       }
 
@@ -1088,12 +1240,8 @@ static InterpretResult run()
         runtimeError("Expected a string for 'use' statement.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      ObjString *namestr = AS_STRING(name);
-      if (strcmp(namestr->chars, "pogberry_gui") == 0)
-      {
-        if (!initialiseGui())
-          return INTERPRET_RUNTIME_ERROR;
-      }
+      if (!resolveCapability(AS_CSTRING(name)))
+        return INTERPRET_RUNTIME_ERROR;
       break;
     }
     }
@@ -1106,9 +1254,10 @@ static InterpretResult run()
 #undef READ_BYTE
 }
 
-InterpretResult interpret(const char *source)
+static InterpretResult interpretActive(const char *source)
 {
   vm.hadRuntimeError = false;
+  vm.hasLastReturnValue = false;
 
   ObjFunction *function = compile(source);
   if (function == NULL)
@@ -1126,22 +1275,335 @@ InterpretResult interpret(const char *source)
   return run();
 }
 
-POGBERRY_API InterpretResult ext_interpret(const char *source)
+InterpretResult interpret(const char *source)
 {
+  if (!defaultVMInitialised)
+    initVM();
+  activeVM = &defaultVM;
+  return interpretActive(source);
+}
+
+static VM *activateVM(PogberryVM *instance)
+{
+  VM *previous = activeVM;
+  activeVM = (VM *)instance;
+  return previous;
+}
+
+static char *copyHostString(const char *source)
+{
+  size_t length = strlen(source);
+  char *copy = (char *)malloc(length + 1);
+  if (copy != NULL)
+    memcpy(copy, source, length + 1);
+  return copy;
+}
+
+static bool validNativeName(const char *name)
+{
+  return name != NULL && name[0] != '\0' && strlen(name) <= INT_MAX;
+}
+
+static HostCapability *findCapability(const char *name)
+{
+  for (size_t i = 0; i < vm.capabilityCount; i++)
+  {
+    if (strcmp(vm.capabilities[i].name, name) == 0)
+      return &vm.capabilities[i];
+  }
+  return NULL;
+}
+
+bool resolveCapability(const char *name)
+{
+  if (strcmp(name, "pogberry_gui") == 0)
+    return initialiseGui();
+
+  HostCapability *capability = findCapability(name);
+  bool resolvedDirectly = false;
+  if (capability == NULL && vm.config.resolveCapability != NULL)
+  {
+    resolvedDirectly = vm.config.resolveCapability(
+        activeVM, name, vm.config.userData);
+    if (vm.hadRuntimeError)
+      return false;
+    capability = findCapability(name);
+  }
+
+  if (capability != NULL)
+  {
+    if (!capability->loaded)
+    {
+      for (size_t i = 0; i < capability->definitionCount; i++)
+      {
+        PogberryNativeDefinition *definition = &capability->definitions[i];
+        defineHostNative(definition->name, definition->function,
+                         definition->userData);
+      }
+      capability->loaded = true;
+    }
+    return true;
+  }
+
+  if (resolvedDirectly)
+    return true;
+
+  runtimeError("Host does not provide capability '%s'.", name);
+  return false;
+}
+
+POGBERRY_API PogberryVM *pogberryCreateVM(const PogberryConfig *config)
+{
+  VM *instance = (VM *)malloc(sizeof(VM));
+  if (instance == NULL)
+    return NULL;
+  VM *previous = activateVM(instance);
+  initialiseActiveVM(config);
+  activeVM = previous;
+  return instance;
+}
+
+POGBERRY_API void pogberryDestroyVM(PogberryVM *instance)
+{
+  if (instance == NULL)
+    return;
+  VM *previous = activateVM(instance);
+  if (vm.frameCount != 0)
+  {
+    reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+                     "Cannot destroy a VM while it is running.");
+    activeVM = previous;
+    return;
+  }
+  freeActiveVM();
+  memset(instance, 0, sizeof(VM));
+  free(instance);
+  activeVM = previous == (VM *)instance ? NULL : previous;
+}
+
+POGBERRY_API PogberryResult pogberryInterpret(PogberryVM *instance,
+                                              const char *source)
+{
+  if (instance == NULL || source == NULL)
+    return INTERPRET_RUNTIME_ERROR;
+  VM *previous = activateVM(instance);
+  if (vm.frameCount != 0 || vm.stackTop != vm.stack)
+  {
+    reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+                     "Cannot interpret source while the VM is running.");
+    activeVM = previous;
+    return INTERPRET_RUNTIME_ERROR;
+  }
+  PogberryResult result = interpretActive(source);
+  activeVM = previous;
+  return result;
+}
+
+POGBERRY_API bool pogberryDefineNative(PogberryVM *instance, const char *name,
+                                       PogberryNativeFn function,
+                                       void *userData)
+{
+  if (instance == NULL || !validNativeName(name) || function == NULL)
+    return false;
+  VM *previous = activateVM(instance);
+  defineHostNative(name, function, userData);
+  activeVM = previous;
+  return true;
+}
+
+POGBERRY_API bool pogberryRegisterCapability(
+    PogberryVM *instance, const char *name,
+    const PogberryNativeDefinition *definitions, size_t definitionCount)
+{
+  if (instance == NULL || name == NULL || name[0] == '\0' ||
+      (definitionCount > 0 && definitions == NULL))
+    return false;
+
+  VM *previous = activateVM(instance);
+  if (findCapability(name) != NULL)
+  {
+    reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+                     "Capability is already registered in this VM.");
+    activeVM = previous;
+    return false;
+  }
+
+  for (size_t i = 0; i < definitionCount; i++)
+  {
+    if (!validNativeName(definitions[i].name) ||
+        definitions[i].function == NULL)
+    {
+      reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+                       "Capability contains an invalid native definition.");
+      activeVM = previous;
+      return false;
+    }
+  }
+
+  if (vm.capabilityCount == vm.capabilityCapacity)
+  {
+    size_t capacity = vm.capabilityCapacity < 4 ? 4 : vm.capabilityCapacity * 2;
+    HostCapability *capabilities = (HostCapability *)realloc(
+        vm.capabilities, sizeof(HostCapability) * capacity);
+    if (capabilities == NULL)
+    {
+      reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+                       "Could not allocate capability registry.");
+      activeVM = previous;
+      return false;
+    }
+    vm.capabilities = capabilities;
+    vm.capabilityCapacity = capacity;
+  }
+
+  HostCapability capability = {0};
+  capability.name = copyHostString(name);
+  if (capability.name == NULL)
+  {
+    activeVM = previous;
+    return false;
+  }
+
+  if (definitionCount > 0)
+  {
+    capability.definitions = (PogberryNativeDefinition *)calloc(
+        definitionCount, sizeof(PogberryNativeDefinition));
+    if (capability.definitions == NULL)
+    {
+      free(capability.name);
+      activeVM = previous;
+      return false;
+    }
+  }
+  capability.definitionCount = definitionCount;
+
+  for (size_t i = 0; i < definitionCount; i++)
+  {
+    capability.definitions[i] = definitions[i];
+    capability.definitions[i].name = copyHostString(definitions[i].name);
+    if (capability.definitions[i].name == NULL)
+    {
+      for (size_t j = 0; j < i; j++)
+        free((char *)capability.definitions[j].name);
+      free(capability.definitions);
+      free(capability.name);
+      activeVM = previous;
+      return false;
+    }
+  }
+
+  vm.capabilities[vm.capabilityCount++] = capability;
+  activeVM = previous;
+  return true;
+}
+
+POGBERRY_API PogberryResult pogberryCall(PogberryVM *instance, const char *name,
+                                         int argCount,
+                                         const PogberryValue *args,
+                                         PogberryValue *result)
+{
+  if (instance == NULL || !validNativeName(name) || argCount < 0 ||
+      (argCount > 0 && args == NULL))
+    return INTERPRET_RUNTIME_ERROR;
+
+  VM *previous = activateVM(instance);
   vm.hadRuntimeError = false;
 
-  ObjFunction *function = compile(source);
-  if (function == NULL)
-    return INTERPRET_COMPILE_ERROR;
-
-  if (!push(OBJ_VAL(function))) return INTERPRET_RUNTIME_ERROR;
-  ObjClosure *closure = newClosure(function);
-  pop();
-  if (!push(OBJ_VAL(closure))) return INTERPRET_RUNTIME_ERROR;
-  if (!call(closure, 0))
+  if (vm.frameCount != 0 || vm.stackTop != vm.stack)
   {
+    runtimeError("Cannot invoke a script function while the VM is running.");
+    activeVM = previous;
     return INTERPRET_RUNTIME_ERROR;
   }
 
-  return run();
+  ObjString *functionName = copyString(name, (int)strlen(name));
+  Value callee;
+  if (!tableGet(&vm.globals, functionName, &callee) || !IS_CLOSURE(callee))
+  {
+    runtimeError("No script function named '%s' is defined.", name);
+    activeVM = previous;
+    return INTERPRET_RUNTIME_ERROR;
+  }
+
+  push(callee);
+  for (int i = 0; i < argCount; i++)
+  {
+    Value argument;
+    if (!hostToValue(args[i], &argument) || !push(argument))
+    {
+      activeVM = previous;
+      return INTERPRET_RUNTIME_ERROR;
+    }
+  }
+
+  vm.hasLastReturnValue = false;
+  if (!callValue(callee, argCount))
+  {
+    activeVM = previous;
+    return INTERPRET_RUNTIME_ERROR;
+  }
+
+  PogberryResult callResult = run();
+  if (callResult == INTERPRET_OK && result != NULL)
+    *result = valueToHost(vm.lastReturnValue);
+  activeVM = previous;
+  return callResult;
+}
+
+POGBERRY_API void pogberryRuntimeError(PogberryVM *instance,
+                                       const char *message)
+{
+  if (instance == NULL || message == NULL)
+    return;
+  VM *previous = activateVM(instance);
+  runtimeError("%s", message);
+  activeVM = previous;
+}
+
+POGBERRY_API PogberryValue pogberryNilValue(void)
+{
+  PogberryValue value = {0};
+  value.type = POGBERRY_VALUE_NIL;
+  return value;
+}
+
+POGBERRY_API PogberryValue pogberryBoolValue(bool boolean)
+{
+  PogberryValue value = pogberryNilValue();
+  value.type = POGBERRY_VALUE_BOOL;
+  value.as.boolean = boolean;
+  return value;
+}
+
+POGBERRY_API PogberryValue pogberryNumberValue(double number)
+{
+  PogberryValue value = pogberryNilValue();
+  value.type = POGBERRY_VALUE_NUMBER;
+  value.as.number = number;
+  return value;
+}
+
+POGBERRY_API PogberryValue pogberryStringValueN(const char *string,
+                                                size_t length)
+{
+  PogberryValue value = pogberryNilValue();
+  value.type = POGBERRY_VALUE_STRING;
+  value.as.string.chars = string;
+  value.as.string.length = length;
+  return value;
+}
+
+POGBERRY_API PogberryValue pogberryStringValue(const char *string)
+{
+  return pogberryStringValueN(string, string != NULL ? strlen(string) : 0);
+}
+
+POGBERRY_API void ext_initVM(void)
+{
+  initVM();
+}
+
+POGBERRY_API InterpretResult ext_interpret(const char *source)
+{
+  return interpret(source);
 }

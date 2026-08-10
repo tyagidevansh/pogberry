@@ -53,7 +53,17 @@ ObjUpvalue* newUpvalue(Value* slot) {
 
 ObjNative* newNative(NativeFn function) {
   ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
-  native->function = function;
+  native->legacyFunction = function;
+  native->hostFunction = NULL;
+  native->userData = NULL;
+  return native;
+}
+
+ObjNative* newHostNative(PogberryNativeFn function, void* userData) {
+  ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+  native->legacyFunction = NULL;
+  native->hostFunction = function;
+  native->userData = userData;
   return native;
 }
 

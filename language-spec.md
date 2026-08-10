@@ -525,3 +525,4 @@ These requirements exist to keep language semantics separate from VM details:
 - Added an organised language test suite covering the core syntax,
   collections, standard functions, errors, and regressions.
 - Isolated the legacy GUI binding from the VM and added headless GUI tests.
+- Added a per-VM host API with callbacks, native capabilities, and function calls.

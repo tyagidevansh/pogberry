@@ -93,6 +93,7 @@ typedef struct
 
 static GuiApi gui;
 static bool guiLoaded = false;
+static size_t guiUsers = 0;
 
 #ifdef _WIN32
 static HMODULE guiLibrary = NULL;
@@ -516,10 +517,10 @@ static void closeGuiLibrary(void)
 
 bool initialiseGui(void)
 {
-  if (guiLoaded)
+  if (vm.legacyGuiLoaded)
     return true;
 
-  if (!openGuiLibrary())
+  if (!guiLoaded && !openGuiLibrary())
   {
 #ifdef _WIN32
     runtimeError("Could not load Pogberry GUI library (Windows error %lu).",
@@ -548,7 +549,10 @@ bool initialiseGui(void)
     memcpy(&gui.field, &loadedSymbol, sizeof(gui.field));                     \
   } while (false);
 
-  GUI_BINDINGS(LOAD_GUI_SYMBOL)
+  if (!guiLoaded)
+  {
+    GUI_BINDINGS(LOAD_GUI_SYMBOL)
+  }
 #undef LOAD_GUI_SYMBOL
 
 #define REGISTER_GUI_NATIVE(field, type, symbol, native) defineNative(symbol, native);
@@ -556,11 +560,20 @@ bool initialiseGui(void)
 #undef REGISTER_GUI_NATIVE
 
   guiLoaded = true;
+  vm.legacyGuiLoaded = true;
+  guiUsers++;
   return true;
 }
 
 void freeGui(void)
 {
+  if (!vm.legacyGuiLoaded)
+    return;
+  vm.legacyGuiLoaded = false;
+  if (guiUsers > 0)
+    guiUsers--;
+  if (guiUsers > 0)
+    return;
   closeGuiLibrary();
   memset(&gui, 0, sizeof(gui));
   guiLoaded = false;

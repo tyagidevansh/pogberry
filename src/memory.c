@@ -238,6 +238,7 @@ static void markRoots() {
   markTable(&vm.globals);
   markCompilerRoots();
   markObject((Obj*)vm.initString);
+  if (vm.hasLastReturnValue) markValue(vm.lastReturnValue);
 }
 
 static void traceReferences() {

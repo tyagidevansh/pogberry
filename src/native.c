@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <limits.h>
 
 #include "headers/native.h"
 #include "headers/memory.h"
@@ -20,17 +21,37 @@ Value clockNative(int argCount, Value *args)
     return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
+static uint32_t nextRandom(void)
+{
+    uint32_t state = vm.randomState;
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    vm.randomState = state;
+    return state;
+}
+
 Value randNative(int argCount, Value *args)
 {
-    if (argCount > 0 && IS_NUMBER(args[0]))
+    if (argCount == 0)
     {
-        int max = (int)AS_NUMBER(args[0]);
-        return NUMBER_VAL(rand() % max);
+        return NUMBER_VAL(nextRandom() / (double)UINT32_MAX);
     }
-    else
+    if (argCount != 1 || !IS_NUMBER(args[0]))
     {
-        return NUMBER_VAL(rand() / (double)RAND_MAX);
+        runtimeError("rand() expects zero arguments or one positive integer.");
+        return NIL_VAL;
     }
+
+    double bound = AS_NUMBER(args[0]);
+    if (!isfinite(bound) || floor(bound) != bound || bound <= 0 ||
+        bound > INT_MAX)
+    {
+        runtimeError("rand() bound must be a positive integer.");
+        return NIL_VAL;
+    }
+
+    return NUMBER_VAL(nextRandom() % (uint32_t)bound);
 }
 
 Value floorNative(int argCount, Value *args)
@@ -47,11 +68,11 @@ Value strInputNative(int argCount, Value *args)
 {
     if (argCount > 0 && IS_STRING(args[0]))
     {
-        printf("%s", AS_CSTRING(args[0]));
+        writeVMOutput(AS_CSTRING(args[0]), (size_t)AS_STRING(args[0])->length);
     }
     else
     {
-        printf("Enter input: ");
+        writeVMOutput("Enter input: ", 13);
     }
     char buffer[256];
     if (!fgets(buffer, sizeof(buffer), stdin))
@@ -531,6 +552,17 @@ void defineNative(const char *name, NativeFn function)
     ObjString *nameObj = copyString(name, (int)strlen(name));
     push(OBJ_VAL(nameObj));
     push(OBJ_VAL(newNative(function)));
+
+    tableSet(&vm.globals, nameObj, vm.stackTop[-1]);
+    pop();
+    pop();
+}
+
+void defineHostNative(const char *name, PogberryNativeFn function, void *userData)
+{
+    ObjString *nameObj = copyString(name, (int)strlen(name));
+    push(OBJ_VAL(nameObj));
+    push(OBJ_VAL(newHostNative(function, userData)));
 
     tableSet(&vm.globals, nameObj, vm.stackTop[-1]);
     pop();
