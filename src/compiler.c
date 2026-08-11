@@ -384,6 +384,7 @@ static void statement();
 static void declaration();
 static ParseRule *getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static ObjString *decodeStringToken(Token token);
 
 static uint8_t identifierConstant(Token *name)
 {
@@ -1028,16 +1029,45 @@ static void whileStatement()
 
 static void useStatement()
 {
-  if (current->type != TYPE_SCRIPT)
+  if (current->type != TYPE_SCRIPT || current->scopeDepth != 0)
   {
-    error("Can only include libraries in top-level code.");
+    error("Imports are only allowed at top level.");
+  }
+
+  if (!check(TOKEN_STRING))
+  {
+    errorAtCurrent("Expect a module name after 'use'.");
+    return;
+  }
+  advance();
+  ObjString *moduleName = decodeStringToken(parser.previous);
+  if (moduleName == NULL)
+    return;
+  uint8_t moduleConstant = makeConstant(OBJ_VAL(moduleName));
+
+  if (match(TOKEN_AS))
+  {
+    if (!check(TOKEN_IDENTIFIER))
+    {
+      errorAtCurrent("Expect an alias after 'as'.");
+      return;
+    }
+    advance();
+    uint8_t aliasConstant = identifierConstant(&parser.previous);
+    consume(TOKEN_SEMICOLON, "Expect ';' after import.");
+    emitBytes(OP_IMPORT, moduleConstant);
+    emitByte(aliasConstant);
     return;
   }
 
-  // consume(TOKEN_STRING, "Expect library name after 'use'.");
-  // uint8_t constant = makeConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
-  expression();
-  consume(TOKEN_SEMICOLON, "Expect ';'");
+  consume(TOKEN_SEMICOLON, "Expect ';' after import.");
+  if (strcmp(moduleName->chars, "pogberry_gui") != 0)
+  {
+    error("Expect 'as <name>' after module name.");
+    return;
+  }
+
+  emitConstant(OBJ_VAL(moduleName));
   emitByte(OP_USE);
 }
 
@@ -1205,23 +1235,22 @@ static void or_(bool canAssign)
   patchJump(endJump);
 }
 
-static void string(bool canAssign)
+static ObjString *decodeStringToken(Token token)
 {
-  (void)canAssign;
-  int rawLength = parser.previous.length - 2;
+  int rawLength = token.length - 2;
   char *chars = ALLOCATE(char, rawLength + 1);
   int length = 0;
 
   for (int i = 0; i < rawLength; i++)
   {
-    char c = parser.previous.start[i + 1];
+    char c = token.start[i + 1];
     if (c != '\\')
     {
       chars[length++] = c;
       continue;
     }
 
-    char escaped = parser.previous.start[++i + 1];
+    char escaped = token.start[++i + 1];
     switch (escaped)
     {
     case '\\': chars[length++] = '\\'; break;
@@ -1232,12 +1261,20 @@ static void string(bool canAssign)
     default:
       FREE_ARRAY(char, chars, rawLength + 1);
       error("Unknown string escape.");
-      return;
+      return NULL;
     }
   }
 
   chars[length] = '\0';
-  emitConstant(OBJ_VAL(takeString(chars, length)));
+  return takeString(chars, length);
+}
+
+static void string(bool canAssign)
+{
+  (void)canAssign;
+  ObjString *value = decodeStringToken(parser.previous);
+  if (value != NULL)
+    emitConstant(OBJ_VAL(value));
 }
 
 static void namedVariable(Token name, bool canAssign)
@@ -1381,6 +1418,7 @@ ParseRule rules[] = {
     [TOKEN_STRING] = {string, NULL, PREC_NONE},
     [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
     [TOKEN_AND] = {NULL, and_, PREC_AND},
+    [TOKEN_AS] = {NULL, NULL, PREC_NONE},
     [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
     [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
     [TOKEN_FALSE] = {literal, NULL, PREC_NONE},

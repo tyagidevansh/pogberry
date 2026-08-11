@@ -19,6 +19,7 @@
 #define IS_CLASS(value)       isObjType(value, OBJ_CLASS)
 #define IS_INSTANCE(value)    isObjType(value, OBJ_INSTANCE)
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
+#define IS_MODULE(value)      isObjType(value, OBJ_MODULE)
 
 #define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
 #define AS_CLOSURE(value)      ((ObjClosure*)AS_OBJ(value))
@@ -30,6 +31,7 @@
 #define AS_CLASS(value)       ((ObjClass*)AS_OBJ(value))
 #define AS_INSTANCE(value)    ((ObjInstance*)AS_OBJ(value))
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
+#define AS_MODULE(value)      ((ObjModule*)AS_OBJ(value))
 
 typedef enum {
   OBJ_FUNCTION,
@@ -42,6 +44,7 @@ typedef enum {
   OBJ_CLASS,
   OBJ_INSTANCE,
   OBJ_BOUND_METHOD,
+  OBJ_MODULE,
 } ObjType;
 
 struct Obj {
@@ -118,6 +121,12 @@ typedef struct {
   ObjClosure* method;
 } ObjBoundMethod;
 
+typedef struct {
+  Obj obj;
+  ObjString* name;
+  Table exports;
+} ObjModule;
+
 ObjFunction* newFunction();
 ObjClosure* newClosure(ObjFunction* function);
 ObjUpvalue* newUpvalue(Value* slot);
@@ -130,6 +139,7 @@ ObjHashmap* newHashmap();
 ObjClass* newClass(ObjString* name);
 ObjInstance* newInstance(ObjClass* klass);
 ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
+ObjModule* newModule(ObjString* name);
 void printObject(Value value);
 
 // function rather than just putting it in the macro coz this uses a value twice, that would cause the macro to be evaluated twice

@@ -31,6 +31,17 @@ static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
   return offset + 3;
 }
 
+static int importInstruction(Chunk* chunk, int offset) {
+  uint8_t module = chunk->code[offset + 1];
+  uint8_t alias = chunk->code[offset + 2];
+  printf("%-16s %4d '", "OP_IMPORT", module);
+  printValue(chunk->constants.values[module]);
+  printf("' as %4d '", alias);
+  printValue(chunk->constants.values[alias]);
+  printf("'\n");
+  return offset + 3;
+}
+
 static int constantLongInstruction(const char *name, Chunk *chunk, int offset)
 {
   // to find the total 24 bit index we shift the later bits by 8 and then 16 and take their OR to fit all 24 bits stored at different offsets in the same number
@@ -190,6 +201,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_INHERIT", offset);
   case OP_METHOD:
     return constantInstruction("OP_METHOD", chunk, offset);
+  case OP_IMPORT:
+    return importInstruction(chunk, offset);
   case OP_USE:
     return simpleInstruction("OP_USE", offset);
   default:

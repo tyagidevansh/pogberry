@@ -526,3 +526,4 @@ These requirements exist to keep language semantics separate from VM details:
   collections, standard functions, errors, and regressions.
 - Isolated the legacy GUI binding from the VM and added headless GUI tests.
 - Added a per-VM host API with callbacks, native capabilities, and function calls.
+- Added aliased native-module imports with cached, read-only namespaces.

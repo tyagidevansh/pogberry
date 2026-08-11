@@ -139,22 +139,38 @@ int main(void)
 
   require(pogberryInterpret(
               firstVM,
-              "use \"host.math\";\n"
-              "fun update(dt) { return hostAdd(dt, 2); }\n"
+              "use \"host.math\" as math;\n"
+              "fun update(dt) { return math.hostAdd(dt, 2); }\n"
               "fun greeting() { return \"he\" + \"llo\"; }\n"
               "fun identity(value) { return value; }\n"
-              "print(hostAdd(3, 4));\n"
-              "print(hostEcho(\"ready\"));\n") == INTERPRET_OK,
+              "print(math.hostAdd(3, 4));\n"
+              "print(math.hostEcho(\"ready\"));\n"
+              "print(type(math));\n"
+              "let add = math.hostAdd;\n"
+              "print(add(2, 3));\n") == INTERPRET_OK,
           "first VM interpretation");
-  require(strcmp(first.output, "7\nready\n") == 0,
+  require(strcmp(first.output, "7\nready\nmodule\n5\n") == 0,
           "captured host-backed output");
   require(first.resolverCalls == 1, "lazy resolver called once");
 
   require(pogberryInterpret(firstVM,
-                            "use \"host.math\"; print(hostAdd(1, 1));") ==
+                            "use \"host.math\" as mathAgain; "
+                            "print(mathAgain.hostAdd(1, 1)); "
+                            "print(math == mathAgain);") ==
               INTERPRET_OK,
-          "cached capability import");
-  require(first.resolverCalls == 1, "capability cache");
+          "cached module import");
+  require(strcmp(first.output, "7\nready\nmodule\n5\n2\ntrue\n") == 0,
+          "cached module output");
+  require(first.resolverCalls == 1, "module cache");
+
+  require(pogberryInterpret(firstVM,
+                            "use \"host.math\" as math;") ==
+              INTERPRET_RUNTIME_ERROR,
+          "duplicate import alias error");
+  require(strstr(first.diagnostics,
+                 "Import alias 'math' is already defined.") != NULL,
+          "duplicate alias diagnostic");
+  require(first.resolverCalls == 1, "duplicate alias skips resolution");
 
   PogberryValue result;
   PogberryValue borrowed;
@@ -212,12 +228,27 @@ int main(void)
   require(second.compileDiagnostics == 3,
           "source, marker, and compile message diagnostics");
 
-  require(pogberryInterpret(secondVM, "use \"missing.capability\";") ==
+  require(pogberryInterpret(secondVM,
+                            "use \"missing.capability\" as missing;") ==
               INTERPRET_RUNTIME_ERROR,
-          "missing capability error");
+          "missing module error");
   require(second.runtimeDiagnostics > 0, "runtime diagnostic callback");
 
-  require(pogberryInterpret(firstVM, "hostAdd(\"bad\", 1);") ==
+  require(pogberryInterpret(firstVM, "math.missing();") ==
+              INTERPRET_RUNTIME_ERROR,
+          "missing module export error");
+  require(strstr(first.diagnostics,
+                 "Module 'host.math' does not export 'missing'.") != NULL,
+          "missing export diagnostic");
+
+  require(pogberryInterpret(firstVM,
+                            "math.hostAdd = math.hostEcho;") ==
+              INTERPRET_RUNTIME_ERROR,
+          "module exports are read-only");
+  require(strstr(first.diagnostics, "Module exports are read-only.") != NULL,
+          "read-only export diagnostic");
+
+  require(pogberryInterpret(firstVM, "math.hostAdd(\"bad\", 1);") ==
               INTERPRET_RUNTIME_ERROR,
           "native callback runtime error");
   require(strstr(first.diagnostics, "hostAdd() expects two numbers.") != NULL,

@@ -295,6 +295,14 @@ static void appendValue(StringBuilder* builder, Value value) {
     return;
   }
 
+  if (object->type == OBJ_MODULE) {
+    ObjModule* module = AS_MODULE(value);
+    appendCString(builder, "<module ");
+    appendChars(builder, module->name->chars, module->name->length);
+    appendCString(builder, ">");
+    return;
+  }
+
   if (object->type == OBJ_CLASS) {
     ObjClass* klass = AS_CLASS(value);
     appendChars(builder, klass->name->chars, klass->name->length);

@@ -144,6 +144,13 @@ ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
   return bound;
 }
 
+ObjModule* newModule(ObjString* name) {
+  ObjModule* module = ALLOCATE_OBJ(ObjModule, OBJ_MODULE);
+  module->name = name;
+  initTable(&module->exports);
+  return module;
+}
+
 static void printFunction(ObjFunction* function) {
   if (function->name == NULL) {
     printf("<script>");
@@ -209,6 +216,9 @@ void printObject(Value value) {
       break; // vm debugger was crashing bc i forgot this, spent over an hour finding trouble elsewhere
     case OBJ_BOUND_METHOD:
       printFunction(AS_BOUND_METHOD(value)->method->function);
+      break;
+    case OBJ_MODULE:
+      printf("<module %s>", AS_MODULE(value)->name->chars);
       break;
   }
 }

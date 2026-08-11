@@ -107,6 +107,7 @@ static void initialiseActiveVM(const PogberryConfig *config)
 
   initTable(&vm.globals);
   initTable(&vm.strings);
+  initTable(&vm.modules);
 
   vm.initString = copyString("init", 4);
 
@@ -146,6 +147,7 @@ static void freeActiveVM(void)
   freeGui();
   freeTable(&vm.globals);
   freeTable(&vm.strings);
+  freeTable(&vm.modules);
   vm.initString = NULL;
   freeObjects();
   freeCapabilities();
@@ -497,6 +499,20 @@ static bool invoke(ObjString *name, int argCount)
 {
   Value receiver = peek(argCount);
 
+  if (IS_MODULE(receiver))
+  {
+    Value exported;
+    ObjModule *module = AS_MODULE(receiver);
+    if (!tableGet(&module->exports, name, &exported))
+    {
+      runtimeError("Module '%s' does not export '%s'.",
+                   module->name->chars, name->chars);
+      return false;
+    }
+    vm.stackTop[-argCount - 1] = exported;
+    return callValue(exported, argCount);
+  }
+
   if (IS_LIST(receiver))
   {
     return invokeListMethod(name, argCount);
@@ -764,6 +780,21 @@ static InterpretResult run()
     {
       ObjString *name = READ_STRING();
 
+      if (IS_MODULE(peek(0)))
+      {
+        ObjModule *module = AS_MODULE(peek(0));
+        Value exported;
+        if (!tableGet(&module->exports, name, &exported))
+        {
+          runtimeError("Module '%s' does not export '%s'.",
+                       module->name->chars, name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        pop();
+        push(exported);
+        break;
+      }
+
       if (IS_HASHMAP(peek(0)))
       {
         if (strcmp(name->chars, "length") != 0)
@@ -803,6 +834,11 @@ static InterpretResult run()
     }
     case OP_SET_PROPERTY:
     {
+      if (IS_MODULE(peek(1)))
+      {
+        runtimeError("Module exports are read-only.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
       if (!IS_INSTANCE(peek(1)))
       {
         runtimeError("Only instances have fields.");
@@ -1232,6 +1268,23 @@ static InterpretResult run()
       defineMethod(READ_STRING());
       break;
     }
+    case OP_IMPORT:
+    {
+      ObjString *moduleName = READ_STRING();
+      ObjString *alias = READ_STRING();
+      Value existing;
+      if (tableGet(&vm.globals, alias, &existing))
+      {
+        runtimeError("Import alias '%s' is already defined.", alias->chars);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      Value module;
+      if (!resolveModule(moduleName->chars, &module))
+        return INTERPRET_RUNTIME_ERROR;
+      tableSet(&vm.globals, alias, module);
+      break;
+    }
     case OP_USE:
     {
       Value name = pop();
@@ -1319,37 +1372,62 @@ bool resolveCapability(const char *name)
   if (strcmp(name, "pogberry_gui") == 0)
     return initialiseGui();
 
+  runtimeError("Module '%s' must be imported with an alias.", name);
+  return false;
+}
+
+bool resolveModule(const char *name, Value *result)
+{
+  ObjString *moduleName = copyString(name, (int)strlen(name));
+  if (!push(OBJ_VAL(moduleName)))
+    return false;
+
+  if (tableGet(&vm.modules, moduleName, result))
+  {
+    pop();
+    return true;
+  }
+
   HostCapability *capability = findCapability(name);
-  bool resolvedDirectly = false;
   if (capability == NULL && vm.config.resolveCapability != NULL)
   {
-    resolvedDirectly = vm.config.resolveCapability(
-        activeVM, name, vm.config.userData);
+    vm.config.resolveCapability(activeVM, name, vm.config.userData);
     if (vm.hadRuntimeError)
       return false;
     capability = findCapability(name);
   }
 
-  if (capability != NULL)
+  if (capability == NULL)
   {
-    if (!capability->loaded)
-    {
-      for (size_t i = 0; i < capability->definitionCount; i++)
-      {
-        PogberryNativeDefinition *definition = &capability->definitions[i];
-        defineHostNative(definition->name, definition->function,
-                         definition->userData);
-      }
-      capability->loaded = true;
-    }
-    return true;
+    runtimeError("Host does not provide module '%s'.", name);
+    return false;
   }
 
-  if (resolvedDirectly)
-    return true;
+  ObjModule *module = newModule(moduleName);
+  if (!push(OBJ_VAL(module)))
+    return false;
 
-  runtimeError("Host does not provide capability '%s'.", name);
-  return false;
+  for (size_t i = 0; i < capability->definitionCount; i++)
+  {
+    PogberryNativeDefinition *definition = &capability->definitions[i];
+    ObjString *exportName = copyString(
+        definition->name, (int)strlen(definition->name));
+    if (!push(OBJ_VAL(exportName)))
+      return false;
+    ObjNative *native = newHostNative(definition->function,
+                                      definition->userData);
+    if (!push(OBJ_VAL(native)))
+      return false;
+    tableSet(&module->exports, exportName, OBJ_VAL(native));
+    pop();
+    pop();
+  }
+
+  tableSet(&vm.modules, moduleName, OBJ_VAL(module));
+  *result = OBJ_VAL(module);
+  pop();
+  pop();
+  return true;
 }
 
 POGBERRY_API PogberryVM *pogberryCreateVM(const PogberryConfig *config)

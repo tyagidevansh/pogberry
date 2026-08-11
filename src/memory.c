@@ -119,6 +119,12 @@ static void blackenObject(Obj* object) {
       markObject((Obj*)bound->method);
       break;
     }
+    case OBJ_MODULE: {
+      ObjModule* module = (ObjModule*)object;
+      markObject((Obj*)module->name);
+      markTable(&module->exports);
+      break;
+    }
   }
 }
 
@@ -206,6 +212,12 @@ static void freeObject(Obj* object) {
       FREE(ObjBoundMethod, object);
       break;
     }
+    case OBJ_MODULE: {
+      ObjModule* module = (ObjModule*)object;
+      freeTable(&module->exports);
+      FREE(ObjModule, object);
+      break;
+    }
   }
 }
 
@@ -236,6 +248,7 @@ static void markRoots() {
   }
 
   markTable(&vm.globals);
+  markTable(&vm.modules);
   markCompilerRoots();
   markObject((Obj*)vm.initString);
   if (vm.hasLastReturnValue) markValue(vm.lastReturnValue);

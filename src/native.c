@@ -521,6 +521,7 @@ Value typeNative(int argCount, Value *args)
     else if (IS_NATIVE(args[0])) name = "native";
     else if (IS_CLASS(args[0])) name = "class";
     else if (IS_INSTANCE(args[0])) name = "instance";
+    else if (IS_MODULE(args[0])) name = "module";
     else name = "bound_method";
 
     return OBJ_VAL(copyString(name, strlen(name)));
