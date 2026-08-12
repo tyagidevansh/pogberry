@@ -60,6 +60,7 @@ typedef enum
 {
   TYPE_FUNCTION,
   TYPE_SCRIPT,
+  TYPE_MODULE,
   TYPE_METHOD,
   TYPE_INITIALIZER,
 } FunctionType;
@@ -322,7 +323,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
   current = compiler;
-  if (type != TYPE_SCRIPT)
+  if (type != TYPE_SCRIPT && type != TYPE_MODULE)
   {
     current->function->name = copyString(parser.previous.start,
                                          parser.previous.length);
@@ -382,6 +383,7 @@ static void expression();
 static void namedVariable(Token name, bool canAssign);
 static void statement();
 static void declaration();
+static void classDeclaration();
 static ParseRule *getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 static ObjString *decodeStringToken(Token token);
@@ -747,6 +749,57 @@ static void varDeclaration()
   defineVariable(global);
 }
 
+static void exportDeclaration()
+{
+  bool validScope = current->type == TYPE_MODULE && current->scopeDepth == 0;
+  if (!validScope)
+    error("Exports are only allowed at a module's top level.");
+
+  if (match(TOKEN_CLASS))
+  {
+    if (!check(TOKEN_IDENTIFIER))
+    {
+      errorAtCurrent("Expect class name.");
+      return;
+    }
+    Token name = parser.current;
+    classDeclaration();
+    if (validScope)
+      emitBytes(OP_EXPORT, identifierConstant(&name));
+    return;
+  }
+
+  if (match(TOKEN_FUN))
+  {
+    if (!check(TOKEN_IDENTIFIER))
+    {
+      errorAtCurrent("Expect function name.");
+      return;
+    }
+    Token name = parser.current;
+    funDeclaration();
+    if (validScope)
+      emitBytes(OP_EXPORT, identifierConstant(&name));
+    return;
+  }
+
+  if (match(TOKEN_VAR) || match(TOKEN_LET))
+  {
+    if (!check(TOKEN_IDENTIFIER))
+    {
+      errorAtCurrent("Expect variable name.");
+      return;
+    }
+    Token name = parser.current;
+    varDeclaration();
+    if (validScope)
+      emitBytes(OP_EXPORT, identifierConstant(&name));
+    return;
+  }
+
+  errorAtCurrent("Expect a class, function, or variable declaration after 'export'.");
+}
+
 static void variable(bool canAssign);
 static Token syntheticToken(const char *text);
 
@@ -940,7 +993,7 @@ static void printStatement()
 
 static void returnStatement()
 {
-  if (current->type == TYPE_SCRIPT)
+  if (current->type == TYPE_SCRIPT || current->type == TYPE_MODULE)
   {
     error("Can't return from top-level code.");
   }
@@ -1133,6 +1186,7 @@ static void synchronize()
     case TOKEN_FUN:
     case TOKEN_VAR:
     case TOKEN_LET:
+    case TOKEN_EXPORT:
     case TOKEN_FOR:
     case TOKEN_IF:
     case TOKEN_WHILE:
@@ -1148,7 +1202,11 @@ static void synchronize()
 
 static void declaration()
 {
-  if (match(TOKEN_FUN))
+  if (match(TOKEN_EXPORT))
+  {
+    exportDeclaration();
+  }
+  else if (match(TOKEN_FUN))
   {
     funDeclaration();
   }
@@ -1421,6 +1479,7 @@ ParseRule rules[] = {
     [TOKEN_AS] = {NULL, NULL, PREC_NONE},
     [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
     [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_EXPORT] = {NULL, NULL, PREC_NONE},
     [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
     [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
     [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
@@ -1473,12 +1532,12 @@ static ParseRule *getRule(TokenType type)
 
 // pratt's parsing technique oooh very exclusive
 // single-pass compiler - it only has a peephole view into the user's program so only works if the language requires very little context around the code that its parsing (and producing bytecode both at once)
-ObjFunction *compile(const char *source)
+static ObjFunction *compileSource(const char *source, FunctionType type)
 {
   src = source;
   initScanner(source);
   Compiler compiler;
-  initCompiler(&compiler, TYPE_SCRIPT);
+  initCompiler(&compiler, type);
 
   parser.hadError = false;
   parser.panicMode = false;
@@ -1492,6 +1551,16 @@ ObjFunction *compile(const char *source)
 
   ObjFunction *function = endCompiler();
   return parser.hadError ? NULL : function;
+}
+
+ObjFunction *compile(const char *source)
+{
+  return compileSource(source, TYPE_SCRIPT);
+}
+
+ObjFunction *compileModule(const char *source)
+{
+  return compileSource(source, TYPE_MODULE);
 }
 
 void markCompilerRoots()

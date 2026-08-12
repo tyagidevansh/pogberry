@@ -40,6 +40,7 @@ ObjClosure* newClosure(ObjFunction* function) {
   closure->function = function;
   closure->upvalues = upvalues;
   closure->upvalueCount = function->upvalueCount;
+  closure->module = NULL;
   return closure;
 }
 
@@ -147,6 +148,7 @@ ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
 ObjModule* newModule(ObjString* name) {
   ObjModule* module = ALLOCATE_OBJ(ObjModule, OBJ_MODULE);
   module->name = name;
+  initTable(&module->globals);
   initTable(&module->exports);
   return module;
 }

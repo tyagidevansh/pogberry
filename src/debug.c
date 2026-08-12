@@ -203,6 +203,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return constantInstruction("OP_METHOD", chunk, offset);
   case OP_IMPORT:
     return importInstruction(chunk, offset);
+  case OP_EXPORT:
+    return constantInstruction("OP_EXPORT", chunk, offset);
   case OP_USE:
     return simpleInstruction("OP_USE", offset);
   default:

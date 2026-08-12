@@ -82,6 +82,7 @@ static void blackenObject(Obj* object) {
       for (int i = 0; i < closure->upvalueCount; i++) {
         markObject((Obj*)closure->upvalues[i]);
       }
+      markObject((Obj*)closure->module);
       break;
     }
     case OBJ_UPVALUE:
@@ -122,6 +123,7 @@ static void blackenObject(Obj* object) {
     case OBJ_MODULE: {
       ObjModule* module = (ObjModule*)object;
       markObject((Obj*)module->name);
+      markTable(&module->globals);
       markTable(&module->exports);
       break;
     }
@@ -214,6 +216,7 @@ static void freeObject(Obj* object) {
     }
     case OBJ_MODULE: {
       ObjModule* module = (ObjModule*)object;
+      freeTable(&module->globals);
       freeTable(&module->exports);
       FREE(ObjModule, object);
       break;
@@ -248,6 +251,7 @@ static void markRoots() {
   }
 
   markTable(&vm.globals);
+  markTable(&vm.prelude);
   markTable(&vm.modules);
   markCompilerRoots();
   markObject((Obj*)vm.initString);

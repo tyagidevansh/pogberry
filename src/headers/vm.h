@@ -21,6 +21,7 @@ typedef struct
   char *name;
   PogberryNativeDefinition *definitions;
   size_t definitionCount;
+  char *source;
 } HostCapability;
 
 struct PogberryVM
@@ -32,6 +33,7 @@ struct PogberryVM
   Value stack[STACK_MAX]; // time for implementing a stack in the virtual machine babyyyy also this is the pointer to the first element of the array by default (if we dont do any pointer arithmetic)
   Value *stackTop;        // pointer to the element (pointer faster than indexing) just after the last stack, so pointing to 0 index means stack empty
   Table globals;
+  Table prelude;
   Table strings; // for interning strings, each unique string will only be stored once in memory, so "=" operation can be carried out fast -> just compare the memory address rather than comparing the string character by character
   Table modules;
   ObjString *initString;
@@ -66,7 +68,7 @@ void runtimeError(const char *format, ...);
 void writeVMOutput(const char *text, size_t length);
 void reportDiagnostic(PogberryDiagnosticKind kind, const char *message);
 bool resolveCapability(const char *name);
-bool resolveModule(const char *name, Value *module);
+InterpretResult resolveModule(const char *name, Value *module);
 bool push(Value value);
 Value pop();
 

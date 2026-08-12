@@ -61,6 +61,8 @@ typedef struct ObjFunction {
   ObjString* name;
 } ObjFunction;
 
+typedef struct ObjModule ObjModule;
+
 typedef struct ObjUpvalue {
   Obj obj;
   Value* location;
@@ -73,6 +75,7 @@ typedef struct {
   ObjFunction* function;
   ObjUpvalue** upvalues;
   int upvalueCount;
+  ObjModule* module;
 } ObjClosure;
 
 typedef Value (*NativeFn)(int argCount, Value* args);
@@ -121,11 +124,12 @@ typedef struct {
   ObjClosure* method;
 } ObjBoundMethod;
 
-typedef struct {
+struct ObjModule {
   Obj obj;
   ObjString* name;
+  Table globals;
   Table exports;
-} ObjModule;
+};
 
 ObjFunction* newFunction();
 ObjClosure* newClosure(ObjFunction* function);

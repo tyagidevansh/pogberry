@@ -106,6 +106,7 @@ static void initialiseActiveVM(const PogberryConfig *config)
   vm.nextGC = 1024 * 1024;
 
   initTable(&vm.globals);
+  initTable(&vm.prelude);
   initTable(&vm.strings);
   initTable(&vm.modules);
 
@@ -124,6 +125,7 @@ static void initialiseActiveVM(const PogberryConfig *config)
   defineNative("len", lenNative);
   defineNative("type", typeNative);
   defineNative("str", strNative);
+  tableAddAll(&vm.globals, &vm.prelude);
 }
 
 static void freeCapabilities(void)
@@ -132,6 +134,7 @@ static void freeCapabilities(void)
   {
     HostCapability *capability = &vm.capabilities[i];
     free(capability->name);
+    free(capability->source);
     for (size_t j = 0; j < capability->definitionCount; j++)
       free((char *)capability->definitions[j].name);
     free(capability->definitions);
@@ -146,6 +149,7 @@ static void freeActiveVM(void)
 {
   freeGui();
   freeTable(&vm.globals);
+  freeTable(&vm.prelude);
   freeTable(&vm.strings);
   freeTable(&vm.modules);
   vm.initString = NULL;
@@ -658,7 +662,14 @@ static bool normalizeListIndex(Value indexValue, int listCount, int *outIndex)
   return true;
 }
 
-static InterpretResult run()
+static Table *globalsForFrame(CallFrame *frame)
+{
+  if (frame->closure->module != NULL)
+    return &frame->closure->module->globals;
+  return &vm.globals;
+}
+
+static InterpretResult run(int stopFrameCount)
 {
   CallFrame *frame = &vm.frames[vm.frameCount - 1];
 
@@ -750,7 +761,7 @@ static InterpretResult run()
     {
       ObjString *name = READ_STRING();
       Value value;
-      if (!tableGet(&vm.globals, name, &value))
+      if (!tableGet(globalsForFrame(frame), name, &value))
       {
         runtimeError("Undefined variable '%s'.", name->chars);
         return INTERPRET_RUNTIME_ERROR;
@@ -761,19 +772,24 @@ static InterpretResult run()
     case OP_DEFINE_GLOBAL:
     {
       ObjString *name = READ_STRING();
-      tableSet(&vm.globals, name, peek(0));
+      tableSet(globalsForFrame(frame), name, peek(0));
       pop();
       break;
     }
     case OP_SET_GLOBAL:
     {
       ObjString *name = READ_STRING();
-      if (tableSet(&vm.globals, name, peek(0)))
+      Table *globals = globalsForFrame(frame);
+      if (tableSet(globals, name, peek(0)))
       {
-        tableDelete(&vm.globals, name);
+        tableDelete(globals, name);
         runtimeError("Undefined variable '%s'.", name->chars);
         return INTERPRET_RUNTIME_ERROR;
       }
+      ObjModule *module = frame->closure->module;
+      Value previousExport;
+      if (module != NULL && tableGet(&module->exports, name, &previousExport))
+        tableSet(&module->exports, name, peek(0));
       break;
     }
     case OP_GET_PROPERTY:
@@ -1212,6 +1228,7 @@ static InterpretResult run()
     {
       ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
       ObjClosure *closure = newClosure(function);
+      closure->module = frame->closure->module;
       if (!push(OBJ_VAL(closure))) return INTERPRET_RUNTIME_ERROR;
       for (int i = 0; i < closure->upvalueCount; i++)
       {
@@ -1243,6 +1260,8 @@ static InterpretResult run()
       vm.stackTop = frame->slots;
       push(result);
       frame = &vm.frames[vm.frameCount - 1];
+      if (vm.frameCount == stopFrameCount)
+        return INTERPRET_OK;
       break;
     }
     case OP_CLASS:
@@ -1280,9 +1299,23 @@ static InterpretResult run()
       }
 
       Value module;
-      if (!resolveModule(moduleName->chars, &module))
-        return INTERPRET_RUNTIME_ERROR;
+      InterpretResult importResult = resolveModule(moduleName->chars, &module);
+      if (importResult != INTERPRET_OK)
+        return importResult;
       tableSet(&vm.globals, alias, module);
+      break;
+    }
+    case OP_EXPORT:
+    {
+      ObjString *name = READ_STRING();
+      ObjModule *module = frame->closure->module;
+      Value exported;
+      if (module == NULL || !tableGet(&module->globals, name, &exported))
+      {
+        runtimeError("Could not export '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      tableSet(&module->exports, name, exported);
       break;
     }
     case OP_USE:
@@ -1325,7 +1358,7 @@ static InterpretResult interpretActive(const char *source)
     return INTERPRET_RUNTIME_ERROR;
   }
 
-  return run();
+  return run(0);
 }
 
 InterpretResult interpret(const char *source)
@@ -1376,16 +1409,16 @@ bool resolveCapability(const char *name)
   return false;
 }
 
-bool resolveModule(const char *name, Value *result)
+InterpretResult resolveModule(const char *name, Value *result)
 {
   ObjString *moduleName = copyString(name, (int)strlen(name));
   if (!push(OBJ_VAL(moduleName)))
-    return false;
+    return INTERPRET_RUNTIME_ERROR;
 
   if (tableGet(&vm.modules, moduleName, result))
   {
     pop();
-    return true;
+    return INTERPRET_OK;
   }
 
   HostCapability *capability = findCapability(name);
@@ -1393,41 +1426,68 @@ bool resolveModule(const char *name, Value *result)
   {
     vm.config.resolveCapability(activeVM, name, vm.config.userData);
     if (vm.hadRuntimeError)
-      return false;
+      return INTERPRET_RUNTIME_ERROR;
     capability = findCapability(name);
   }
 
   if (capability == NULL)
   {
     runtimeError("Host does not provide module '%s'.", name);
-    return false;
+    return INTERPRET_RUNTIME_ERROR;
   }
 
   ObjModule *module = newModule(moduleName);
   if (!push(OBJ_VAL(module)))
-    return false;
+    return INTERPRET_RUNTIME_ERROR;
+  tableAddAll(&vm.prelude, &module->globals);
 
-  for (size_t i = 0; i < capability->definitionCount; i++)
+  if (capability->source != NULL)
   {
-    PogberryNativeDefinition *definition = &capability->definitions[i];
-    ObjString *exportName = copyString(
-        definition->name, (int)strlen(definition->name));
-    if (!push(OBJ_VAL(exportName)))
-      return false;
-    ObjNative *native = newHostNative(definition->function,
-                                      definition->userData);
-    if (!push(OBJ_VAL(native)))
-      return false;
-    tableSet(&module->exports, exportName, OBJ_VAL(native));
+    ObjFunction *function = compileModule(capability->source);
+    if (function == NULL)
+    {
+      resetStack();
+      return INTERPRET_COMPILE_ERROR;
+    }
+
+    if (!push(OBJ_VAL(function)))
+      return INTERPRET_RUNTIME_ERROR;
+    ObjClosure *closure = newClosure(function);
+    closure->module = module;
     pop();
+    if (!push(OBJ_VAL(closure)) || !call(closure, 0))
+      return INTERPRET_RUNTIME_ERROR;
+
+    int enclosingFrameCount = vm.frameCount - 1;
+    InterpretResult moduleResult = run(enclosingFrameCount);
+    if (moduleResult != INTERPRET_OK)
+      return moduleResult;
     pop();
+  }
+  else
+  {
+    for (size_t i = 0; i < capability->definitionCount; i++)
+    {
+      PogberryNativeDefinition *definition = &capability->definitions[i];
+      ObjString *exportName = copyString(
+          definition->name, (int)strlen(definition->name));
+      if (!push(OBJ_VAL(exportName)))
+        return INTERPRET_RUNTIME_ERROR;
+      ObjNative *native = newHostNative(definition->function,
+                                        definition->userData);
+      if (!push(OBJ_VAL(native)))
+        return INTERPRET_RUNTIME_ERROR;
+      tableSet(&module->exports, exportName, OBJ_VAL(native));
+      pop();
+      pop();
+    }
   }
 
   tableSet(&vm.modules, moduleName, OBJ_VAL(module));
   *result = OBJ_VAL(module);
   pop();
   pop();
-  return true;
+  return INTERPRET_OK;
 }
 
 POGBERRY_API PogberryVM *pogberryCreateVM(const PogberryConfig *config)
@@ -1575,6 +1635,54 @@ POGBERRY_API bool pogberryRegisterCapability(
   return true;
 }
 
+POGBERRY_API bool pogberryRegisterModuleSource(PogberryVM *instance,
+                                               const char *name,
+                                               const char *source)
+{
+  if (instance == NULL || !validNativeName(name) || source == NULL)
+    return false;
+
+  VM *previous = activateVM(instance);
+  if (findCapability(name) != NULL)
+  {
+    reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+                     "Module is already registered in this VM.");
+    activeVM = previous;
+    return false;
+  }
+
+  if (vm.capabilityCount == vm.capabilityCapacity)
+  {
+    size_t capacity = vm.capabilityCapacity < 4 ? 4 : vm.capabilityCapacity * 2;
+    HostCapability *capabilities = (HostCapability *)realloc(
+        vm.capabilities, sizeof(HostCapability) * capacity);
+    if (capabilities == NULL)
+    {
+      reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+                       "Could not allocate module registry.");
+      activeVM = previous;
+      return false;
+    }
+    vm.capabilities = capabilities;
+    vm.capabilityCapacity = capacity;
+  }
+
+  HostCapability capability = {0};
+  capability.name = copyHostString(name);
+  capability.source = copyHostString(source);
+  if (capability.name == NULL || capability.source == NULL)
+  {
+    free(capability.name);
+    free(capability.source);
+    activeVM = previous;
+    return false;
+  }
+
+  vm.capabilities[vm.capabilityCount++] = capability;
+  activeVM = previous;
+  return true;
+}
+
 POGBERRY_API PogberryResult pogberryCall(PogberryVM *instance, const char *name,
                                          int argCount,
                                          const PogberryValue *args,
@@ -1621,7 +1729,7 @@ POGBERRY_API PogberryResult pogberryCall(PogberryVM *instance, const char *name,
     return INTERPRET_RUNTIME_ERROR;
   }
 
-  PogberryResult callResult = run();
+  PogberryResult callResult = run(0);
   if (callResult == INTERPRET_OK && result != NULL)
     *result = valueToHost(vm.lastReturnValue);
   activeVM = previous;

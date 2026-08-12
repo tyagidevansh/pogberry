@@ -137,6 +137,22 @@ int main(void)
   PogberryVM *secondVM = pogberryCreateVM(&secondConfig);
   require(firstVM != NULL && secondVM != NULL, "VM creation");
 
+  require(pogberryRegisterModuleSource(
+              firstVM, "game.counter",
+              "let hidden = 40;\n"
+              "export let answer = hidden + 2;\n"
+              "export fun increment() { answer = answer + 1; return answer; }\n"
+              "export fun rootHidden() { return hidden; }\n"
+              "export fun size(value) { return len(value); }\n"
+              "export class Counter {\n"
+              "  init(start) { this.value = start; }\n"
+              "  next() { this.value = this.value + 1; return this.value; }\n"
+              "}\n"),
+          "source module registration");
+  require(pogberryRegisterModuleSource(
+              firstVM, "broken.module", "export fun broken( {\n"),
+          "broken source module registration");
+
   require(pogberryInterpret(
               firstVM,
               "use \"host.math\" as math;\n"
@@ -171,6 +187,52 @@ int main(void)
                  "Import alias 'math' is already defined.") != NULL,
           "duplicate alias diagnostic");
   require(first.resolverCalls == 1, "duplicate alias skips resolution");
+
+  require(pogberryInterpret(
+              firstVM,
+              "let hidden = 1000;\n"
+              "use \"game.counter\" as counter;\n"
+              "print(counter.answer);\n"
+              "print(counter.increment());\n"
+              "print(counter.answer);\n"
+              "let increment = counter.increment;\n"
+              "print(increment());\n"
+              "print(counter.answer);\n"
+              "print(counter.rootHidden());\n"
+              "print(counter.size([1, 2, 3]));\n"
+              "let counterObject = counter.Counter(5);\n"
+              "print(counterObject.next());\n") == INTERPRET_OK,
+          "source module import");
+  require(strcmp(first.output,
+                 "7\nready\nmodule\n5\n2\ntrue\n42\n43\n43\n44\n44\n40\n3\n6\n") == 0,
+          "source module output and isolation");
+
+  require(pogberryInterpret(
+              firstVM,
+              "use \"game.counter\" as counterAgain;\n"
+              "print(counter == counterAgain);\n"
+              "print(counterAgain.answer);\n") == INTERPRET_OK,
+          "cached source module import");
+  require(strcmp(first.output,
+                 "7\nready\nmodule\n5\n2\ntrue\n42\n43\n43\n44\n44\n40\n3\n6\ntrue\n44\n") == 0,
+          "source module cache output");
+
+  require(pogberryInterpret(firstVM, "counter.hidden;") ==
+              INTERPRET_RUNTIME_ERROR,
+          "unexported source module global is hidden");
+  require(strstr(first.diagnostics,
+                 "Module 'game.counter' does not export 'hidden'.") != NULL,
+          "unexported source module diagnostic");
+
+  require(pogberryInterpret(firstVM, "answer;") == INTERPRET_RUNTIME_ERROR,
+          "source module global does not leak into importer");
+  require(strstr(first.diagnostics, "Undefined variable 'answer'.") != NULL,
+          "source module isolation diagnostic");
+
+  require(pogberryInterpret(firstVM,
+                            "use \"broken.module\" as broken;") ==
+              INTERPRET_COMPILE_ERROR,
+          "source module compile error");
 
   PogberryValue result;
   PogberryValue borrowed;

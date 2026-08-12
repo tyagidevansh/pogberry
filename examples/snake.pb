@@ -28,7 +28,7 @@ fun spawnFruit() {
         var valid = true;
         var i = 0;
 
-        while (i < snake.size()) {
+        while (i < len(snake)) {
             var p = snake[i];
             if (p[0] == fx and p[1] == fy) {
                 valid = false;
@@ -73,7 +73,7 @@ fun updateSnake() {
     // Check self-collision
     var collided = false;
     var i = 0;
-    while (i < snake.size()) {
+    while (i < len(snake)) {
         var p = snake[i];
         if (p[0] == newX and p[1] == newY) {
             collided = true;
@@ -86,7 +86,7 @@ fun updateSnake() {
         return;
     }
 
-    snake.add(newHead, 0); // insert at front
+    snake.insert(0, newHead); // insert at front
 
     // Check fruit collision
     if (newX == fruit[0] and newY == fruit[1]) {
@@ -102,7 +102,7 @@ fun drawGame() {
 
     // Draw snake
     var i = 0;
-    while (i < snake.size()) {
+    while (i < len(snake)) {
         var point = snake[i];
         drawRectangle(point[0] * BLOCK_SIZE, point[1] * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 255, 255, 255);
         i = i + 1;

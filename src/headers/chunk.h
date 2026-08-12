@@ -55,6 +55,7 @@ typedef enum {
   OP_INHERIT,
   OP_METHOD,
   OP_IMPORT,
+  OP_EXPORT,
   OP_USE,
 } OpCode;
 

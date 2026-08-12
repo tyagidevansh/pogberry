@@ -104,6 +104,9 @@ POGBERRY_API bool pogberryDefineNative(PogberryVM *vm, const char *name,
 POGBERRY_API bool pogberryRegisterCapability(
     PogberryVM *vm, const char *name,
     const PogberryNativeDefinition *definitions, size_t definitionCount);
+POGBERRY_API bool pogberryRegisterModuleSource(PogberryVM *vm,
+                                               const char *name,
+                                               const char *source);
 POGBERRY_API void pogberryRuntimeError(PogberryVM *vm, const char *message);
 
 POGBERRY_API PogberryValue pogberryNilValue(void);
