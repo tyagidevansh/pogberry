@@ -27,6 +27,7 @@ ObjFunction* newFunction() {
   function->arity = 0;
   function->upvalueCount = 0;
   function->name = NULL;
+  function->sourceName = NULL;
   initChunk(&function->chunk);
 
   return function;
@@ -150,6 +151,7 @@ ObjModule* newModule(ObjString* name) {
   module->name = name;
   initTable(&module->globals);
   initTable(&module->exports);
+  module->isLoading = false;
   return module;
 }
 

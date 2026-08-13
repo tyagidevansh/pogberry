@@ -529,3 +529,5 @@ These requirements exist to keep language semantics separate from VM details:
 - Added aliased native-module imports with cached, read-only namespaces.
 - Added registered source modules with isolated globals and `export` for
   existing declaration forms.
+- Source modules can import cached dependencies through opaque host-resolved
+  identifiers, with source-aware diagnostics and circular-import errors.

@@ -10,7 +10,7 @@
 #define POGBERRY_API
 #endif
 
-#define POGBERRY_HOST_API_VERSION 1u
+#define POGBERRY_HOST_API_VERSION 2u
 
 typedef struct PogberryVM PogberryVM;
 
@@ -104,6 +104,9 @@ POGBERRY_API bool pogberryDefineNative(PogberryVM *vm, const char *name,
 POGBERRY_API bool pogberryRegisterCapability(
     PogberryVM *vm, const char *name,
     const PogberryNativeDefinition *definitions, size_t definitionCount);
+/* Module names are opaque stable identifiers. The VM passes import strings to
+ * the resolver unchanged and never interprets them as filesystem paths. The
+ * source text is copied and may be released after this call returns. */
 POGBERRY_API bool pogberryRegisterModuleSource(PogberryVM *vm,
                                                const char *name,
                                                const char *source);

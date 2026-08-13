@@ -59,7 +59,19 @@ void runtimeError(const char *format, ...)
     ObjFunction *function = frame->closure->function;
     size_t instruction = frame->ip - function->chunk.code - 1;
     char trace[256];
-    if (function->name == NULL)
+    if (function->sourceName != NULL && function->name == NULL)
+    {
+      snprintf(trace, sizeof(trace), "[%s line %d] in module",
+               function->sourceName->chars,
+               function->chunk.lines[instruction]);
+    }
+    else if (function->sourceName != NULL)
+    {
+      snprintf(trace, sizeof(trace), "[%s line %d] in %s()",
+               function->sourceName->chars,
+               function->chunk.lines[instruction], function->name->chars);
+    }
+    else if (function->name == NULL)
     {
       snprintf(trace, sizeof(trace), "[line %d] in script",
                function->chunk.lines[instruction]);
@@ -1291,8 +1303,9 @@ static InterpretResult run(int stopFrameCount)
     {
       ObjString *moduleName = READ_STRING();
       ObjString *alias = READ_STRING();
+      Table *globals = globalsForFrame(frame);
       Value existing;
-      if (tableGet(&vm.globals, alias, &existing))
+      if (tableGet(globals, alias, &existing))
       {
         runtimeError("Import alias '%s' is already defined.", alias->chars);
         return INTERPRET_RUNTIME_ERROR;
@@ -1302,7 +1315,7 @@ static InterpretResult run(int stopFrameCount)
       InterpretResult importResult = resolveModule(moduleName->chars, &module);
       if (importResult != INTERPRET_OK)
         return importResult;
-      tableSet(&vm.globals, alias, module);
+      tableSet(globals, alias, module);
       break;
     }
     case OP_EXPORT:
@@ -1409,6 +1422,40 @@ bool resolveCapability(const char *name)
   return false;
 }
 
+static InterpretResult circularImportError(const char *name)
+{
+  char diagnostic[512];
+  if (vm.frameCount > 0)
+  {
+    CallFrame *frame = &vm.frames[vm.frameCount - 1];
+    ObjFunction *function = frame->closure->function;
+    size_t instruction = frame->ip - function->chunk.code - 1;
+    if (function->sourceName != NULL)
+    {
+      snprintf(diagnostic, sizeof(diagnostic),
+               "[%s line %d] Load error: Circular import of module '%s'.",
+               function->sourceName->chars,
+               function->chunk.lines[instruction], name);
+    }
+    else
+    {
+      snprintf(diagnostic, sizeof(diagnostic),
+               "[line %d] Load error: Circular import of module '%s'.",
+               function->chunk.lines[instruction], name);
+    }
+  }
+  else
+  {
+    snprintf(diagnostic, sizeof(diagnostic),
+             "Load error: Circular import of module '%s'.", name);
+  }
+
+  reportDiagnostic(POGBERRY_DIAGNOSTIC_COMPILE, diagnostic);
+  closeUpvalues(vm.stack);
+  resetStack();
+  return INTERPRET_COMPILE_ERROR;
+}
+
 InterpretResult resolveModule(const char *name, Value *result)
 {
   ObjString *moduleName = copyString(name, (int)strlen(name));
@@ -1417,6 +1464,8 @@ InterpretResult resolveModule(const char *name, Value *result)
 
   if (tableGet(&vm.modules, moduleName, result))
   {
+    if (AS_MODULE(*result)->isLoading)
+      return circularImportError(name);
     pop();
     return INTERPRET_OK;
   }
@@ -1443,9 +1492,13 @@ InterpretResult resolveModule(const char *name, Value *result)
 
   if (capability->source != NULL)
   {
-    ObjFunction *function = compileModule(capability->source);
+    module->isLoading = true;
+    tableSet(&vm.modules, moduleName, OBJ_VAL(module));
+
+    ObjFunction *function = compileModule(capability->source, name);
     if (function == NULL)
     {
+      tableDelete(&vm.modules, moduleName);
       resetStack();
       return INTERPRET_COMPILE_ERROR;
     }
@@ -1461,8 +1514,12 @@ InterpretResult resolveModule(const char *name, Value *result)
     int enclosingFrameCount = vm.frameCount - 1;
     InterpretResult moduleResult = run(enclosingFrameCount);
     if (moduleResult != INTERPRET_OK)
+    {
+      tableDelete(&vm.modules, moduleName);
       return moduleResult;
+    }
     pop();
+    module->isLoading = false;
   }
   else
   {

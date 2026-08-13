@@ -100,6 +100,7 @@ Compiler *current = NULL;
 ClassCompiler *currentClass = NULL;
 
 const char *src;
+static const char *sourceName;
 
 static Chunk *currentChunk()
 {
@@ -154,7 +155,23 @@ static void errorAt(Token *token, const char *message)
   printErrorMarker(token->column);
 
   int length;
-  if (token->type == TOKEN_EOF)
+  if (sourceName != NULL && token->type == TOKEN_EOF)
+  {
+    length = snprintf(NULL, 0, "[%s line %d] Error at end: %s",
+                      sourceName, token->line, message);
+  }
+  else if (sourceName != NULL && token->type != TOKEN_ERROR)
+  {
+    length = snprintf(NULL, 0, "[%s line %d] Error at '%.*s': %s",
+                      sourceName, token->line, token->length,
+                      token->start, message);
+  }
+  else if (sourceName != NULL)
+  {
+    length = snprintf(NULL, 0, "[%s line %d] Error: %s",
+                      sourceName, token->line, message);
+  }
+  else if (token->type == TOKEN_EOF)
   {
     length = snprintf(NULL, 0, "[line %d] Error at end: %s",
                       token->line, message);
@@ -174,7 +191,19 @@ static void errorAt(Token *token, const char *message)
     char *diagnostic = (char *)malloc((size_t)length + 1);
     if (diagnostic != NULL)
     {
-      if (token->type == TOKEN_EOF)
+      if (sourceName != NULL && token->type == TOKEN_EOF)
+        snprintf(diagnostic, (size_t)length + 1,
+                 "[%s line %d] Error at end: %s", sourceName,
+                 token->line, message);
+      else if (sourceName != NULL && token->type != TOKEN_ERROR)
+        snprintf(diagnostic, (size_t)length + 1,
+                 "[%s line %d] Error at '%.*s': %s", sourceName,
+                 token->line, token->length, token->start, message);
+      else if (sourceName != NULL)
+        snprintf(diagnostic, (size_t)length + 1,
+                 "[%s line %d] Error: %s", sourceName,
+                 token->line, message);
+      else if (token->type == TOKEN_EOF)
         snprintf(diagnostic, (size_t)length + 1, "[line %d] Error at end: %s",
                  token->line, message);
       else if (token->type != TOKEN_ERROR)
@@ -323,6 +352,9 @@ static void initCompiler(Compiler *compiler, FunctionType type)
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
   current = compiler;
+  if (sourceName != NULL)
+    current->function->sourceName = copyString(sourceName,
+                                                (int)strlen(sourceName));
   if (type != TYPE_SCRIPT && type != TYPE_MODULE)
   {
     current->function->name = copyString(parser.previous.start,
@@ -1082,7 +1114,8 @@ static void whileStatement()
 
 static void useStatement()
 {
-  if (current->type != TYPE_SCRIPT || current->scopeDepth != 0)
+  if ((current->type != TYPE_SCRIPT && current->type != TYPE_MODULE) ||
+      current->scopeDepth != 0)
   {
     error("Imports are only allowed at top level.");
   }
@@ -1114,7 +1147,8 @@ static void useStatement()
   }
 
   consume(TOKEN_SEMICOLON, "Expect ';' after import.");
-  if (strcmp(moduleName->chars, "pogberry_gui") != 0)
+  if (current->type != TYPE_SCRIPT ||
+      strcmp(moduleName->chars, "pogberry_gui") != 0)
   {
     error("Expect 'as <name>' after module name.");
     return;
@@ -1532,9 +1566,11 @@ static ParseRule *getRule(TokenType type)
 
 // pratt's parsing technique oooh very exclusive
 // single-pass compiler - it only has a peephole view into the user's program so only works if the language requires very little context around the code that its parsing (and producing bytecode both at once)
-static ObjFunction *compileSource(const char *source, FunctionType type)
+static ObjFunction *compileSource(const char *source, FunctionType type,
+                                  const char *identifier)
 {
   src = source;
+  sourceName = identifier;
   initScanner(source);
   Compiler compiler;
   initCompiler(&compiler, type);
@@ -1550,17 +1586,18 @@ static ObjFunction *compileSource(const char *source, FunctionType type)
   }
 
   ObjFunction *function = endCompiler();
+  sourceName = NULL;
   return parser.hadError ? NULL : function;
 }
 
 ObjFunction *compile(const char *source)
 {
-  return compileSource(source, TYPE_SCRIPT);
+  return compileSource(source, TYPE_SCRIPT, NULL);
 }
 
-ObjFunction *compileModule(const char *source)
+ObjFunction *compileModule(const char *source, const char *moduleName)
 {
-  return compileSource(source, TYPE_MODULE);
+  return compileSource(source, TYPE_MODULE, moduleName);
 }
 
 void markCompilerRoots()

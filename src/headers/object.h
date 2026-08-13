@@ -59,6 +59,7 @@ typedef struct ObjFunction {
   int upvalueCount;
   Chunk chunk;
   ObjString* name;
+  ObjString* sourceName;
 } ObjFunction;
 
 typedef struct ObjModule ObjModule;
@@ -129,6 +130,7 @@ struct ObjModule {
   ObjString* name;
   Table globals;
   Table exports;
+  bool isLoading;
 };
 
 ObjFunction* newFunction();

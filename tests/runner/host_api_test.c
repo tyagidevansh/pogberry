@@ -96,6 +96,11 @@ static bool resolveCapability(PogberryVM *instance, const char *name,
 {
   Capture *capture = (Capture *)userData;
   capture->resolverCalls++;
+  if (strcmp(name, "lazy.words") == 0)
+  {
+    return pogberryRegisterModuleSource(
+        instance, name, "export fun label() { return \"nested\"; }\n");
+  }
   if (strcmp(name, "host.math") != 0)
     return false;
 
@@ -138,11 +143,19 @@ int main(void)
   require(firstVM != NULL && secondVM != NULL, "VM creation");
 
   require(pogberryRegisterModuleSource(
+              firstVM, "game.base", "export let seed = 40;\n"),
+          "source dependency registration");
+  require(pogberryRegisterModuleSource(
               firstVM, "game.counter",
-              "let hidden = 40;\n"
-              "export let answer = hidden + 2;\n"
+              "use \"game.base\" as base;\n"
+              "use \"host.math\" as math;\n"
+              "use \"lazy.words\" as words;\n"
+              "let hidden = base.seed;\n"
+              "export let answer = math.hostAdd(hidden, 2);\n"
               "export fun increment() { answer = answer + 1; return answer; }\n"
               "export fun rootHidden() { return hidden; }\n"
+              "export fun baseModule() { return base; }\n"
+              "export fun label() { return words.label(); }\n"
               "export fun size(value) { return len(value); }\n"
               "export class Counter {\n"
               "  init(start) { this.value = start; }\n"
@@ -152,6 +165,18 @@ int main(void)
   require(pogberryRegisterModuleSource(
               firstVM, "broken.module", "export fun broken( {\n"),
           "broken source module registration");
+  require(pogberryRegisterModuleSource(
+              firstVM, "bad.runtime",
+              "export fun explode() { return 1 / 0; }\n"),
+          "runtime-error source module registration");
+  require(pogberryRegisterModuleSource(
+              firstVM, "cycle.a",
+              "use \"cycle.b\" as b; export let value = b.value;\n"),
+          "first circular module registration");
+  require(pogberryRegisterModuleSource(
+              firstVM, "cycle.b",
+              "use \"cycle.a\" as a; export let value = a.value;\n"),
+          "second circular module registration");
 
   require(pogberryInterpret(
               firstVM,
@@ -199,23 +224,29 @@ int main(void)
               "print(increment());\n"
               "print(counter.answer);\n"
               "print(counter.rootHidden());\n"
+              "print(counter.label());\n"
               "print(counter.size([1, 2, 3]));\n"
               "let counterObject = counter.Counter(5);\n"
               "print(counterObject.next());\n") == INTERPRET_OK,
           "source module import");
   require(strcmp(first.output,
-                 "7\nready\nmodule\n5\n2\ntrue\n42\n43\n43\n44\n44\n40\n3\n6\n") == 0,
+                 "7\nready\nmodule\n5\n2\ntrue\n42\n43\n43\n44\n44\n40\nnested\n3\n6\n") == 0,
           "source module output and isolation");
+  require(first.resolverCalls == 2,
+          "nested source dependency resolved lazily once");
 
   require(pogberryInterpret(
               firstVM,
               "use \"game.counter\" as counterAgain;\n"
+              "use \"game.base\" as baseAgain;\n"
               "print(counter == counterAgain);\n"
-              "print(counterAgain.answer);\n") == INTERPRET_OK,
+              "print(counterAgain.answer);\n"
+              "print(counter.baseModule() == baseAgain);\n") == INTERPRET_OK,
           "cached source module import");
   require(strcmp(first.output,
-                 "7\nready\nmodule\n5\n2\ntrue\n42\n43\n43\n44\n44\n40\n3\n6\ntrue\n44\n") == 0,
+                 "7\nready\nmodule\n5\n2\ntrue\n42\n43\n43\n44\n44\n40\nnested\n3\n6\ntrue\n44\ntrue\n") == 0,
           "source module cache output");
+  require(first.resolverCalls == 2, "nested dependency cache");
 
   require(pogberryInterpret(firstVM, "counter.hidden;") ==
               INTERPRET_RUNTIME_ERROR,
@@ -229,10 +260,33 @@ int main(void)
   require(strstr(first.diagnostics, "Undefined variable 'answer'.") != NULL,
           "source module isolation diagnostic");
 
+  require(pogberryInterpret(firstVM, "base;") == INTERPRET_RUNTIME_ERROR,
+          "source dependency alias does not leak into importer");
+
   require(pogberryInterpret(firstVM,
                             "use \"broken.module\" as broken;") ==
               INTERPRET_COMPILE_ERROR,
           "source module compile error");
+  require(strstr(first.diagnostics, "[broken.module line 1]") != NULL,
+          "source module compile identifier");
+
+  require(pogberryInterpret(firstVM,
+                            "use \"bad.runtime\" as bad; bad.explode();") ==
+              INTERPRET_RUNTIME_ERROR,
+          "source module runtime error");
+  require(strstr(first.diagnostics,
+                 "[bad.runtime line 1] in explode()") != NULL,
+          "source module runtime identifier");
+
+  require(pogberryInterpret(firstVM,
+                            "use \"cycle.a\" as cycle;") ==
+              INTERPRET_COMPILE_ERROR,
+          "circular source module import");
+  require(strstr(first.diagnostics,
+                 "Circular import of module 'cycle.a'.") != NULL,
+          "circular import diagnostic");
+  require(strstr(first.diagnostics, "[cycle.b line 1] Load error:") != NULL,
+          "circular import source identifier");
 
   PogberryValue result;
   PogberryValue borrowed;
