@@ -61,7 +61,7 @@ ObjNative* newNative(NativeFn function) {
   return native;
 }
 
-ObjNative* newHostNative(PogberryNativeFn function, void* userData) {
+ObjNative* newHostNative(PbNativeFn function, void* userData) {
   ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
   native->legacyFunction = NULL;
   native->hostFunction = function;

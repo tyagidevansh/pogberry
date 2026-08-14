@@ -531,3 +531,4 @@ These requirements exist to keep language semantics separate from VM details:
   existing declaration forms.
 - Source modules can import cached dependencies through opaque host-resolved
   identifiers, with source-aware diagnostics and circular-import errors.
+- Shortened embedding and build identifiers to the `Pb`/`pb` prefix.

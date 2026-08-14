@@ -8,7 +8,7 @@ EXEEXT := .exe
 LDLIBS := -static -lm
 CORE_LDLIBS := -static -lm
 PLATFORM_CFLAGS :=
-SHARED_LIBRARY := $(BUILD_DIR)/pogberry.dll
+SHARED_LIBRARY := $(BUILD_DIR)/pb.dll
 MAKE_DIR = cmd /c if not exist "$(1)" mkdir "$(1)"
 CLEAN_BUILD = cmd /c if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)"
 else
@@ -16,12 +16,12 @@ EXEEXT :=
 LDLIBS := -lm -lreadline -ldl
 CORE_LDLIBS := -lm -ldl
 PLATFORM_CFLAGS := -fPIC
-SHARED_LIBRARY := $(BUILD_DIR)/libpogberry.so
+SHARED_LIBRARY := $(BUILD_DIR)/libpb.so
 MAKE_DIR = mkdir -p "$(1)"
 CLEAN_BUILD = rm -rf "$(BUILD_DIR)"
 endif
 
-TARGET := $(BUILD_DIR)/pogberry$(EXEEXT)
+TARGET := $(BUILD_DIR)/pb$(EXEEXT)
 SOURCES := $(wildcard $(SRC_DIR)/*.c)
 OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 CORE_OBJECTS := $(filter-out $(BUILD_DIR)/main.o,$(OBJECTS))
@@ -36,13 +36,13 @@ TEST_RUNNER := tests/runner/run_tests.py
 HOST_API_TEST := $(BUILD_DIR)/host_api_test$(EXEEXT)
 
 ifeq ($(OS),Windows_NT)
-GUI_TEST_LIBRARY := $(BUILD_DIR)/pogberry_gui_test.dll
+GUI_TEST_LIBRARY := $(BUILD_DIR)/pb_gui_test.dll
 GUI_TEST_FLAGS :=
-TEST_GUI_ENV := set "POGBERRY_GUI_LIBRARY=$(abspath $(GUI_TEST_LIBRARY))" &&
+TEST_GUI_ENV := set "PB_GUI_LIBRARY=$(abspath $(GUI_TEST_LIBRARY))" &&
 else
-GUI_TEST_LIBRARY := $(BUILD_DIR)/pogberry_gui_test.so
+GUI_TEST_LIBRARY := $(BUILD_DIR)/pb_gui_test.so
 GUI_TEST_FLAGS := -fPIC
-TEST_GUI_ENV := POGBERRY_GUI_LIBRARY="$(abspath $(GUI_TEST_LIBRARY))"
+TEST_GUI_ENV := PB_GUI_LIBRARY="$(abspath $(GUI_TEST_LIBRARY))"
 endif
 
 .PHONY: all shared test clean

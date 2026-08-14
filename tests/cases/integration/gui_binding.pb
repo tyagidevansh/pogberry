@@ -1,4 +1,4 @@
-use "pogberry_gui";
+use "pb_gui";
 
 initWindow(800, 600, "headless test");
 setTargetFPS(60);

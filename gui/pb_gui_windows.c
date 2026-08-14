@@ -92,4 +92,4 @@ __declspec(dllexport) bool isMouseButtonUp(int button) { return IsMouseButtonUp(
 __declspec(dllexport) int getMouseX(void) { return GetMouseX(); }
 __declspec(dllexport) int getMouseY(void) { return GetMouseY(); }
 
-// gcc -shared -o lib/pogberry_gui_windows.dll gui/pogberry_gui_windows.c -DWIN32_LEAN_AND_MEAN -DNOMINMAX -lraylib -lopengl32 -lgdi32 -lwinmm
+// gcc -shared -o lib/pb_gui_windows.dll gui/pb_gui_windows.c -DWIN32_LEAN_AND_MEAN -DNOMINMAX -lraylib -lopengl32 -lgdi32 -lwinmm

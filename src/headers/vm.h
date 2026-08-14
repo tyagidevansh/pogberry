@@ -4,7 +4,7 @@
 #include "object.h"
 #include "table.h"
 #include "value.h"
-#include "pogberry.h"
+#include "pb.h"
 
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
@@ -19,12 +19,12 @@ typedef struct
 typedef struct
 {
   char *name;
-  PogberryNativeDefinition *definitions;
+  PbNativeDefinition *definitions;
   size_t definitionCount;
   char *source;
 } HostCapability;
 
-struct PogberryVM
+struct PbVM
 {
   CallFrame frames[FRAMES_MAX];
   int frameCount;
@@ -46,7 +46,7 @@ struct PogberryVM
   int grayCapacity;
   Obj **grayStack;
 
-  PogberryConfig config;
+  PbConfig config;
   HostCapability *capabilities;
   size_t capabilityCount;
   size_t capabilityCapacity;
@@ -56,7 +56,7 @@ struct PogberryVM
   uint32_t randomState;
 };
 
-typedef PogberryVM VM;
+typedef PbVM VM;
 
 extern VM *activeVM;
 #define vm (*activeVM)
@@ -66,7 +66,7 @@ void freeVM(void);
 InterpretResult interpret(const char *source); // run the chunk and respond with a value from enum declared above
 void runtimeError(const char *format, ...);
 void writeVMOutput(const char *text, size_t length);
-void reportDiagnostic(PogberryDiagnosticKind kind, const char *message);
+void reportDiagnostic(PbDiagnosticKind kind, const char *message);
 bool resolveCapability(const char *name);
 InterpretResult resolveModule(const char *name, Value *module);
 bool push(Value value);

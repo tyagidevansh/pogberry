@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "headers/pogberry.h"
+#include "headers/pb.h"
 
 typedef struct
 {
@@ -28,7 +28,7 @@ static void append(char *buffer, size_t *length, size_t capacity,
   buffer[*length] = '\0';
 }
 
-static void captureOutput(PogberryVM *instance, const char *text,
+static void captureOutput(PbVM *instance, const char *text,
                           size_t length, void *userData)
 {
   (void)instance;
@@ -37,8 +37,8 @@ static void captureOutput(PogberryVM *instance, const char *text,
          text, length);
 }
 
-static void captureDiagnostic(PogberryVM *instance,
-                              PogberryDiagnosticKind kind,
+static void captureDiagnostic(PbVM *instance,
+                              PbDiagnosticKind kind,
                               const char *message, void *userData)
 {
   (void)instance;
@@ -47,68 +47,68 @@ static void captureDiagnostic(PogberryVM *instance,
          sizeof(capture->diagnostics), message, strlen(message));
   append(capture->diagnostics, &capture->diagnosticLength,
          sizeof(capture->diagnostics), "\n", 1);
-  if (kind == POGBERRY_DIAGNOSTIC_COMPILE)
+  if (kind == PB_DIAGNOSTIC_COMPILE)
     capture->compileDiagnostics++;
-  if (kind == POGBERRY_DIAGNOSTIC_RUNTIME)
+  if (kind == PB_DIAGNOSTIC_RUNTIME)
     capture->runtimeDiagnostics++;
 }
 
-static PogberryValue addNative(PogberryVM *instance, int argCount,
-                               const PogberryValue *args, void *userData)
+static PbValue addNative(PbVM *instance, int argCount,
+                         const PbValue *args, void *userData)
 {
   (void)userData;
-  if (argCount != 2 || args[0].type != POGBERRY_VALUE_NUMBER ||
-      args[1].type != POGBERRY_VALUE_NUMBER)
+  if (argCount != 2 || args[0].type != PB_VALUE_NUMBER ||
+      args[1].type != PB_VALUE_NUMBER)
   {
-    pogberryRuntimeError(instance, "hostAdd() expects two numbers.");
-    return pogberryNilValue();
+    pbRuntimeError(instance, "hostAdd() expects two numbers.");
+    return pbNilValue();
   }
-  return pogberryNumberValue(args[0].as.number + args[1].as.number);
+  return pbNumberValue(args[0].as.number + args[1].as.number);
 }
 
-static PogberryValue echoNative(PogberryVM *instance, int argCount,
-                                const PogberryValue *args, void *userData)
+static PbValue echoNative(PbVM *instance, int argCount,
+                          const PbValue *args, void *userData)
 {
   (void)userData;
-  if (argCount != 1 || args[0].type != POGBERRY_VALUE_STRING)
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING)
   {
-    pogberryRuntimeError(instance, "hostEcho() expects a string.");
-    return pogberryNilValue();
+    pbRuntimeError(instance, "hostEcho() expects a string.");
+    return pbNilValue();
   }
-  return pogberryStringValueN(args[0].as.string.chars,
-                              args[0].as.string.length);
+  return pbStringValueN(args[0].as.string.chars,
+                        args[0].as.string.length);
 }
 
-static PogberryValue tripleNative(PogberryVM *instance, int argCount,
-                                  const PogberryValue *args, void *userData)
+static PbValue tripleNative(PbVM *instance, int argCount,
+                            const PbValue *args, void *userData)
 {
   (void)userData;
-  if (argCount != 1 || args[0].type != POGBERRY_VALUE_NUMBER)
+  if (argCount != 1 || args[0].type != PB_VALUE_NUMBER)
   {
-    pogberryRuntimeError(instance, "triple() expects a number.");
-    return pogberryNilValue();
+    pbRuntimeError(instance, "triple() expects a number.");
+    return pbNilValue();
   }
-  return pogberryNumberValue(args[0].as.number * 3);
+  return pbNumberValue(args[0].as.number * 3);
 }
 
-static bool resolveCapability(PogberryVM *instance, const char *name,
+static bool resolveCapability(PbVM *instance, const char *name,
                               void *userData)
 {
   Capture *capture = (Capture *)userData;
   capture->resolverCalls++;
   if (strcmp(name, "lazy.words") == 0)
   {
-    return pogberryRegisterModuleSource(
+    return pbRegisterModuleSource(
         instance, name, "export fun label() { return \"nested\"; }\n");
   }
   if (strcmp(name, "host.math") != 0)
     return false;
 
-  const PogberryNativeDefinition definitions[] = {
+  const PbNativeDefinition definitions[] = {
       {"hostAdd", addNative, NULL},
       {"hostEcho", echoNative, NULL},
   };
-  return pogberryRegisterCapability(
+  return pbRegisterCapability(
       instance, name, definitions,
       sizeof(definitions) / sizeof(definitions[0]));
 }
@@ -122,10 +122,10 @@ static void require(bool condition, const char *message)
   }
 }
 
-static void requireNumber(PogberryValue value, double expected,
+static void requireNumber(PbValue value, double expected,
                           const char *message)
 {
-  require(value.type == POGBERRY_VALUE_NUMBER && value.as.number == expected,
+  require(value.type == PB_VALUE_NUMBER && value.as.number == expected,
           message);
 }
 
@@ -133,19 +133,19 @@ int main(void)
 {
   Capture first = {0};
   Capture second = {0};
-  PogberryConfig firstConfig = {
+  PbConfig firstConfig = {
       captureOutput, captureDiagnostic, resolveCapability, &first};
-  PogberryConfig secondConfig = {
+  PbConfig secondConfig = {
       captureOutput, captureDiagnostic, resolveCapability, &second};
 
-  PogberryVM *firstVM = pogberryCreateVM(&firstConfig);
-  PogberryVM *secondVM = pogberryCreateVM(&secondConfig);
+  PbVM *firstVM = pbCreateVM(&firstConfig);
+  PbVM *secondVM = pbCreateVM(&secondConfig);
   require(firstVM != NULL && secondVM != NULL, "VM creation");
 
-  require(pogberryRegisterModuleSource(
+  require(pbRegisterModuleSource(
               firstVM, "game.base", "export let seed = 40;\n"),
           "source dependency registration");
-  require(pogberryRegisterModuleSource(
+  require(pbRegisterModuleSource(
               firstVM, "game.counter",
               "use \"game.base\" as base;\n"
               "use \"host.math\" as math;\n"
@@ -162,23 +162,23 @@ int main(void)
               "  next() { this.value = this.value + 1; return this.value; }\n"
               "}\n"),
           "source module registration");
-  require(pogberryRegisterModuleSource(
+  require(pbRegisterModuleSource(
               firstVM, "broken.module", "export fun broken( {\n"),
           "broken source module registration");
-  require(pogberryRegisterModuleSource(
+  require(pbRegisterModuleSource(
               firstVM, "bad.runtime",
               "export fun explode() { return 1 / 0; }\n"),
           "runtime-error source module registration");
-  require(pogberryRegisterModuleSource(
+  require(pbRegisterModuleSource(
               firstVM, "cycle.a",
               "use \"cycle.b\" as b; export let value = b.value;\n"),
           "first circular module registration");
-  require(pogberryRegisterModuleSource(
+  require(pbRegisterModuleSource(
               firstVM, "cycle.b",
               "use \"cycle.a\" as a; export let value = a.value;\n"),
           "second circular module registration");
 
-  require(pogberryInterpret(
+  require(pbInterpret(
               firstVM,
               "use \"host.math\" as math;\n"
               "fun update(dt) { return math.hostAdd(dt, 2); }\n"
@@ -194,7 +194,7 @@ int main(void)
           "captured host-backed output");
   require(first.resolverCalls == 1, "lazy resolver called once");
 
-  require(pogberryInterpret(firstVM,
+  require(pbInterpret(firstVM,
                             "use \"host.math\" as mathAgain; "
                             "print(mathAgain.hostAdd(1, 1)); "
                             "print(math == mathAgain);") ==
@@ -204,7 +204,7 @@ int main(void)
           "cached module output");
   require(first.resolverCalls == 1, "module cache");
 
-  require(pogberryInterpret(firstVM,
+  require(pbInterpret(firstVM,
                             "use \"host.math\" as math;") ==
               INTERPRET_RUNTIME_ERROR,
           "duplicate import alias error");
@@ -213,7 +213,7 @@ int main(void)
           "duplicate alias diagnostic");
   require(first.resolverCalls == 1, "duplicate alias skips resolution");
 
-  require(pogberryInterpret(
+  require(pbInterpret(
               firstVM,
               "let hidden = 1000;\n"
               "use \"game.counter\" as counter;\n"
@@ -235,7 +235,7 @@ int main(void)
   require(first.resolverCalls == 2,
           "nested source dependency resolved lazily once");
 
-  require(pogberryInterpret(
+  require(pbInterpret(
               firstVM,
               "use \"game.counter\" as counterAgain;\n"
               "use \"game.base\" as baseAgain;\n"
@@ -248,29 +248,29 @@ int main(void)
           "source module cache output");
   require(first.resolverCalls == 2, "nested dependency cache");
 
-  require(pogberryInterpret(firstVM, "counter.hidden;") ==
+  require(pbInterpret(firstVM, "counter.hidden;") ==
               INTERPRET_RUNTIME_ERROR,
           "unexported source module global is hidden");
   require(strstr(first.diagnostics,
                  "Module 'game.counter' does not export 'hidden'.") != NULL,
           "unexported source module diagnostic");
 
-  require(pogberryInterpret(firstVM, "answer;") == INTERPRET_RUNTIME_ERROR,
+  require(pbInterpret(firstVM, "answer;") == INTERPRET_RUNTIME_ERROR,
           "source module global does not leak into importer");
   require(strstr(first.diagnostics, "Undefined variable 'answer'.") != NULL,
           "source module isolation diagnostic");
 
-  require(pogberryInterpret(firstVM, "base;") == INTERPRET_RUNTIME_ERROR,
+  require(pbInterpret(firstVM, "base;") == INTERPRET_RUNTIME_ERROR,
           "source dependency alias does not leak into importer");
 
-  require(pogberryInterpret(firstVM,
+  require(pbInterpret(firstVM,
                             "use \"broken.module\" as broken;") ==
               INTERPRET_COMPILE_ERROR,
           "source module compile error");
   require(strstr(first.diagnostics, "[broken.module line 1]") != NULL,
           "source module compile identifier");
 
-  require(pogberryInterpret(firstVM,
+  require(pbInterpret(firstVM,
                             "use \"bad.runtime\" as bad; bad.explode();") ==
               INTERPRET_RUNTIME_ERROR,
           "source module runtime error");
@@ -278,7 +278,7 @@ int main(void)
                  "[bad.runtime line 1] in explode()") != NULL,
           "source module runtime identifier");
 
-  require(pogberryInterpret(firstVM,
+  require(pbInterpret(firstVM,
                             "use \"cycle.a\" as cycle;") ==
               INTERPRET_COMPILE_ERROR,
           "circular source module import");
@@ -288,98 +288,98 @@ int main(void)
   require(strstr(first.diagnostics, "[cycle.b line 1] Load error:") != NULL,
           "circular import source identifier");
 
-  PogberryValue result;
-  PogberryValue borrowed;
-  require(pogberryCall(firstVM, "greeting", 0, NULL, &borrowed) == INTERPRET_OK,
+  PbValue result;
+  PbValue borrowed;
+  require(pbCall(firstVM, "greeting", 0, NULL, &borrowed) == INTERPRET_OK,
           "string return value");
-  require(borrowed.type == POGBERRY_VALUE_STRING &&
+  require(borrowed.type == PB_VALUE_STRING &&
               borrowed.as.string.length == 5 &&
               memcmp(borrowed.as.string.chars, "hello", 5) == 0,
           "borrowed string contents");
-  require(pogberryCall(firstVM, "identity", 1, &borrowed, &result) == INTERPRET_OK,
+  require(pbCall(firstVM, "identity", 1, &borrowed, &result) == INTERPRET_OK,
           "pass borrowed value back to its VM");
-  require(result.type == POGBERRY_VALUE_STRING && result.as.string.length == 5,
+  require(result.type == PB_VALUE_STRING && result.as.string.length == 5,
           "borrowed value round trip");
 
-  require(pogberryInterpret(
+  require(pbInterpret(
               secondVM,
               "fun update(dt) { return dt * 10; } print(\"second\");") ==
               INTERPRET_OK,
           "second VM interpretation");
   require(strcmp(second.output, "second\n") == 0, "second VM output isolation");
 
-  require(pogberryInterpret(
+  require(pbInterpret(
               firstVM,
-              "use \"pogberry_gui\"; fun screenWidth() { return getScreenWidth(); }") ==
+              "use \"pb_gui\"; fun screenWidth() { return getScreenWidth(); }") ==
               INTERPRET_OK,
           "legacy GUI registration in first VM");
-  require(pogberryInterpret(
+  require(pbInterpret(
               secondVM,
-              "use \"pogberry_gui\"; fun screenWidth() { return getScreenWidth(); }") ==
+              "use \"pb_gui\"; fun screenWidth() { return getScreenWidth(); }") ==
               INTERPRET_OK,
           "legacy GUI registration in second VM");
 
-  PogberryValue argument = pogberryNumberValue(5);
-  require(pogberryCall(firstVM, "update", 1, &argument, &result) == INTERPRET_OK,
+  PbValue argument = pbNumberValue(5);
+  require(pbCall(firstVM, "update", 1, &argument, &result) == INTERPRET_OK,
           "call first VM function");
   requireNumber(result, 7, "first VM return value");
-  require(pogberryCall(secondVM, "update", 1, &argument, &result) == INTERPRET_OK,
+  require(pbCall(secondVM, "update", 1, &argument, &result) == INTERPRET_OK,
           "call second VM function");
   requireNumber(result, 50, "second VM return value");
 
-  argument = pogberryNumberValue(1);
-  require(pogberryCall(firstVM, "update", 1, &argument, &result) == INTERPRET_OK,
+  argument = pbNumberValue(1);
+  require(pbCall(firstVM, "update", 1, &argument, &result) == INTERPRET_OK,
           "reactivate first VM");
   requireNumber(result, 3, "independent first VM state");
 
-  require(pogberryDefineNative(secondVM, "triple", tripleNative, NULL),
+  require(pbDefineNative(secondVM, "triple", tripleNative, NULL),
           "direct native registration");
-  require(pogberryInterpret(secondVM, "print(triple(6));") == INTERPRET_OK,
+  require(pbInterpret(secondVM, "print(triple(6));") == INTERPRET_OK,
           "direct native call");
   require(strcmp(second.output, "second\n18\n") == 0,
           "direct native output");
 
-  require(pogberryInterpret(secondVM, "break;") == INTERPRET_COMPILE_ERROR,
+  require(pbInterpret(secondVM, "break;") == INTERPRET_COMPILE_ERROR,
           "compile diagnostic callback");
   require(second.compileDiagnostics == 3,
           "source, marker, and compile message diagnostics");
 
-  require(pogberryInterpret(secondVM,
+  require(pbInterpret(secondVM,
                             "use \"missing.capability\" as missing;") ==
               INTERPRET_RUNTIME_ERROR,
           "missing module error");
   require(second.runtimeDiagnostics > 0, "runtime diagnostic callback");
 
-  require(pogberryInterpret(firstVM, "math.missing();") ==
+  require(pbInterpret(firstVM, "math.missing();") ==
               INTERPRET_RUNTIME_ERROR,
           "missing module export error");
   require(strstr(first.diagnostics,
                  "Module 'host.math' does not export 'missing'.") != NULL,
           "missing export diagnostic");
 
-  require(pogberryInterpret(firstVM,
+  require(pbInterpret(firstVM,
                             "math.hostAdd = math.hostEcho;") ==
               INTERPRET_RUNTIME_ERROR,
           "module exports are read-only");
   require(strstr(first.diagnostics, "Module exports are read-only.") != NULL,
           "read-only export diagnostic");
 
-  require(pogberryInterpret(firstVM, "math.hostAdd(\"bad\", 1);") ==
+  require(pbInterpret(firstVM, "math.hostAdd(\"bad\", 1);") ==
               INTERPRET_RUNTIME_ERROR,
           "native callback runtime error");
   require(strstr(first.diagnostics, "hostAdd() expects two numbers.") != NULL,
           "native error message");
 
-  argument = pogberryNumberValue(2);
-  require(pogberryCall(secondVM, "update", 1, &argument, &result) == INTERPRET_OK,
+  argument = pbNumberValue(2);
+  require(pbCall(secondVM, "update", 1, &argument, &result) == INTERPRET_OK,
           "VM remains usable after errors");
   requireNumber(result, 20, "post-error return value");
 
-  pogberryDestroyVM(firstVM);
-  require(pogberryCall(secondVM, "screenWidth", 0, NULL, &result) == INTERPRET_OK,
+  pbDestroyVM(firstVM);
+  require(pbCall(secondVM, "screenWidth", 0, NULL, &result) == INTERPRET_OK,
           "shared GUI binding survives first VM destruction");
   requireNumber(result, 800, "headless GUI result");
-  pogberryDestroyVM(secondVM);
+  pbDestroyVM(secondVM);
   puts("host API test passed");
   return 0;
 }

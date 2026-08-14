@@ -33,7 +33,7 @@ Value strNative(int argCount, Value *args);
 Value getTime(int argCount, Value* args);
 
 void defineNative(const char *name, NativeFn function);
-void defineHostNative(const char *name, PogberryNativeFn function, void *userData);
+void defineHostNative(const char *name, PbNativeFn function, void *userData);
 
 // comparison functions for sorting
 int Valuecomp(const void *elem1, const void *elem2);

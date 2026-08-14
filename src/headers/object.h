@@ -6,7 +6,7 @@
 #include "value.h"
 #include "table.h"
 #include "map.h"
-#include "pogberry.h"
+#include "pb.h"
 
 #define OBJ_TYPE(value)      (AS_OBJ(value)->type)
 
@@ -84,7 +84,7 @@ typedef Value (*NativeFn)(int argCount, Value* args);
 typedef struct {
   Obj obj;
   NativeFn legacyFunction;
-  PogberryNativeFn hostFunction;
+  PbNativeFn hostFunction;
   void* userData;
 } ObjNative;
 
@@ -137,7 +137,7 @@ ObjFunction* newFunction();
 ObjClosure* newClosure(ObjFunction* function);
 ObjUpvalue* newUpvalue(Value* slot);
 ObjNative* newNative(NativeFn function);
-ObjNative* newHostNative(PogberryNativeFn function, void* userData);
+ObjNative* newHostNative(PbNativeFn function, void* userData);
 ObjString* takeString(char* chars, int length);
 ObjString* copyString(const char* chars, int length);
 ObjList* newList();

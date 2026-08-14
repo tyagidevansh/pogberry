@@ -1,4 +1,4 @@
-use "pogberry_gui";
+use "pb_gui";
 windowShouldClose(true);
 // EXPECTED STATUS: 70
 // EXPECTED OUTPUT:

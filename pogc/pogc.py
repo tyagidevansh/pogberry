@@ -4,7 +4,7 @@ import subprocess
 
 # --- Configuration ---
 STUB_FILE = "pogc/stub.c"
-POG_LIB_PATH = "lib"
+PB_LIB_PATH = "lib"
 # ---------------------
 
 def compile_script(script_path):
@@ -46,13 +46,13 @@ def compile_script(script_path):
         print("Platform: Windows")
         output_name = base_name + ".exe"
         compile_command.append(output_name)
-        compile_command.extend([f"-L{POG_LIB_PATH}", "-lpogberry"])
+        compile_command.extend([f"-L{PB_LIB_PATH}", "-lpb"])
     elif sys.platform.startswith("linux"):
         print("Platform: Linux")
         output_name = base_name
         compile_command.append(output_name)
         # on Linux, we link the math library and set the rpath
-        compile_command.extend([f"-L{POG_LIB_PATH}", "-lpogberry", "-lm", "-Wl,-rpath,."])
+        compile_command.extend([f"-L{PB_LIB_PATH}", "-lpb", "-lm", "-Wl,-rpath,."])
     else:
         print(f"Error: Unsupported platform '{sys.platform}'")
         os.remove(temp_c_file)

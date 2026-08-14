@@ -1,4 +1,4 @@
-use "pogberry_gui";
+use "pb_gui";
 
 initWindow(400, 400, "hi");
 

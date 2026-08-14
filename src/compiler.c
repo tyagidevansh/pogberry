@@ -123,7 +123,7 @@ void print_line(const char *s, int n)
         return;
       memcpy(line, s + start, (size_t)length);
       line[length] = '\0';
-      reportDiagnostic(POGBERRY_DIAGNOSTIC_COMPILE, line);
+      reportDiagnostic(PB_DIAGNOSTIC_COMPILE, line);
       free(line);
       return;
     }
@@ -141,7 +141,7 @@ static void printErrorMarker(int column)
   memset(marker, ' ', (size_t)spaces);
   marker[spaces] = '^';
   marker[spaces + 1] = '\0';
-  reportDiagnostic(POGBERRY_DIAGNOSTIC_COMPILE, marker);
+  reportDiagnostic(PB_DIAGNOSTIC_COMPILE, marker);
   free(marker);
 }
 
@@ -213,7 +213,7 @@ static void errorAt(Token *token, const char *message)
       else
         snprintf(diagnostic, (size_t)length + 1, "[line %d] Error: %s",
                  token->line, message);
-      reportDiagnostic(POGBERRY_DIAGNOSTIC_COMPILE, diagnostic);
+      reportDiagnostic(PB_DIAGNOSTIC_COMPILE, diagnostic);
       free(diagnostic);
     }
   }
@@ -1148,7 +1148,7 @@ static void useStatement()
 
   consume(TOKEN_SEMICOLON, "Expect ';' after import.");
   if (current->type != TYPE_SCRIPT ||
-      strcmp(moduleName->chars, "pogberry_gui") != 0)
+      strcmp(moduleName->chars, "pb_gui") != 0)
   {
     error("Expect 'as <name>' after module name.");
     return;

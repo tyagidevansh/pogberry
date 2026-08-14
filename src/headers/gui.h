@@ -1,5 +1,5 @@
-#ifndef pogberry_gui_h
-#define pogberry_gui_h
+#ifndef PB_GUI_H
+#define PB_GUI_H
 
 #include "common.h"
 

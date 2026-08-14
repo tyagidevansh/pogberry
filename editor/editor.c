@@ -238,7 +238,7 @@ int main(void)
                     char command[1024] = {0};
 
 #if defined(_WIN32)
-                    sprintf(command, "start cmd /k \"files\\build\\pogberry.exe files\\%s\"", currentFilename);
+                    sprintf(command, "start cmd /k \"files\\build\\pb.exe files\\%s\"", currentFilename);
 #elif defined(__linux__)
                     const char *terminalCmd = FindBestTerminal();
 
@@ -247,24 +247,24 @@ int main(void)
                         if (strcmp(terminalCmd, "gnome-terminal") == 0)
                         {
                             // Hardcoded command for gnome-terminal
-                            sprintf(command, "gnome-terminal -- sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pogberry ../%s; echo; read -p \"Process finished. Press Enter to exit.\"'", currentFilename);
+                            sprintf(command, "gnome-terminal -- sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pb ../%s; echo; read -p \"Process finished. Press Enter to exit.\"'", currentFilename);
                         }
                         else
                         {
                             // Hardcoded command for other terminals like xterm
-                            sprintf(command, "%s -e \"sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pogberry ../%s; echo; read -p \\\"Process finished. Press Enter to exit.\\\"'\"", terminalCmd, currentFilename);
+                            sprintf(command, "%s -e \"sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pb ../%s; echo; read -p \\\"Process finished. Press Enter to exit.\\\"'\"", terminalCmd, currentFilename);
                         }
                         SetStatusMessage(TextFormat("Executed %s in new terminal", currentFilename));
                     }
                     else
                     {
                         // Hardcoded command for fallback if no terminal is found
-                        sprintf(command, "sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pogberry ../%s'", currentFilename);
+                        sprintf(command, "sh -c 'cd files/build && LD_LIBRARY_PATH=lib ./pb ../%s'", currentFilename);
                         SetStatusMessage("No terminal found, running directly.");
                     }
 #else
                     // Generic fallback for other systems
-                    sprintf(command, "./files/build/pogberry ./files/%s", currentFilename);
+                    sprintf(command, "./files/build/pb ./files/%s", currentFilename);
 #endif
 
                     if (strlen(command) > 0)

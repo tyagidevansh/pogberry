@@ -1,4 +1,4 @@
-use "pogberry_gui";
+use "pb_gui";
 
 var BLOCK_SIZE = 100;
 var GRID_WIDTH = 5;

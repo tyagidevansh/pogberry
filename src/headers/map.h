@@ -1,5 +1,5 @@
-#ifndef pogberry_map_h
-#define pogberry_map_h
+#ifndef PB_MAP_H
+#define PB_MAP_H
 
 #include "value.h"
 

@@ -13,7 +13,7 @@
 #include "headers/memory.h"
 #include "headers/vm.h"
 #include "headers/native.h"
-#include "headers/pogberry.h"
+#include "headers/pb.h"
 
 VM *activeVM = NULL;
 static VM defaultVM;
@@ -47,7 +47,7 @@ void runtimeError(const char *format, ...)
     if (message != NULL)
     {
       vsnprintf(message, (size_t)length + 1, format, args);
-      reportDiagnostic(POGBERRY_DIAGNOSTIC_RUNTIME, message);
+      reportDiagnostic(PB_DIAGNOSTIC_RUNTIME, message);
       free(message);
     }
   }
@@ -81,7 +81,7 @@ void runtimeError(const char *format, ...)
       snprintf(trace, sizeof(trace), "[line %d] in %s()",
                function->chunk.lines[instruction], function->name->chars);
     }
-    reportDiagnostic(POGBERRY_DIAGNOSTIC_RUNTIME, trace);
+    reportDiagnostic(PB_DIAGNOSTIC_RUNTIME, trace);
   }
   closeUpvalues(vm.stack);
   resetStack();
@@ -97,7 +97,7 @@ void writeVMOutput(const char *text, size_t length)
   fwrite(text, sizeof(char), length, stdout);
 }
 
-void reportDiagnostic(PogberryDiagnosticKind kind, const char *message)
+void reportDiagnostic(PbDiagnosticKind kind, const char *message)
 {
   if (vm.config.diagnostic != NULL)
   {
@@ -107,7 +107,7 @@ void reportDiagnostic(PogberryDiagnosticKind kind, const char *message)
   fprintf(stderr, "%s\n", message);
 }
 
-static void initialiseActiveVM(const PogberryConfig *config)
+static void initialiseActiveVM(const PbConfig *config)
 {
   memset(activeVM, 0, sizeof(*activeVM));
   if (config != NULL)
@@ -249,23 +249,23 @@ bool call(ObjClosure *closure, int argCount)
   return true;
 }
 
-static PogberryValue valueToHost(Value value)
+static PbValue valueToHost(Value value)
 {
-  PogberryValue result = pogberryNilValue();
+  PbValue result = pbNilValue();
   if (IS_NIL(value))
     return result;
   if (IS_BOOL(value))
-    return pogberryBoolValue(AS_BOOL(value));
+    return pbBoolValue(AS_BOOL(value));
   if (IS_NUMBER(value))
-    return pogberryNumberValue(AS_NUMBER(value));
+    return pbNumberValue(AS_NUMBER(value));
   if (IS_STRING(value))
   {
-    result.type = POGBERRY_VALUE_STRING;
+    result.type = PB_VALUE_STRING;
     result.as.string.chars = AS_CSTRING(value);
     result.as.string.length = (size_t)AS_STRING(value)->length;
     return result;
   }
-  result.type = POGBERRY_VALUE_OBJECT;
+  result.type = PB_VALUE_OBJECT;
   result.as.object = AS_OBJ(value);
   return result;
 }
@@ -280,20 +280,20 @@ static bool activeVMOwnsObject(const void *pointer)
   return false;
 }
 
-static bool hostToValue(PogberryValue value, Value *result)
+static bool hostToValue(PbValue value, Value *result)
 {
   switch (value.type)
   {
-  case POGBERRY_VALUE_NIL:
+  case PB_VALUE_NIL:
     *result = NIL_VAL;
     return true;
-  case POGBERRY_VALUE_BOOL:
+  case PB_VALUE_BOOL:
     *result = BOOL_VAL(value.as.boolean);
     return true;
-  case POGBERRY_VALUE_NUMBER:
+  case PB_VALUE_NUMBER:
     *result = NUMBER_VAL(value.as.number);
     return true;
-  case POGBERRY_VALUE_STRING:
+  case PB_VALUE_STRING:
     if ((value.as.string.chars == NULL && value.as.string.length != 0) ||
         value.as.string.length > INT_MAX)
     {
@@ -305,7 +305,7 @@ static bool hostToValue(PogberryValue value, Value *result)
                                      : "",
                                  (int)value.as.string.length));
     return true;
-  case POGBERRY_VALUE_OBJECT:
+  case PB_VALUE_OBJECT:
     if (!activeVMOwnsObject(value.as.object))
     {
       runtimeError("Host supplied an object that does not belong to this VM.");
@@ -327,10 +327,10 @@ static bool callNativeObject(ObjNative *native, int argCount, Value *args,
     return !vm.hadRuntimeError;
   }
 
-  PogberryValue *hostArgs = NULL;
+  PbValue *hostArgs = NULL;
   if (argCount > 0)
   {
-    hostArgs = (PogberryValue *)malloc(sizeof(PogberryValue) * (size_t)argCount);
+    hostArgs = (PbValue *)malloc(sizeof(PbValue) * (size_t)argCount);
     if (hostArgs == NULL)
     {
       runtimeError("Could not allocate host-call arguments.");
@@ -340,7 +340,7 @@ static bool callNativeObject(ObjNative *native, int argCount, Value *args,
       hostArgs[i] = valueToHost(args[i]);
   }
 
-  PogberryValue hostResult = native->hostFunction(
+  PbValue hostResult = native->hostFunction(
       activeVM, argCount, hostArgs, native->userData);
   free(hostArgs);
 
@@ -1382,7 +1382,7 @@ InterpretResult interpret(const char *source)
   return interpretActive(source);
 }
 
-static VM *activateVM(PogberryVM *instance)
+static VM *activateVM(PbVM *instance)
 {
   VM *previous = activeVM;
   activeVM = (VM *)instance;
@@ -1415,7 +1415,7 @@ static HostCapability *findCapability(const char *name)
 
 bool resolveCapability(const char *name)
 {
-  if (strcmp(name, "pogberry_gui") == 0)
+  if (strcmp(name, "pb_gui") == 0)
     return initialiseGui();
 
   runtimeError("Module '%s' must be imported with an alias.", name);
@@ -1450,7 +1450,7 @@ static InterpretResult circularImportError(const char *name)
              "Load error: Circular import of module '%s'.", name);
   }
 
-  reportDiagnostic(POGBERRY_DIAGNOSTIC_COMPILE, diagnostic);
+  reportDiagnostic(PB_DIAGNOSTIC_COMPILE, diagnostic);
   closeUpvalues(vm.stack);
   resetStack();
   return INTERPRET_COMPILE_ERROR;
@@ -1525,7 +1525,7 @@ InterpretResult resolveModule(const char *name, Value *result)
   {
     for (size_t i = 0; i < capability->definitionCount; i++)
     {
-      PogberryNativeDefinition *definition = &capability->definitions[i];
+      PbNativeDefinition *definition = &capability->definitions[i];
       ObjString *exportName = copyString(
           definition->name, (int)strlen(definition->name));
       if (!push(OBJ_VAL(exportName)))
@@ -1547,7 +1547,7 @@ InterpretResult resolveModule(const char *name, Value *result)
   return INTERPRET_OK;
 }
 
-POGBERRY_API PogberryVM *pogberryCreateVM(const PogberryConfig *config)
+PB_API PbVM *pbCreateVM(const PbConfig *config)
 {
   VM *instance = (VM *)malloc(sizeof(VM));
   if (instance == NULL)
@@ -1558,14 +1558,14 @@ POGBERRY_API PogberryVM *pogberryCreateVM(const PogberryConfig *config)
   return instance;
 }
 
-POGBERRY_API void pogberryDestroyVM(PogberryVM *instance)
+PB_API void pbDestroyVM(PbVM *instance)
 {
   if (instance == NULL)
     return;
   VM *previous = activateVM(instance);
   if (vm.frameCount != 0)
   {
-    reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+    reportDiagnostic(PB_DIAGNOSTIC_HOST,
                      "Cannot destroy a VM while it is running.");
     activeVM = previous;
     return;
@@ -1576,27 +1576,25 @@ POGBERRY_API void pogberryDestroyVM(PogberryVM *instance)
   activeVM = previous == (VM *)instance ? NULL : previous;
 }
 
-POGBERRY_API PogberryResult pogberryInterpret(PogberryVM *instance,
-                                              const char *source)
+PB_API PbResult pbInterpret(PbVM *instance, const char *source)
 {
   if (instance == NULL || source == NULL)
     return INTERPRET_RUNTIME_ERROR;
   VM *previous = activateVM(instance);
   if (vm.frameCount != 0 || vm.stackTop != vm.stack)
   {
-    reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+    reportDiagnostic(PB_DIAGNOSTIC_HOST,
                      "Cannot interpret source while the VM is running.");
     activeVM = previous;
     return INTERPRET_RUNTIME_ERROR;
   }
-  PogberryResult result = interpretActive(source);
+  PbResult result = interpretActive(source);
   activeVM = previous;
   return result;
 }
 
-POGBERRY_API bool pogberryDefineNative(PogberryVM *instance, const char *name,
-                                       PogberryNativeFn function,
-                                       void *userData)
+PB_API bool pbDefineNative(PbVM *instance, const char *name,
+                           PbNativeFn function, void *userData)
 {
   if (instance == NULL || !validNativeName(name) || function == NULL)
     return false;
@@ -1606,9 +1604,9 @@ POGBERRY_API bool pogberryDefineNative(PogberryVM *instance, const char *name,
   return true;
 }
 
-POGBERRY_API bool pogberryRegisterCapability(
-    PogberryVM *instance, const char *name,
-    const PogberryNativeDefinition *definitions, size_t definitionCount)
+PB_API bool pbRegisterCapability(
+    PbVM *instance, const char *name,
+    const PbNativeDefinition *definitions, size_t definitionCount)
 {
   if (instance == NULL || name == NULL || name[0] == '\0' ||
       (definitionCount > 0 && definitions == NULL))
@@ -1617,7 +1615,7 @@ POGBERRY_API bool pogberryRegisterCapability(
   VM *previous = activateVM(instance);
   if (findCapability(name) != NULL)
   {
-    reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+    reportDiagnostic(PB_DIAGNOSTIC_HOST,
                      "Capability is already registered in this VM.");
     activeVM = previous;
     return false;
@@ -1628,7 +1626,7 @@ POGBERRY_API bool pogberryRegisterCapability(
     if (!validNativeName(definitions[i].name) ||
         definitions[i].function == NULL)
     {
-      reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+      reportDiagnostic(PB_DIAGNOSTIC_HOST,
                        "Capability contains an invalid native definition.");
       activeVM = previous;
       return false;
@@ -1642,7 +1640,7 @@ POGBERRY_API bool pogberryRegisterCapability(
         vm.capabilities, sizeof(HostCapability) * capacity);
     if (capabilities == NULL)
     {
-      reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+      reportDiagnostic(PB_DIAGNOSTIC_HOST,
                        "Could not allocate capability registry.");
       activeVM = previous;
       return false;
@@ -1661,8 +1659,8 @@ POGBERRY_API bool pogberryRegisterCapability(
 
   if (definitionCount > 0)
   {
-    capability.definitions = (PogberryNativeDefinition *)calloc(
-        definitionCount, sizeof(PogberryNativeDefinition));
+    capability.definitions = (PbNativeDefinition *)calloc(
+        definitionCount, sizeof(PbNativeDefinition));
     if (capability.definitions == NULL)
     {
       free(capability.name);
@@ -1692,9 +1690,9 @@ POGBERRY_API bool pogberryRegisterCapability(
   return true;
 }
 
-POGBERRY_API bool pogberryRegisterModuleSource(PogberryVM *instance,
-                                               const char *name,
-                                               const char *source)
+PB_API bool pbRegisterModuleSource(PbVM *instance,
+                                   const char *name,
+                                   const char *source)
 {
   if (instance == NULL || !validNativeName(name) || source == NULL)
     return false;
@@ -1702,7 +1700,7 @@ POGBERRY_API bool pogberryRegisterModuleSource(PogberryVM *instance,
   VM *previous = activateVM(instance);
   if (findCapability(name) != NULL)
   {
-    reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+    reportDiagnostic(PB_DIAGNOSTIC_HOST,
                      "Module is already registered in this VM.");
     activeVM = previous;
     return false;
@@ -1715,7 +1713,7 @@ POGBERRY_API bool pogberryRegisterModuleSource(PogberryVM *instance,
         vm.capabilities, sizeof(HostCapability) * capacity);
     if (capabilities == NULL)
     {
-      reportDiagnostic(POGBERRY_DIAGNOSTIC_HOST,
+      reportDiagnostic(PB_DIAGNOSTIC_HOST,
                        "Could not allocate module registry.");
       activeVM = previous;
       return false;
@@ -1740,10 +1738,9 @@ POGBERRY_API bool pogberryRegisterModuleSource(PogberryVM *instance,
   return true;
 }
 
-POGBERRY_API PogberryResult pogberryCall(PogberryVM *instance, const char *name,
-                                         int argCount,
-                                         const PogberryValue *args,
-                                         PogberryValue *result)
+PB_API PbResult pbCall(PbVM *instance, const char *name,
+                       int argCount, const PbValue *args,
+                       PbValue *result)
 {
   if (instance == NULL || !validNativeName(name) || argCount < 0 ||
       (argCount > 0 && args == NULL))
@@ -1786,15 +1783,14 @@ POGBERRY_API PogberryResult pogberryCall(PogberryVM *instance, const char *name,
     return INTERPRET_RUNTIME_ERROR;
   }
 
-  PogberryResult callResult = run(0);
+  PbResult callResult = run(0);
   if (callResult == INTERPRET_OK && result != NULL)
     *result = valueToHost(vm.lastReturnValue);
   activeVM = previous;
   return callResult;
 }
 
-POGBERRY_API void pogberryRuntimeError(PogberryVM *instance,
-                                       const char *message)
+PB_API void pbRuntimeError(PbVM *instance, const char *message)
 {
   if (instance == NULL || message == NULL)
     return;
@@ -1803,50 +1799,50 @@ POGBERRY_API void pogberryRuntimeError(PogberryVM *instance,
   activeVM = previous;
 }
 
-POGBERRY_API PogberryValue pogberryNilValue(void)
+PB_API PbValue pbNilValue(void)
 {
-  PogberryValue value = {0};
-  value.type = POGBERRY_VALUE_NIL;
+  PbValue value = {0};
+  value.type = PB_VALUE_NIL;
   return value;
 }
 
-POGBERRY_API PogberryValue pogberryBoolValue(bool boolean)
+PB_API PbValue pbBoolValue(bool boolean)
 {
-  PogberryValue value = pogberryNilValue();
-  value.type = POGBERRY_VALUE_BOOL;
+  PbValue value = pbNilValue();
+  value.type = PB_VALUE_BOOL;
   value.as.boolean = boolean;
   return value;
 }
 
-POGBERRY_API PogberryValue pogberryNumberValue(double number)
+PB_API PbValue pbNumberValue(double number)
 {
-  PogberryValue value = pogberryNilValue();
-  value.type = POGBERRY_VALUE_NUMBER;
+  PbValue value = pbNilValue();
+  value.type = PB_VALUE_NUMBER;
   value.as.number = number;
   return value;
 }
 
-POGBERRY_API PogberryValue pogberryStringValueN(const char *string,
+PB_API PbValue pbStringValueN(const char *string,
                                                 size_t length)
 {
-  PogberryValue value = pogberryNilValue();
-  value.type = POGBERRY_VALUE_STRING;
+  PbValue value = pbNilValue();
+  value.type = PB_VALUE_STRING;
   value.as.string.chars = string;
   value.as.string.length = length;
   return value;
 }
 
-POGBERRY_API PogberryValue pogberryStringValue(const char *string)
+PB_API PbValue pbStringValue(const char *string)
 {
-  return pogberryStringValueN(string, string != NULL ? strlen(string) : 0);
+  return pbStringValueN(string, string != NULL ? strlen(string) : 0);
 }
 
-POGBERRY_API void ext_initVM(void)
+PB_API void ext_initVM(void)
 {
   initVM();
 }
 
-POGBERRY_API InterpretResult ext_interpret(const char *source)
+PB_API InterpretResult ext_interpret(const char *source)
 {
   return interpret(source);
 }

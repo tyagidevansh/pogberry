@@ -259,7 +259,7 @@ def main() -> int:
     tests_root = runner_dir.parent
     project_root = tests_root.parent
     cases_root = tests_root / "cases"
-    default_binary = project_root / "build" / ("pogberry.exe" if os.name == "nt" else "pogberry")
+    default_binary = project_root / "build" / ("pb.exe" if os.name == "nt" else "pb")
     binary = (args.binary or default_binary).resolve()
     color_enabled = not args.no_color and "NO_COLOR" not in os.environ and sys.stdout.isatty()
     style = Style(color_enabled)

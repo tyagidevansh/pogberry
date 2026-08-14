@@ -3,5 +3,5 @@
 *.exe
 test.pb
 /build/
-pogberry
+pb
 .log

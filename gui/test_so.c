@@ -11,7 +11,7 @@ typedef void (*ClearBackgroundFunc)(int, int, int);
 typedef void (*DrawTextFunc)(const char*, int, int, int, int, int, int);
 
 int main() {
-    void* handle = dlopen("../lib/pogberry_gui_linux.so", RTLD_LAZY);
+    void* handle = dlopen("../lib/pb_gui_linux.so", RTLD_LAZY);
     if (!handle) {
         fprintf(stderr, "Failed to load shared library: %s\n", dlerror());
         return 1;

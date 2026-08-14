@@ -559,7 +559,7 @@ void defineNative(const char *name, NativeFn function)
     pop();
 }
 
-void defineHostNative(const char *name, PogberryNativeFn function, void *userData)
+void defineHostNative(const char *name, PbNativeFn function, void *userData)
 {
     ObjString *nameObj = copyString(name, (int)strlen(name));
     push(OBJ_VAL(nameObj));

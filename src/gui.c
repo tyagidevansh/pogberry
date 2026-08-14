@@ -458,13 +458,13 @@ static Value getMouseYNative(int argCount, Value *args)
 
 static bool openGuiLibrary(void)
 {
-  const char *overridePath = getenv("POGBERRY_GUI_LIBRARY");
+  const char *overridePath = getenv("PB_GUI_LIBRARY");
 #ifdef _WIN32
   if (overridePath != NULL && overridePath[0] != '\0')
     guiLibrary = LoadLibraryA(overridePath);
   else
   {
-    guiLibrary = LoadLibraryA("lib\\pogberry_gui_windows.dll");
+    guiLibrary = LoadLibraryA("lib\\pb_gui_windows.dll");
     if (guiLibrary == NULL)
     {
       char executable[MAX_PATH] = {0};
@@ -476,7 +476,7 @@ static bool openGuiLibrary(void)
         {
           *slash = '\0';
           char path[MAX_PATH] = {0};
-          int written = snprintf(path, sizeof(path), "%s\\lib\\pogberry_gui_windows.dll",
+          int written = snprintf(path, sizeof(path), "%s\\lib\\pb_gui_windows.dll",
                                  executable);
           if (written > 0 && (size_t)written < sizeof(path))
             guiLibrary = LoadLibraryA(path);
@@ -487,7 +487,7 @@ static bool openGuiLibrary(void)
 #else
   const char *path = overridePath != NULL && overridePath[0] != '\0'
                          ? overridePath
-                         : "lib/pogberry_gui_linux.so";
+                         : "lib/pb_gui_linux.so";
   guiLibrary = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 #endif
   return guiLibrary != NULL;

@@ -350,7 +350,7 @@ To get started with the Pogberry interpreter, follow these steps:
    ```
 
    ```sh
-   gcc -std=c11 main.o value.o memory.o chunk.o debug.o vm.o scanner.o compiler.o object.o table.o -lm -lreadline -o pogberry
+   gcc -std=c11 main.o value.o memory.o chunk.o debug.o vm.o scanner.o compiler.o object.o table.o -lm -lreadline -o pb
    ```
 
    Or use any other build system
@@ -358,7 +358,7 @@ To get started with the Pogberry interpreter, follow these steps:
 4. Run your first Pogberry program:
 
    ```sh
-   ./pogberry examples/fizzbuzz.pg
+   ./pb examples/fizzbuzz.pg
    ```
 
    OR
@@ -366,7 +366,7 @@ To get started with the Pogberry interpreter, follow these steps:
    Run the REPL by simply typing:
 
    ```sh
-   ./pogberry
+   ./pb
    ```
 
 Happy coding with Pogberry!

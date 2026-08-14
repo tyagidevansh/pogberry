@@ -1,4 +1,4 @@
-use "pogberry_gui";
+use "pb_gui";
 drawText("bad colour", 0, 0, 12, 255, 255, nil);
 // EXPECTED STATUS: 70
 // EXPECTED OUTPUT:
