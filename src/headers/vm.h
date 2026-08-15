@@ -52,7 +52,6 @@ struct PbVM
   size_t capabilityCapacity;
   Value lastReturnValue;
   bool hasLastReturnValue;
-  bool legacyGuiLoaded;
   uint32_t randomState;
 };
 
@@ -67,7 +66,6 @@ InterpretResult interpret(const char *source); // run the chunk and respond with
 void runtimeError(const char *format, ...);
 void writeVMOutput(const char *text, size_t length);
 void reportDiagnostic(PbDiagnosticKind kind, const char *message);
-bool resolveCapability(const char *name);
 InterpretResult resolveModule(const char *name, Value *module);
 bool push(Value value);
 Value pop();

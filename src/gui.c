@@ -47,10 +47,6 @@ typedef int (*GetScreenWidthFunc)(void);
 typedef int (*GetScreenHeightFunc)(void);
 typedef int (*GetFPSFunc)(void);
 
-/*
- * This is the complete legacy GUI contract. The same list drives both symbol
- * loading and Pogberry-native registration, so Linux and Windows cannot drift.
- */
 #define GUI_BINDINGS(X) \
   X(initWindow, InitWindowFunc, "initWindow", initWindowNative) \
   X(closeWindow, CloseWindowFunc, "closeWindow", closeWindowNative) \
@@ -93,7 +89,6 @@ typedef struct
 
 static GuiApi gui;
 static bool guiLoaded = false;
-static size_t guiUsers = 0;
 
 #ifdef _WIN32
 static HMODULE guiLibrary = NULL;
@@ -517,7 +512,7 @@ static void closeGuiLibrary(void)
 
 bool initialiseGui(void)
 {
-  if (vm.legacyGuiLoaded)
+  if (guiLoaded)
     return true;
 
   if (!guiLoaded && !openGuiLibrary())
@@ -560,19 +555,12 @@ bool initialiseGui(void)
 #undef REGISTER_GUI_NATIVE
 
   guiLoaded = true;
-  vm.legacyGuiLoaded = true;
-  guiUsers++;
   return true;
 }
 
 void freeGui(void)
 {
-  if (!vm.legacyGuiLoaded)
-    return;
-  vm.legacyGuiLoaded = false;
-  if (guiUsers > 0)
-    guiUsers--;
-  if (guiUsers > 0)
+  if (!guiLoaded)
     return;
   closeGuiLibrary();
   memset(&gui, 0, sizeof(gui));

@@ -1147,15 +1147,7 @@ static void useStatement()
   }
 
   consume(TOKEN_SEMICOLON, "Expect ';' after import.");
-  if (current->type != TYPE_SCRIPT ||
-      strcmp(moduleName->chars, "pb_gui") != 0)
-  {
-    error("Expect 'as <name>' after module name.");
-    return;
-  }
-
-  emitConstant(OBJ_VAL(moduleName));
-  emitByte(OP_USE);
+  error("Expect 'as <name>' after module name.");
 }
 
 static void list(bool canAssign) {

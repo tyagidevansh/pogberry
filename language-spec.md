@@ -524,7 +524,7 @@ These requirements exist to keep language semantics separate from VM details:
 - Recursive containers render safely, and the VM checks stack boundaries.
 - Added an organised language test suite covering the core syntax,
   collections, standard functions, errors, and regressions.
-- Isolated the legacy GUI binding from the VM and added headless GUI tests.
+- Removed the legacy unaliased GUI import path from the compiler and VM.
 - Added a per-VM host API with callbacks, native capabilities, and function calls.
 - Added aliased native-module imports with cached, read-only namespaces.
 - Added registered source modules with isolated globals and `export` for

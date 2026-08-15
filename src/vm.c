@@ -8,7 +8,6 @@
 #include "headers/common.h"
 #include "headers/compiler.h"
 #include "headers/debug.h"
-#include "headers/gui.h"
 #include "headers/object.h"
 #include "headers/memory.h"
 #include "headers/vm.h"
@@ -159,7 +158,6 @@ static void freeCapabilities(void)
 
 static void freeActiveVM(void)
 {
-  freeGui();
   freeTable(&vm.globals);
   freeTable(&vm.prelude);
   freeTable(&vm.strings);
@@ -1331,18 +1329,6 @@ static InterpretResult run(int stopFrameCount)
       tableSet(&module->exports, name, exported);
       break;
     }
-    case OP_USE:
-    {
-      Value name = pop();
-      if (!IS_STRING(name))
-      {
-        runtimeError("Expected a string for 'use' statement.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-      if (!resolveCapability(AS_CSTRING(name)))
-        return INTERPRET_RUNTIME_ERROR;
-      break;
-    }
     }
     if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
   }
@@ -1411,15 +1397,6 @@ static HostCapability *findCapability(const char *name)
       return &vm.capabilities[i];
   }
   return NULL;
-}
-
-bool resolveCapability(const char *name)
-{
-  if (strcmp(name, "pb_gui") == 0)
-    return initialiseGui();
-
-  runtimeError("Module '%s' must be imported with an alias.", name);
-  return false;
 }
 
 static InterpretResult circularImportError(const char *name)

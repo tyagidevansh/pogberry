@@ -205,8 +205,6 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return importInstruction(chunk, offset);
   case OP_EXPORT:
     return constantInstruction("OP_EXPORT", chunk, offset);
-  case OP_USE:
-    return simpleInstruction("OP_USE", offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;

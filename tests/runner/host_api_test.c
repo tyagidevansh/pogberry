@@ -308,16 +308,24 @@ int main(void)
           "second VM interpretation");
   require(strcmp(second.output, "second\n") == 0, "second VM output isolation");
 
-  require(pbInterpret(
-              firstVM,
-              "use \"pb_gui\"; fun screenWidth() { return getScreenWidth(); }") ==
-              INTERPRET_OK,
-          "legacy GUI registration in first VM");
-  require(pbInterpret(
-              secondVM,
-              "use \"pb_gui\"; fun screenWidth() { return getScreenWidth(); }") ==
-              INTERPRET_OK,
-          "legacy GUI registration in second VM");
+  int resolverCalls = second.resolverCalls;
+  require(pbInterpret(secondVM, "use \"pb_gui\";") ==
+              INTERPRET_COMPILE_ERROR,
+          "GUI import requires an alias");
+  require(strstr(second.diagnostics,
+                 "Expect 'as <name>' after module name.") != NULL,
+          "GUI import alias diagnostic");
+  require(second.resolverCalls == resolverCalls,
+          "invalid GUI import skips module resolution");
+
+  require(pbInterpret(secondVM, "use \"pb_gui\" as gui;") ==
+              INTERPRET_RUNTIME_ERROR,
+          "GUI import uses the host resolver");
+  require(strstr(second.diagnostics,
+                 "Host does not provide module 'pb_gui'.") != NULL,
+          "missing GUI module diagnostic");
+  require(second.resolverCalls == resolverCalls + 1,
+          "GUI import calls the host resolver");
 
   PbValue argument = pbNumberValue(5);
   require(pbCall(firstVM, "update", 1, &argument, &result) == INTERPRET_OK,
@@ -339,9 +347,10 @@ int main(void)
   require(strcmp(second.output, "second\n18\n") == 0,
           "direct native output");
 
+  int compileDiagnostics = second.compileDiagnostics;
   require(pbInterpret(secondVM, "break;") == INTERPRET_COMPILE_ERROR,
           "compile diagnostic callback");
-  require(second.compileDiagnostics == 3,
+  require(second.compileDiagnostics == compileDiagnostics + 3,
           "source, marker, and compile message diagnostics");
 
   require(pbInterpret(secondVM,
@@ -376,9 +385,6 @@ int main(void)
   requireNumber(result, 20, "post-error return value");
 
   pbDestroyVM(firstVM);
-  require(pbCall(secondVM, "screenWidth", 0, NULL, &result) == INTERPRET_OK,
-          "shared GUI binding survives first VM destruction");
-  requireNumber(result, 800, "headless GUI result");
   pbDestroyVM(secondVM);
   puts("host API test passed");
   return 0;
