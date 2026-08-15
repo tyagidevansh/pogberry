@@ -4,6 +4,6 @@
 #include "pb.h"
 
 bool registerGuiModule(PbVM *vm, const char *name);
-void freeGui(void);
+void releaseGuiModule(void);
 
 #endif

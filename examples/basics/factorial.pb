@@ -3,4 +3,4 @@ fun factorial(n) {
     return n * factorial(n - 1);
 }
 
-print(factorial(5)); 
+print(factorial(5));

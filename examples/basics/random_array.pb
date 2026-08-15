@@ -1,4 +1,4 @@
-var arr = [];
+let arr = [];
 
 for (var i = 0; i < 5; i = i + 1) {
     // if no argumets are given, rand() generates a value from 0 to 1, floor() can be used to take out the integer part
@@ -7,5 +7,5 @@ for (var i = 0; i < 5; i = i + 1) {
     arr.push(rand(100));
 }
 
-sort(arr);
+arr.sort();
 print(arr);

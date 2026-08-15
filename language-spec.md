@@ -360,6 +360,12 @@ export fun spawnWave(level) {}
 export const version = 1;
 ```
 
+The `pb` CLI resolves source modules relative to the entry file. The name
+`"player"` resolves to `player.pb`, while `"game/rules"` resolves to
+`game/rules.pb`. Module names cannot be absolute or contain `.` or `..` path
+segments. Host-provided module names are resolved before project files and
+cannot be shadowed by them.
+
 A host must provide a module resolver, module source or native exports, and a
 stable module identifier. The core language provides no `dlopen`, shell,
 socket, or reflection primitive. This is both a portability rule and an
@@ -532,4 +538,5 @@ These requirements exist to keep language semantics separate from VM details:
   existing declaration forms.
 - Source modules can import cached dependencies through opaque host-resolved
   identifiers, with source-aware diagnostics and circular-import errors.
+- The CLI resolves safe project-local source modules relative to the entry file.
 - Shortened embedding and build identifiers to the `Pb`/`pb` prefix.

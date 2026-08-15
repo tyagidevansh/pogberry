@@ -1,4 +1,4 @@
-use "pb_gui";
+use "pb_gui" as gui;
 
 var BLOCK_SIZE = 100;
 var GRID_WIDTH = 5;
@@ -15,9 +15,9 @@ fun spawnMole() {
 }
 
 fun handleClick() {
-    if (isMouseButtonPressed("LEFT")) {
-        var mx = getMouseX();
-        var my = getMouseY();
+    if (gui.isMouseButtonPressed("LEFT")) {
+        var mx = gui.getMouseX();
+        var my = gui.getMouseY();
 
         var gx = floor(mx / BLOCK_SIZE);
         var gy = floor(my / BLOCK_SIZE);
@@ -32,32 +32,32 @@ fun handleClick() {
 }
 
 fun drawGame(timeLeft) {
-    beginDrawing();
-    clearBackground(30, 30, 30);
+    gui.beginDrawing();
+    gui.clearBackground(30, 30, 30);
 
     for (var y = 0; y < GRID_HEIGHT; y = y + 1) {
         for (var x = 0; x < GRID_WIDTH; x = x + 1) {
-            drawRectangle(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 2, BLOCK_SIZE - 2, 100, 100, 100);
+            gui.drawRectangle(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 2, BLOCK_SIZE - 2, 100, 100, 100);
         }
     }
 
-    drawRectangle(moleX * BLOCK_SIZE, moleY * BLOCK_SIZE, BLOCK_SIZE - 2, BLOCK_SIZE - 2, 200, 50, 50);
+    gui.drawRectangle(moleX * BLOCK_SIZE, moleY * BLOCK_SIZE, BLOCK_SIZE - 2, BLOCK_SIZE - 2, 200, 50, 50);
 
-    drawText("Score: " + str(score), 10, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 255, 255, 255);
-    drawText("Time: " + str(floor(timeLeft)), 400, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 200, 200, 0);
+    gui.drawText("Score: " + str(score), 10, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 255, 255, 255);
+    gui.drawText("Time: " + str(floor(timeLeft)), 400, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 200, 200, 0);
 
-    endDrawing();
+    gui.endDrawing();
 }
 
 fun drawGameOver() {
-    beginDrawing();
-    clearBackground(20, 20, 20);
+    gui.beginDrawing();
+    gui.clearBackground(20, 20, 20);
 
-    drawText("Time's Up!", 100, 100, 32, 255, 100, 100);
-    drawText("Final Score: " + str(score), 100, 150, 28, 255, 255, 255);
-    drawText("Click to Restart", 100, 200, 24, 100, 255, 100);
+    gui.drawText("Time's Up!", 100, 100, 32, 255, 100, 100);
+    gui.drawText("Final Score: " + str(score), 100, 150, 28, 255, 255, 255);
+    gui.drawText("Click to Restart", 100, 200, 24, 100, 255, 100);
 
-    endDrawing();
+    gui.endDrawing();
 }
 
 fun gameLoop() {
@@ -67,7 +67,7 @@ fun gameLoop() {
     var moleTimer = 0.0;
     var timeLeft = 5.0;
 
-    while (!windowShouldClose()) {
+    while (!gui.windowShouldClose()) {
         var currentTime = getTime();
         var deltaTime = currentTime - lastTime;
         lastTime = currentTime;
@@ -93,19 +93,19 @@ fun gameLoop() {
 }
 
 fun waitForRestart() {
-    while (!windowShouldClose()) {
+    while (!gui.windowShouldClose()) {
         drawGameOver();
-        if (isMouseButtonPressed("LEFT")) {
+        if (gui.isMouseButtonPressed("LEFT")) {
             return;
         }
     }
 }
 
 fun main() {
-    initWindow(BLOCK_SIZE * GRID_WIDTH, WINDOW_HEIGHT, "Whack-a-Mole");
-    setTargetFPS(60);
+    gui.initWindow(BLOCK_SIZE * GRID_WIDTH, WINDOW_HEIGHT, "Whack-a-Mole");
+    gui.setTargetFPS(60);
 
-    while (!windowShouldClose()) {
+    while (!gui.windowShouldClose()) {
         gameLoop();
         waitForRestart();
     }

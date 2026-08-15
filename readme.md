@@ -324,6 +324,29 @@ Pogberry includes several built-in native functions:
  print(numbers.size()); // Outputs: 3 
  ```
 
+## Modules
+
+Each project has one entry file. Other files expose declarations with
+`export`, and the entry file imports them with an alias.
+
+```pogberry
+use "player" as player;
+
+let hero = player.Player("Mira");
+print(hero.health);
+```
+
+When the entry file imports `"player"`, `pb` loads `player.pb` from the same
+directory. An import such as `"game/rules"` loads `game/rules.pb`. Each module
+is evaluated once and only its exported declarations are accessible. Built-in
+module names are reserved and cannot be replaced by project files.
+
+The complete example is in `examples/module_project`. Run it with:
+
+```sh
+build/pb examples/module_project/main.pb
+```
+
 ## Getting Started
 
 To get started with the Pogberry interpreter, follow these steps:
@@ -370,4 +393,3 @@ To get started with the Pogberry interpreter, follow these steps:
    ```
 
 Happy coding with Pogberry!
-

@@ -88,6 +88,7 @@ typedef struct
 
 static GuiApi gui;
 static bool guiLoaded = false;
+static size_t guiUsers = 0;
 
 #ifdef _WIN32
 static HMODULE guiLibrary = NULL;
@@ -640,12 +641,26 @@ bool registerGuiModule(PbVM *instance, const char *name)
     definitions[i].function = callGuiNative;
     definitions[i].userData = &guiNatives[i];
   }
-  return pbRegisterCapability(instance, name, definitions, count);
+  if (!pbRegisterCapability(instance, name, definitions, count))
+  {
+    if (guiUsers == 0)
+    {
+      closeGuiLibrary();
+      memset(&gui, 0, sizeof(gui));
+      guiLoaded = false;
+    }
+    return false;
+  }
+  guiUsers++;
+  return true;
 }
 
-void freeGui(void)
+void releaseGuiModule(void)
 {
-  if (!guiLoaded)
+  if (guiUsers == 0)
+    return;
+  guiUsers--;
+  if (guiUsers != 0)
     return;
   closeGuiLibrary();
   memset(&gui, 0, sizeof(gui));

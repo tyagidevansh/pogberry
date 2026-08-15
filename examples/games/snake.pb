@@ -1,4 +1,4 @@
-use "pb_gui";
+use "pb_gui" as gui;
 
 var BLOCK_SIZE = 20;
 var GRID_WIDTH = 40;
@@ -44,13 +44,13 @@ fun spawnFruit() {
 }
 
 fun updateInput() {
-    if (isKeyPressed("KEY_UP") and dir[1] != 1) {
+    if (gui.isKeyPressed("KEY_UP") and dir[1] != 1) {
         nextDir = [0, -1];
-    } else if (isKeyPressed("KEY_DOWN") and dir[1] != -1) {
+    } else if (gui.isKeyPressed("KEY_DOWN") and dir[1] != -1) {
         nextDir = [0, 1];
-    } else if (isKeyPressed("KEY_LEFT") and dir[0] != 1) {
+    } else if (gui.isKeyPressed("KEY_LEFT") and dir[0] != 1) {
         nextDir = [-1, 0];
-    } else if (isKeyPressed("KEY_RIGHT") and dir[0] != -1) {
+    } else if (gui.isKeyPressed("KEY_RIGHT") and dir[0] != -1) {
         nextDir = [1, 0];
     }
 }
@@ -97,30 +97,30 @@ fun updateSnake() {
 }
 
 fun drawGame() {
-    beginDrawing();
-    clearBackground(20, 20, 20);
+    gui.beginDrawing();
+    gui.clearBackground(20, 20, 20);
 
     // Draw snake
     var i = 0;
     while (i < len(snake)) {
         var point = snake[i];
-        drawRectangle(point[0] * BLOCK_SIZE, point[1] * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 255, 255, 255);
+        gui.drawRectangle(point[0] * BLOCK_SIZE, point[1] * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 255, 255, 255);
         i = i + 1;
     }
 
     // Draw fruit
-    drawRectangle(fruit[0] * BLOCK_SIZE, fruit[1] * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 255, 0, 0);
+    gui.drawRectangle(fruit[0] * BLOCK_SIZE, fruit[1] * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 255, 0, 0);
 
-    endDrawing();
+    gui.endDrawing();
 }
 
 fun main() {
-    initWindow(BLOCK_SIZE * GRID_WIDTH, BLOCK_SIZE * GRID_HEIGHT, "Snake");
+    gui.initWindow(BLOCK_SIZE * GRID_WIDTH, BLOCK_SIZE * GRID_HEIGHT, "Snake");
 
     var lastTime = getTime();
     resetGame();
 
-    while (!windowShouldClose()) {
+    while (!gui.windowShouldClose()) {
         var now = getTime();
 
         updateInput();

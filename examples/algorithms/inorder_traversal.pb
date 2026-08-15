@@ -24,13 +24,10 @@ class BinaryTree {
             return;
         }
 
-        // Traverse left subtree
         this.inorder(node.left);
 
-        // Print the current node's value
         print(node.value);
 
-        // Traverse right subtree
         this.inorder(node.right);
     }
 

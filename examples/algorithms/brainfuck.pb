@@ -1,6 +1,5 @@
-// Initialize
 var program = strInput();
-var length = program.size();
+var length = len(program);
 
 var mem_size = 256;
 var memory = [];
@@ -12,7 +11,7 @@ var output = "";
 fun asciiToChar(ascii) {
     if (ascii == 32) { return " "; }
     else if (ascii == 33) { return "!"; }
-    else if (ascii == 34) { return "\"; }
+    else if (ascii == 34) { return "\""; }
     else if (ascii == 35) { return "#"; }
     else if (ascii == 36) { return "$"; }
     else if (ascii == 37) { return "%"; }
@@ -145,4 +144,3 @@ for (var pc = 0; pc < length; pc = pc + 1) {
 }
 
 print(output);
-

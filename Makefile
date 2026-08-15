@@ -24,7 +24,7 @@ endif
 TARGET := $(BUILD_DIR)/pb$(EXEEXT)
 SOURCES := $(wildcard $(SRC_DIR)/*.c)
 OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
-CORE_OBJECTS := $(filter-out $(BUILD_DIR)/main.o,$(OBJECTS))
+CORE_OBJECTS := $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/module_loader.o,$(OBJECTS))
 DEPS := $(OBJECTS:.o=.d)
 
 CPPFLAGS := -I$(SRC_DIR)
@@ -33,6 +33,7 @@ PYTHON ?= python
 TEST_PATH ?=
 TEST_ARGS ?=
 TEST_RUNNER := tests/runner/run_tests.py
+CLI_MODULE_TEST := tests/runner/cli_module_test.py
 HOST_API_TEST := $(BUILD_DIR)/host_api_test$(EXEEXT)
 
 ifeq ($(OS),Windows_NT)
@@ -65,6 +66,7 @@ $(BUILD_DIR):
 
 test: $(TARGET) $(GUI_TEST_LIBRARY) $(HOST_API_TEST)
 	@$(TEST_GUI_ENV) $(HOST_API_TEST)
+	@$(PYTHON) $(CLI_MODULE_TEST) $(TARGET)
 	@$(TEST_GUI_ENV) $(PYTHON) $(TEST_RUNNER) $(TEST_PATH) $(TEST_ARGS)
 
 $(GUI_TEST_LIBRARY): tests/runner/fake_gui.c | $(BUILD_DIR)

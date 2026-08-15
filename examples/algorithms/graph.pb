@@ -4,7 +4,7 @@ class Graph {
   }
 
   addEdge(v1, v2) {
-    var temp = [v1, v2];
+    let temp = [v1, v2];
     this.edges.push(temp);
   }
 
@@ -14,17 +14,17 @@ class Graph {
     queue.push(start);
     visited[start] = true;
 
-    while(queue.size() > 0) {
+    while(len(queue) > 0) {
       var vertex = queue[0];
-      queue.remove(0);
+      queue.removeAt(0);
       print(vertex);
 
-      for (var i = 0; i < this.edges.size(); i = i + 1) {
+      for (var i = 0; i < len(this.edges); i = i + 1) {
         var edge = this.edges[i];
-        if (edge[0] == vertex and !visited[edge[1]]) {
+        if (edge[0] == vertex and !visited.has(edge[1])) {
           queue.push(edge[1]);
           visited[edge[1]] = true;
-        } else if (edge[1] == vertex and !visited[edge[0]]) {
+        } else if (edge[1] == vertex and !visited.has(edge[0])) {
           queue.push(edge[0]);
           visited[edge[0]] = true;
         }
