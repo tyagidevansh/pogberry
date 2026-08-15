@@ -525,6 +525,7 @@ These requirements exist to keep language semantics separate from VM details:
 - Added an organised language test suite covering the core syntax,
   collections, standard functions, errors, and regressions.
 - Removed the legacy unaliased GUI import path from the compiler and VM.
+- Registered the legacy GUI adapter as a normal namespaced native module.
 - Added a per-VM host API with callbacks, native capabilities, and function calls.
 - Added aliased native-module imports with cached, read-only namespaces.
 - Added registered source modules with isolated globals and `export` for

@@ -1,9 +1,9 @@
 #ifndef PB_GUI_H
 #define PB_GUI_H
 
-#include "common.h"
+#include "pb.h"
 
-bool initialiseGui(void);
+bool registerGuiModule(PbVM *vm, const char *name);
 void freeGui(void);
 
 #endif

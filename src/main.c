@@ -6,12 +6,18 @@
 #include <readline/history.h>
 #endif
 
-#include "headers/common.h"
-#include "headers/chunk.h"
-#include "headers/debug.h"
-#include "headers/vm.h"
+#include "headers/gui.h"
+#include "headers/pb.h"
 
-static void repl() {
+static bool resolveCapability(PbVM *vm, const char *name, void *userData)
+{
+  (void)userData;
+  if (strcmp(name, "pb_gui") != 0)
+    return false;
+  return registerGuiModule(vm, name);
+}
+
+static void repl(PbVM *vm) {
   char line[1024];
   for (;;) {
     #ifdef _WIN32
@@ -34,7 +40,7 @@ static void repl() {
       if (buffer) strcpy(line, buffer);
     #endif
     
-    interpret(line);
+    pbInterpret(vm, line);
   }
 }
 
@@ -69,9 +75,9 @@ static char* readFile(const char* path) {
   return buffer; // return the string to runFile 
 }
 
-static int runFile(const char* path) {
+static int runFile(PbVM *vm, const char* path) {
   char* source = readFile(path); // dynamically allocates and passes ownership to caller, so need to free the source
-  InterpretResult result = interpret(source);
+  PbResult result = pbInterpret(vm, source);
   free(source);
 
   if (result == INTERPRET_COMPILE_ERROR) return 65;
@@ -80,18 +86,26 @@ static int runFile(const char* path) {
 }
 
 int main(int argc, const char* argv[]) {
-  initVM();
+  PbConfig config = {0};
+  config.resolveCapability = resolveCapability;
+  PbVM *vm = pbCreateVM(&config);
+  if (vm == NULL)
+  {
+    fprintf(stderr, "Could not create VM.\n");
+    return 70;
+  }
   int status = 0;
 
   if (argc == 1) {
-    repl();
+    repl(vm);
   } else if (argc == 2) {
-    status = runFile(argv[1]);
+    status = runFile(vm, argv[1]);
   } else {
-    fprintf(stderr, "Usage: clox [path]\n");
+    fprintf(stderr, "Usage: pb [path]\n");
     status = 64;
   }
 
-  freeVM();
+  pbDestroyVM(vm);
+  freeGui();
   return status;
 }

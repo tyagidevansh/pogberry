@@ -11,7 +11,6 @@
 #endif
 
 #include "headers/gui.h"
-#include "headers/native.h"
 #include "headers/object.h"
 #include "headers/vm.h"
 
@@ -510,7 +509,7 @@ static void closeGuiLibrary(void)
   guiLibrary = NULL;
 }
 
-bool initialiseGui(void)
+static bool loadGui(void)
 {
   if (guiLoaded)
     return true;
@@ -550,12 +549,98 @@ bool initialiseGui(void)
   }
 #undef LOAD_GUI_SYMBOL
 
-#define REGISTER_GUI_NATIVE(field, type, symbol, native) defineNative(symbol, native);
-  GUI_BINDINGS(REGISTER_GUI_NATIVE)
-#undef REGISTER_GUI_NATIVE
-
   guiLoaded = true;
   return true;
+}
+
+typedef struct
+{
+  const char *name;
+  NativeFn function;
+} GuiNative;
+
+#define GUI_NATIVE(field, type, symbol, native) {symbol, native},
+static GuiNative guiNatives[] = {
+    GUI_BINDINGS(GUI_NATIVE)
+};
+#undef GUI_NATIVE
+
+static Value fromPbValue(PbValue value)
+{
+  switch (value.type)
+  {
+  case PB_VALUE_NIL:
+    return NIL_VAL;
+  case PB_VALUE_BOOL:
+    return BOOL_VAL(value.as.boolean);
+  case PB_VALUE_NUMBER:
+    return NUMBER_VAL(value.as.number);
+  case PB_VALUE_STRING:
+    return OBJ_VAL(copyString(value.as.string.chars,
+                              (int)value.as.string.length));
+  case PB_VALUE_OBJECT:
+    return OBJ_VAL((Obj *)value.as.object);
+  }
+  return NIL_VAL;
+}
+
+static PbValue toPbValue(Value value)
+{
+  if (IS_NIL(value))
+    return pbNilValue();
+  if (IS_BOOL(value))
+    return pbBoolValue(AS_BOOL(value));
+  if (IS_NUMBER(value))
+    return pbNumberValue(AS_NUMBER(value));
+  if (IS_STRING(value))
+    return pbStringValueN(AS_CSTRING(value),
+                          (size_t)AS_STRING(value)->length);
+
+  PbValue result = {0};
+  result.type = PB_VALUE_OBJECT;
+  result.as.object = AS_OBJ(value);
+  return result;
+}
+
+static PbValue callGuiNative(PbVM *instance, int argCount,
+                             const PbValue *args, void *userData)
+{
+  GuiNative *native = (GuiNative *)userData;
+  Value *values = NULL;
+  if (argCount > 0)
+  {
+    values = (Value *)malloc(sizeof(Value) * (size_t)argCount);
+    if (values == NULL)
+    {
+      pbRuntimeError(instance, "Could not allocate GUI arguments.");
+      return pbNilValue();
+    }
+  }
+
+  for (int i = 0; i < argCount; i++)
+    values[i] = fromPbValue(args[i]);
+
+  Value result = native->function(argCount, values);
+  free(values);
+  if (vm.hadRuntimeError)
+    return pbNilValue();
+  return toPbValue(result);
+}
+
+bool registerGuiModule(PbVM *instance, const char *name)
+{
+  if (!loadGui())
+    return false;
+
+  size_t count = sizeof(guiNatives) / sizeof(guiNatives[0]);
+  PbNativeDefinition definitions[sizeof(guiNatives) / sizeof(guiNatives[0])];
+  for (size_t i = 0; i < count; i++)
+  {
+    definitions[i].name = guiNatives[i].name;
+    definitions[i].function = callGuiNative;
+    definitions[i].userData = &guiNatives[i];
+  }
+  return pbRegisterCapability(instance, name, definitions, count);
 }
 
 void freeGui(void)
