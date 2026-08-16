@@ -58,15 +58,15 @@ def main() -> int:
 
         write(
             project / "main.pb",
-            'use "player" as player;\n'
-            'use "game/rules" as rules;\n'
+            'use "player";\n'
+            'use "game/rules";\n'
             'use "game/rules" as sameRules;\n'
             'print(player.remaining(3));\n'
             'print(rules == sameRules);\n',
         )
         write(
             project / "player.pb",
-            'use "game/rules" as rules;\n'
+            'use "game/rules";\n'
             'print("player loaded");\n'
             'export fun remaining(level) {\n'
             '  return rules.startingHealth - rules.damage(level);\n'

@@ -11,7 +11,7 @@ typedef bool (*ModuleProviderLoadFn)(PbVM *vm, const char *name);
 typedef void (*ModuleProviderUnloadFn)(void);
 
 typedef struct
-{
+{ 
   const char *name;
   ModuleProviderLoadFn load;
   ModuleProviderUnloadFn unload;
@@ -25,7 +25,7 @@ static char *copyText(const char *text, size_t length)
 {
   char *copy = (char *)malloc(length + 1);
   if (copy == NULL)
-    return NULL;
+    return NULL; 
   memcpy(copy, text, length);
   copy[length] = '\0';
   return copy;

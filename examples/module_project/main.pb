@@ -1,6 +1,6 @@
-use "player" as player;
-use "enemy" as enemy;
-use "rules" as rules;
+use "player";
+use "enemy";
+use "rules";
 
 fun showStatus(hero, opponent)
 {

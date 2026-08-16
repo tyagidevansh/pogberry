@@ -1,4 +1,4 @@
-use "config" as config;
+use "config";
 
 export class Target
 {

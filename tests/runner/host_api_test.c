@@ -147,9 +147,9 @@ int main(void)
           "source dependency registration");
   require(pbRegisterModuleSource(
               firstVM, "game.counter",
-              "use \"game.base\" as base;\n"
-              "use \"host.math\" as math;\n"
-              "use \"lazy.words\" as words;\n"
+              "use \"game.base\";\n"
+              "use \"host.math\";\n"
+              "use \"lazy.words\";\n"
               "let hidden = base.seed;\n"
               "export let answer = math.hostAdd(hidden, 2);\n"
               "export fun increment() { answer = answer + 1; return answer; }\n"
@@ -180,7 +180,7 @@ int main(void)
 
   require(pbInterpret(
               firstVM,
-              "use \"host.math\" as math;\n"
+              "use \"host.math\";\n"
               "fun update(dt) { return math.hostAdd(dt, 2); }\n"
               "fun greeting() { return \"he\" + \"llo\"; }\n"
               "fun identity(value) { return value; }\n"
@@ -310,13 +310,13 @@ int main(void)
 
   int resolverCalls = second.resolverCalls;
   require(pbInterpret(secondVM, "use \"pb_gui\";") ==
-              INTERPRET_COMPILE_ERROR,
-          "GUI import requires an alias");
+              INTERPRET_RUNTIME_ERROR,
+          "implicit GUI alias uses the host resolver");
   require(strstr(second.diagnostics,
-                 "Expect 'as <name>' after module name.") != NULL,
-          "GUI import alias diagnostic");
-  require(second.resolverCalls == resolverCalls,
-          "invalid GUI import skips module resolution");
+                 "Host does not provide module 'pb_gui'.") != NULL,
+          "missing implicit GUI module diagnostic");
+  require(second.resolverCalls == resolverCalls + 1,
+          "implicit GUI import calls the host resolver");
 
   require(pbInterpret(secondVM, "use \"pb_gui\" as gui;") ==
               INTERPRET_RUNTIME_ERROR,
@@ -324,8 +324,8 @@ int main(void)
   require(strstr(second.diagnostics,
                  "Host does not provide module 'pb_gui'.") != NULL,
           "missing GUI module diagnostic");
-  require(second.resolverCalls == resolverCalls + 1,
-          "GUI import calls the host resolver");
+  require(second.resolverCalls == resolverCalls + 2,
+          "explicit GUI import calls the host resolver");
 
   PbValue argument = pbNumberValue(5);
   require(pbCall(firstVM, "update", 1, &argument, &result) == INTERPRET_OK,

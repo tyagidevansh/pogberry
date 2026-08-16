@@ -178,7 +178,7 @@ has a practical limit must report a normal compile error.
 ```ebnf
 program        = { declaration } EOF ;
 declaration    = importDecl | exportDecl | classDecl | funDecl | varDecl | statement ;
-importDecl     = "use" STRING "as" IDENTIFIER ";" ;
+importDecl     = "use" STRING [ "as" IDENTIFIER ] ";" ;
 exportDecl     = "export" (classDecl | funDecl | varDecl) ;
 classDecl      = "class" IDENTIFIER [ "<" IDENTIFIER ] "{" { method } "}" ;
 funDecl        = "fun" IDENTIFIER functionBody ;
@@ -346,10 +346,14 @@ library from script code; it asks the host's module resolver for an already
 registered module.
 
 ```pogberry
-use "engine.graphics" as graphics;
-use "engine.input" as input;
-use "std.math" as math;
+use "engine.graphics";
+use "engine.input";
+use "std.math";
 ```
+
+`as` is optional. Without it, the final `/`- or `.`-separated component is
+the alias, so the imports above bind `graphics`, `input`, and `math`.
+An explicit alias is required when that component is not a valid identifier.
 
 Imports are top-level only. A module has its own global scope and is evaluated
 once per VM; subsequent imports receive the cached exports. Circular imports
@@ -539,4 +543,5 @@ These requirements exist to keep language semantics separate from VM details:
 - Source modules can import cached dependencies through opaque host-resolved
   identifiers, with source-aware diagnostics and circular-import errors.
 - The CLI resolves safe project-local source modules relative to the entry file.
+- Module imports derive an alias from the final name component when `as` is omitted.
 - Shortened embedding and build identifiers to the `Pb`/`pb` prefix.

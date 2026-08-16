@@ -1,6 +1,6 @@
 use "pb_gui" as gui;
-use "config" as config;
-use "game" as game;
+use "config";
+use "game";
 
 gui.initWindow(config.width, config.height, "Target Practice");
 gui.setTargetFPS(60);

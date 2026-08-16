@@ -1112,6 +1112,57 @@ static void whileStatement()
   currentLoop = currentLoop->enclosing;
 }
 
+static bool isAliasStart(char character)
+{
+  return (character >= 'a' && character <= 'z') ||
+         (character >= 'A' && character <= 'Z') || character == '_';
+}
+
+static bool isAliasCharacter(char character)
+{
+  return isAliasStart(character) ||
+         (character >= '0' && character <= '9');
+}
+
+static bool isReservedAlias(const char *chars, int length)
+{
+  static const char *reserved[] = {
+      "and", "as", "break", "case", "class", "default", "else",
+      "export", "false", "for", "fun", "if", "let", "nil", "or",
+      "print", "return", "rizz", "super", "this", "true", "use",
+      "var", "while", "yap"};
+  size_t count = sizeof(reserved) / sizeof(reserved[0]);
+  for (size_t i = 0; i < count; i++)
+  {
+    if ((int)strlen(reserved[i]) == length &&
+        memcmp(chars, reserved[i], (size_t)length) == 0)
+      return true;
+  }
+  return false;
+}
+
+static ObjString *implicitModuleAlias(ObjString *moduleName)
+{
+  int start = 0;
+  for (int i = 0; i < moduleName->length; i++)
+  {
+    if (moduleName->chars[i] == '/' || moduleName->chars[i] == '.')
+      start = i + 1;
+  }
+
+  int length = moduleName->length - start;
+  const char *chars = moduleName->chars + start;
+  if (length == 0 || !isAliasStart(chars[0]) ||
+      isReservedAlias(chars, length))
+    return NULL;
+  for (int i = 1; i < length; i++)
+  {
+    if (!isAliasCharacter(chars[i]))
+      return NULL;
+  }
+  return copyString(chars, length);
+}
+
 static void useStatement()
 {
   if ((current->type != TYPE_SCRIPT && current->type != TYPE_MODULE) ||
@@ -1130,6 +1181,7 @@ static void useStatement()
   if (moduleName == NULL)
     return;
   uint8_t moduleConstant = makeConstant(OBJ_VAL(moduleName));
+  uint8_t aliasConstant;
 
   if (match(TOKEN_AS))
   {
@@ -1139,15 +1191,22 @@ static void useStatement()
       return;
     }
     advance();
-    uint8_t aliasConstant = identifierConstant(&parser.previous);
-    consume(TOKEN_SEMICOLON, "Expect ';' after import.");
-    emitBytes(OP_IMPORT, moduleConstant);
-    emitByte(aliasConstant);
-    return;
+    aliasConstant = identifierConstant(&parser.previous);
+  }
+  else
+  {
+    ObjString *alias = implicitModuleAlias(moduleName);
+    if (alias == NULL)
+    {
+      error("Module name needs an explicit alias.");
+      return;
+    }
+    aliasConstant = makeConstant(OBJ_VAL(alias));
   }
 
   consume(TOKEN_SEMICOLON, "Expect ';' after import.");
-  error("Expect 'as <name>' after module name.");
+  emitBytes(OP_IMPORT, moduleConstant);
+  emitByte(aliasConstant);
 }
 
 static void list(bool canAssign) {

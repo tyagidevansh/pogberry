@@ -1,4 +1,4 @@
-use "rules" as rules;
+use "rules";
 
 export class Enemy
 {

@@ -1,5 +1,5 @@
-use "rules" as rules;
-use "items" as items;
+use "rules";
+use "items";
 
 export class Player
 {

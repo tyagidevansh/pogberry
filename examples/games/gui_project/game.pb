@@ -1,6 +1,6 @@
 use "pb_gui" as gui;
-use "config" as config;
-use "target" as target;
+use "config";
+use "target";
 
 export class Game
 {
