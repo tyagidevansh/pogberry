@@ -66,7 +66,12 @@ Value floorNative(int argCount, Value *args)
 
 Value strInputNative(int argCount, Value *args)
 {
-    if (argCount > 0 && IS_STRING(args[0]))
+    if (argCount > 1 || (argCount == 1 && !IS_STRING(args[0])))
+    {
+        runtimeError("strInput() expects zero arguments or one prompt string.");
+        return NIL_VAL;
+    }
+    if (argCount == 1)
     {
         writeVMOutput(AS_CSTRING(args[0]), (size_t)AS_STRING(args[0])->length);
     }
@@ -74,6 +79,7 @@ Value strInputNative(int argCount, Value *args)
     {
         writeVMOutput("Enter input: ", 13);
     }
+    fflush(stdout);
     char buffer[256];
     if (!fgets(buffer, sizeof(buffer), stdin))
     {

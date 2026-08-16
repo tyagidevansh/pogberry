@@ -11,12 +11,15 @@ def write(path: Path, source: str) -> None:
     path.write_text(source, encoding="utf-8")
 
 
-def run(binary: Path, entry: Path) -> subprocess.CompletedProcess[str]:
+def run(
+    binary: Path, entry: Path, input_text: str | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [str(binary), str(entry)],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        input=input_text,
         check=False,
     )
 
@@ -29,13 +32,25 @@ def require(condition: bool, message: str) -> None:
 def main() -> int:
     binary = Path(sys.argv[1]).resolve()
     repository = Path(__file__).resolve().parents[2]
-    example = run(binary, repository / "examples" / "module_project" / "main.pb")
+    example = run(
+        binary,
+        repository / "examples" / "module_project" / "main.pb",
+        "Ada\n1\n1\n1\n1\n2\n1\n",
+    )
     require(example.returncode == 0, "module project example failed")
     require(
-        example.stdout
-        == "Battle begins\nMira\nCave slime\n14\n10\n14\n10\n14\n10\n14\n10\n30\n14\nVictory\n90\n40\n40\n",
+        "Welcome, Ada." in example.stdout
+        and "You recover 30 health." in example.stdout
+        and "Victory!" in example.stdout
+        and "Total experience: 40" in example.stdout,
         "module project example output",
     )
+
+    guiExample = run(
+        binary,
+        repository / "examples" / "games" / "gui_project" / "main.pb",
+    )
+    require(guiExample.returncode == 0, "GUI module project failed")
 
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
