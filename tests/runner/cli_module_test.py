@@ -71,7 +71,9 @@ def main() -> int:
             'use "player";\n'
             'use "game/rules";\n'
             'use "game/rules" as sameRules;\n'
+            'use "std.math";\n'
             'print(player.remaining(3));\n'
+            'print(math.clamp(player.remaining(3), 0, 80));\n'
             'print(rules == sameRules);\n',
         )
         write(
@@ -88,15 +90,19 @@ def main() -> int:
             'export let startingHealth = 100;\n'
             'export fun damage(level) { return level * 5; }\n',
         )
+        write(
+            project / "std.math.pb",
+            'print("project shadow loaded");\nexport let clamp = nil;\n',
+        )
 
         result = run(binary, project / "main.pb")
         require(result.returncode == 0, "multi-file project failed")
         require(
-            result.stdout == "rules loaded\nplayer loaded\n85\ntrue\n",
-            "nested imports or module caching failed",
+            result.stdout == "rules loaded\nplayer loaded\n85\n80\ntrue\n",
+            "project and standard module integration failed",
         )
 
-        expected = "rules loaded\nplayer loaded\n85\ntrue\n"
+        expected = "rules loaded\nplayer loaded\n85\n80\ntrue\n"
         result = command(binary, ["run", project / "main.pb"])
         require(result.returncode == 0, "file run command failed")
         require(result.stdout == expected, "file run command output")

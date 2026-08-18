@@ -1,8 +1,19 @@
+#ifndef _WIN32
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "headers/gui.h"
 #include "headers/module_loader.h"
@@ -11,7 +22,7 @@ typedef bool (*ModuleProviderLoadFn)(PbVM *vm, const char *name);
 typedef void (*ModuleProviderUnloadFn)(void);
 
 typedef struct
-{ 
+{
   const char *name;
   ModuleProviderLoadFn load;
   ModuleProviderUnloadFn unload;
@@ -25,10 +36,92 @@ static char *copyText(const char *text, size_t length)
 {
   char *copy = (char *)malloc(length + 1);
   if (copy == NULL)
-    return NULL; 
+    return NULL;
   memcpy(copy, text, length);
   copy[length] = '\0';
   return copy;
+}
+
+static char *joinPath(const char *left, const char *right)
+{
+  size_t leftLength = strlen(left);
+  size_t rightLength = strlen(right);
+  bool hasSeparator = leftLength > 0 &&
+                      (left[leftLength - 1] == '/' || left[leftLength - 1] == '\\');
+  size_t separatorLength = hasSeparator ? 0 : 1;
+  char *path = (char *)malloc(leftLength + separatorLength + rightLength + 1);
+  if (path == NULL)
+    return NULL;
+
+  memcpy(path, left, leftLength);
+  if (!hasSeparator)
+    path[leftLength] = '/';
+  memcpy(path + leftLength + separatorLength, right, rightLength + 1);
+  return path;
+}
+
+static bool isDirectory(const char *path)
+{
+#ifdef _WIN32
+  struct _stat info;
+  return _stat(path, &info) == 0 && (info.st_mode & _S_IFDIR) != 0;
+#else
+  struct stat info;
+  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
+#endif
+}
+
+static char *executableDirectory(void)
+{
+#ifdef _WIN32
+  char path[MAX_PATH];
+  DWORD length = GetModuleFileNameA(NULL, path, sizeof(path));
+  if (length == 0 || length >= sizeof(path))
+    return NULL;
+#else
+  char path[4096];
+  ssize_t length = readlink("/proc/self/exe", path, sizeof(path) - 1);
+  if (length <= 0 || (size_t)length >= sizeof(path))
+    return NULL;
+  path[length] = '\0';
+#endif
+
+  char *slash = strrchr(path, '/');
+  char *backslash = strrchr(path, '\\');
+  if (backslash != NULL && (slash == NULL || backslash > slash))
+    slash = backslash;
+  if (slash == NULL)
+    return copyText(".", 1);
+  if (slash == path)
+    return copyText(path, 1);
+  return copyText(path, (size_t)(slash - path));
+}
+
+static char *standardLibraryRoot(void)
+{
+  const char *overridePath = getenv("PB_STDLIB_PATH");
+  if (overridePath != NULL && overridePath[0] != '\0')
+    return copyText(overridePath, strlen(overridePath));
+
+  char *executableRoot = executableDirectory();
+  if (executableRoot != NULL)
+  {
+    char *installedRoot = joinPath(executableRoot, "../share/pb/stdlib");
+    if (installedRoot != NULL && isDirectory(installedRoot))
+    {
+      free(executableRoot);
+      return installedRoot;
+    }
+    free(installedRoot);
+
+    char *developmentRoot = joinPath(executableRoot, "../stdlib");
+    free(executableRoot);
+    if (developmentRoot != NULL && isDirectory(developmentRoot))
+      return developmentRoot;
+    free(developmentRoot);
+  }
+
+  return copyText("stdlib", 6);
 }
 
 bool initModuleLoader(ModuleLoader *loader, const char *entryPath)
@@ -39,11 +132,21 @@ bool initModuleLoader(ModuleLoader *loader, const char *entryPath)
   if (loader->loadedProviders == NULL)
     return false;
 
+  loader->standardRoot = standardLibraryRoot();
+  if (loader->standardRoot == NULL)
+  {
+    free(loader->loadedProviders);
+    loader->loadedProviders = NULL;
+    return false;
+  }
+
   if (entryPath == NULL)
   {
     loader->root = copyText(".", 1);
     if (loader->root != NULL)
       return true;
+    free(loader->standardRoot);
+    loader->standardRoot = NULL;
     free(loader->loadedProviders);
     loader->loadedProviders = NULL;
     return false;
@@ -63,6 +166,8 @@ bool initModuleLoader(ModuleLoader *loader, const char *entryPath)
 
   if (loader->root == NULL)
   {
+    free(loader->standardRoot);
+    loader->standardRoot = NULL;
     free(loader->loadedProviders);
     loader->loadedProviders = NULL;
     return false;
@@ -80,6 +185,7 @@ void freeModuleLoader(ModuleLoader *loader)
   }
   free(loader->loadedProviders);
   free(loader->root);
+  free(loader->standardRoot);
   memset(loader, 0, sizeof(*loader));
 }
 
@@ -128,7 +234,7 @@ static bool validModuleName(const char *name)
   }
 }
 
-static char *modulePath(ModuleLoader *loader, PbVM *vm, const char *name)
+static char *modulePath(const char *root, PbVM *vm, const char *name)
 {
   if (!validModuleName(name))
   {
@@ -139,7 +245,7 @@ static char *modulePath(ModuleLoader *loader, PbVM *vm, const char *name)
     return NULL;
   }
 
-  size_t rootLength = strlen(loader->root);
+  size_t rootLength = strlen(root);
   size_t nameLength = strlen(name);
   char *path = (char *)malloc(rootLength + nameLength + 5);
   if (path == NULL)
@@ -148,7 +254,7 @@ static char *modulePath(ModuleLoader *loader, PbVM *vm, const char *name)
     return NULL;
   }
   snprintf(path, rootLength + nameLength + 5, "%s/%s.pb",
-           loader->root, name);
+           root, name);
   return path;
 }
 
@@ -204,7 +310,9 @@ static char *readModule(PbVM *vm, const char *name, const char *path)
 static bool loadSourceModule(ModuleLoader *loader, PbVM *vm,
                              const char *name)
 {
-  char *path = modulePath(loader, vm, name);
+  bool isStandard = strncmp(name, "std.", 4) == 0 && name[4] != '\0';
+  const char *root = isStandard ? loader->standardRoot : loader->root;
+  char *path = modulePath(root, vm, name);
   if (path == NULL)
     return false;
   char *source = readModule(vm, name, path);

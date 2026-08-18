@@ -6,6 +6,7 @@
 typedef struct
 {
   char *root;
+  char *standardRoot;
   bool *loadedProviders;
   size_t providerCount;
 } ModuleLoader;

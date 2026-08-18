@@ -18,9 +18,10 @@ make
 make install PREFIX="$HOME/.local"
 ```
 
-This installs `pb` for your user. If `~/.local/bin` is on `PATH`, `pb` can then
-be used from any directory. Use `sudo make install` instead for an all-users
-installation under `/usr/local`.
+This installs `pb`, its GUI runtime, and its standard-library sources for your
+user. If `~/.local/bin` is on `PATH`, `pb` can then be used from any directory.
+Use `sudo make install` instead for an all-users installation under
+`/usr/local`.
 
 Run the `main.pb` in a project directory:
 
@@ -294,6 +295,20 @@ The CLI maps `"player"` to `player.pb` and `"game/combat"` to
 `game/combat.pb`. Absolute paths, backslashes, empty path components, `.` and
 `..` components are rejected. Host-provided module names are reserved and take
 precedence over project files.
+
+Standard-library modules use the reserved `std.` namespace and load from the
+standard library shipped beside `pb`, so project files cannot replace them.
+`std.math` is implemented as a normal Pogberry source module:
+
+```pb
+use "std.math";
+
+print(math.pi);
+print(math.sqrt(81));
+print(math.clamp(14, 0, 10));
+```
+
+It exports `pi`, `e`, `abs`, `floor`, `sqrt`, `min`, `max`, and `clamp`.
 
 ## Current GUI module
 

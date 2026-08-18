@@ -30,7 +30,7 @@ The directories describe behavior rather than implementation details:
 
 - `language/` covers syntax and core execution semantics.
 - `collections/` covers lists, maps, strings, and indexing.
-- `standard-library/` covers globally available native functions.
+- `standard-library/` covers prelude functions and imported standard modules.
 - `algorithms/` keeps realistic programs that exercise multiple features.
 - `integration/` combines broad areas of the language.
 - `errors/` locks down compile-time and runtime failures.

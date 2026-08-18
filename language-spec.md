@@ -544,4 +544,5 @@ These requirements exist to keep language semantics separate from VM details:
   identifiers, with source-aware diagnostics and circular-import errors.
 - The CLI resolves safe project-local source modules relative to the entry file.
 - Module imports derive an alias from the final name component when `as` is omitted.
+- The CLI loads the source-defined `std.math` module from its shipped standard library.
 - Shortened embedding and build identifiers to the `Pb`/`pb` prefix.

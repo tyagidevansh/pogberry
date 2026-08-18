@@ -2,6 +2,8 @@ CC ?= gcc
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 RUNTIME_DIR ?= $(PREFIX)/lib/pb
+DATADIR ?= $(PREFIX)/share/pb
+STDLIB_DIR ?= $(DATADIR)/stdlib
 INSTALL ?= install
 
 SRC_DIR := src
@@ -78,9 +80,10 @@ install:
 	@echo "make install is only available on Linux."
 else
 install: $(TARGET)
-	$(INSTALL) -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(RUNTIME_DIR)"
+	$(INSTALL) -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(RUNTIME_DIR)" "$(DESTDIR)$(STDLIB_DIR)"
 	$(INSTALL) -m 755 "$(TARGET)" "$(DESTDIR)$(BINDIR)/pb"
 	$(INSTALL) -m 644 "lib/pb_gui_linux.so" "$(DESTDIR)$(RUNTIME_DIR)/pb_gui_linux.so"
+	$(INSTALL) -m 644 "stdlib/std.math.pb" "$(DESTDIR)$(STDLIB_DIR)/std.math.pb"
 endif
 
 $(GUI_TEST_LIBRARY): tests/runner/fake_gui.c | $(BUILD_DIR)
