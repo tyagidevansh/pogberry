@@ -1,4 +1,8 @@
 CC ?= gcc
+PREFIX ?= /usr/local
+BINDIR ?= $(PREFIX)/bin
+RUNTIME_DIR ?= $(PREFIX)/lib/pb
+INSTALL ?= install
 
 SRC_DIR := src
 BUILD_DIR := build
@@ -46,7 +50,7 @@ GUI_TEST_FLAGS := -fPIC
 TEST_GUI_ENV := PB_GUI_LIBRARY="$(abspath $(GUI_TEST_LIBRARY))"
 endif
 
-.PHONY: all shared test clean
+.PHONY: all shared test install clean
 
 all: $(TARGET)
 
@@ -68,6 +72,16 @@ test: $(TARGET) $(GUI_TEST_LIBRARY) $(HOST_API_TEST)
 	@$(TEST_GUI_ENV) $(HOST_API_TEST)
 	@$(TEST_GUI_ENV) $(PYTHON) $(CLI_MODULE_TEST) $(TARGET)
 	@$(TEST_GUI_ENV) $(PYTHON) $(TEST_RUNNER) $(TEST_PATH) $(TEST_ARGS)
+
+ifeq ($(OS),Windows_NT)
+install:
+	@echo "make install is only available on Linux."
+else
+install: $(TARGET)
+	$(INSTALL) -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(RUNTIME_DIR)"
+	$(INSTALL) -m 755 "$(TARGET)" "$(DESTDIR)$(BINDIR)/pb"
+	$(INSTALL) -m 644 "lib/pb_gui_linux.so" "$(DESTDIR)$(RUNTIME_DIR)/pb_gui_linux.so"
+endif
 
 $(GUI_TEST_LIBRARY): tests/runner/fake_gui.c | $(BUILD_DIR)
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic $(GUI_TEST_FLAGS) -shared $< -o $@

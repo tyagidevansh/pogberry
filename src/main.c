@@ -1,5 +1,8 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #ifndef _WIN32
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -7,6 +10,53 @@
 
 #include "headers/module_loader.h"
 #include "headers/pb.h"
+
+static void printUsage(FILE *stream)
+{
+  fprintf(stream,
+          "Usage:\n"
+          "  pb run [path]\n"
+          "  pb repl\n"
+          "  pb <path>\n");
+}
+
+static bool isDirectory(const char *path)
+{
+#ifdef _WIN32
+  struct _stat info;
+  return _stat(path, &info) == 0 && (info.st_mode & _S_IFDIR) != 0;
+#else
+  struct stat info;
+  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
+#endif
+}
+
+static char *entryPathFor(const char *path)
+{
+  size_t pathLength = strlen(path);
+  if (!isDirectory(path))
+  {
+    char *copy = (char *)malloc(pathLength + 1);
+    if (copy != NULL)
+      memcpy(copy, path, pathLength + 1);
+    return copy;
+  }
+
+  const char *entryName = "main.pb";
+  size_t entryLength = strlen(entryName);
+  bool hasSeparator = pathLength > 0 &&
+                      (path[pathLength - 1] == '/' || path[pathLength - 1] == '\\');
+  size_t separatorLength = hasSeparator ? 0 : 1;
+  char *entryPath = (char *)malloc(pathLength + separatorLength + entryLength + 1);
+  if (entryPath == NULL)
+    return NULL;
+
+  memcpy(entryPath, path, pathLength);
+  if (!hasSeparator)
+    entryPath[pathLength] = '/';
+  memcpy(entryPath + pathLength + separatorLength, entryName, entryLength + 1);
+  return entryPath;
+}
 
 static void repl(PbVM *vm)
 {
@@ -96,15 +146,55 @@ static int runFile(PbVM *vm, const char *path)
 
 int main(int argc, const char *argv[])
 {
-  if (argc > 2)
+  bool startRepl = argc == 1;
+  const char *target = NULL;
+
+  if (argc == 2 &&
+      (strcmp(argv[1], "help") == 0 || strcmp(argv[1], "--help") == 0 ||
+       strcmp(argv[1], "-h") == 0))
   {
-    fprintf(stderr, "Usage: pb [path]\n");
+    printUsage(stdout);
+    return 0;
+  }
+  if (argc >= 2 && strcmp(argv[1], "repl") == 0)
+  {
+    if (argc != 2)
+    {
+      printUsage(stderr);
+      return 64;
+    }
+    startRepl = true;
+  }
+  else if (argc >= 2 && strcmp(argv[1], "run") == 0)
+  {
+    if (argc > 3)
+    {
+      printUsage(stderr);
+      return 64;
+    }
+    target = argc == 3 ? argv[2] : ".";
+  }
+  else if (argc == 2)
+  {
+    target = argv[1];
+  }
+  else if (argc > 2)
+  {
+    printUsage(stderr);
     return 64;
   }
 
-  ModuleLoader loader;
-  if (!initModuleLoader(&loader, argc == 2 ? argv[1] : NULL))
+  char *entryPath = target == NULL ? NULL : entryPathFor(target);
+  if (target != NULL && entryPath == NULL)
   {
+    fprintf(stderr, "Not enough memory to resolve entry path.\n");
+    return 70;
+  }
+
+  ModuleLoader loader;
+  if (!initModuleLoader(&loader, entryPath))
+  {
+    free(entryPath);
     fprintf(stderr, "Could not initialise project.\n");
     return 70;
   }
@@ -116,22 +206,24 @@ int main(int argc, const char *argv[])
   if (vm == NULL)
   {
     freeModuleLoader(&loader);
+    free(entryPath);
     fprintf(stderr, "Could not create VM.\n");
     return 70;
   }
 
   int status;
-  if (argc == 1)
+  if (startRepl)
   {
     repl(vm);
     status = 0;
   }
   else
   {
-    status = runFile(vm, argv[1]);
+    status = runFile(vm, entryPath);
   }
 
   pbDestroyVM(vm);
   freeModuleLoader(&loader);
+  free(entryPath);
   return status;
 }

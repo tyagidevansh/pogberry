@@ -15,19 +15,34 @@ Build the interpreter:
 
 ```sh
 make
+make install PREFIX="$HOME/.local"
 ```
 
-Run a source file:
+This installs `pb` for your user. If `~/.local/bin` is on `PATH`, `pb` can then
+be used from any directory. Use `sudo make install` instead for an all-users
+installation under `/usr/local`.
+
+Run the `main.pb` in a project directory:
 
 ```sh
-build/pb examples/basics/hello_world.pb
+pb run examples/module_project
 ```
 
-Start the REPL:
+From inside a project, the path can be omitted:
 
 ```sh
-build/pb
+pb run
 ```
+
+You can also run a specific source file or start the REPL:
+
+```sh
+pb run examples/basics/hello_world.pb
+pb repl
+```
+
+The older `pb <path>` and bare `pb` forms remain available. Without installing,
+the same commands can still be run as `build/pb` from the repository root.
 
 Build the embeddable shared library:
 
@@ -51,8 +66,8 @@ The [examples](examples/README.md) directory is organized by purpose:
 - `examples/module_project` contains an interactive multi-file terminal game.
 
 ```sh
-build/pb examples/module_project/main.pb
-build/pb examples/games/gui_project/main.pb
+pb run examples/module_project
+pb run examples/games/gui_project
 ```
 
 ## Language basics

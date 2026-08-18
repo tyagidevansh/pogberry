@@ -11,17 +11,27 @@ def write(path: Path, source: str) -> None:
     path.write_text(source, encoding="utf-8")
 
 
-def run(
-    binary: Path, entry: Path, input_text: str | None = None
+def command(
+    binary: Path,
+    arguments: list[str | Path],
+    input_text: str | None = None,
+    cwd: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [str(binary), str(entry)],
+        [str(binary), *(str(argument) for argument in arguments)],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
         input=input_text,
+        cwd=cwd,
         check=False,
     )
+
+
+def run(
+    binary: Path, entry: Path, input_text: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    return command(binary, [entry], input_text)
 
 
 def require(condition: bool, message: str) -> None:
@@ -85,6 +95,31 @@ def main() -> int:
             result.stdout == "rules loaded\nplayer loaded\n85\ntrue\n",
             "nested imports or module caching failed",
         )
+
+        expected = "rules loaded\nplayer loaded\n85\ntrue\n"
+        result = command(binary, ["run", project / "main.pb"])
+        require(result.returncode == 0, "file run command failed")
+        require(result.stdout == expected, "file run command output")
+
+        result = command(binary, ["run", project])
+        require(result.returncode == 0, "directory run command failed")
+        require(result.stdout == expected, "directory run command output")
+
+        result = command(binary, ["run"], cwd=project)
+        require(result.returncode == 0, "current-directory run command failed")
+        require(result.stdout == expected, "current-directory run command output")
+
+        result = command(binary, [project])
+        require(result.returncode == 0, "legacy directory command failed")
+        require(result.stdout == expected, "legacy directory command output")
+
+        result = command(binary, ["repl"], 'print("repl ready");\n')
+        require(result.returncode == 0, "repl command failed")
+        require("repl ready" in result.stdout, "repl command output")
+
+        result = command(binary, ["--help"])
+        require(result.returncode == 0, "help command failed")
+        require("pb run [path]" in result.stdout, "help command output")
 
         write(project / "missing.pb", 'use "unknown" as unknown;\n')
         result = run(binary, project / "missing.pb")

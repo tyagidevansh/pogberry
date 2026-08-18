@@ -480,10 +480,20 @@ static bool openGuiLibrary(void)
     }
   }
 #else
-  const char *path = overridePath != NULL && overridePath[0] != '\0'
-                         ? overridePath
-                         : "lib/pb_gui_linux.so";
-  guiLibrary = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+  if (overridePath != NULL && overridePath[0] != '\0')
+  {
+    guiLibrary = dlopen(overridePath, RTLD_NOW | RTLD_LOCAL);
+  }
+  else
+  {
+    const char *paths[] = {
+        "lib/pb_gui_linux.so",
+        "$ORIGIN/../lib/pb_gui_linux.so",
+        "$ORIGIN/../lib/pb/pb_gui_linux.so",
+    };
+    for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]) && guiLibrary == NULL; i++)
+      guiLibrary = dlopen(paths[i], RTLD_NOW | RTLD_LOCAL);
+  }
 #endif
   return guiLibrary != NULL;
 }
