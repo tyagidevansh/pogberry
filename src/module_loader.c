@@ -16,6 +16,7 @@
 #endif
 
 #include "headers/gui.h"
+#include "headers/math_module.h"
 #include "headers/module_loader.h"
 
 typedef bool (*ModuleProviderLoadFn)(PbVM *vm, const char *name);
@@ -30,6 +31,7 @@ typedef struct
 
 static const ModuleProvider providers[] = {
     {"pb_gui", registerGuiModule, releaseGuiModule},
+    {"pb.math", registerMathModule, NULL},
 };
 
 static char *copyText(const char *text, size_t length)

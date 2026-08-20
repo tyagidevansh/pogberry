@@ -309,6 +309,8 @@ print(math.clamp(14, 0, 10));
 ```
 
 It exports `pi`, `e`, `abs`, `floor`, `sqrt`, `min`, `max`, and `clamp`.
+`abs` and the helpers are Pogberry code. Only `floor` and `sqrt` delegate to
+the host's internal `pb.math` capability.
 
 ## Current GUI module
 
@@ -345,9 +347,6 @@ These functions are currently available without an import:
 
 - `clock()` and `getTime()`
 - `rand()` and `rand(positiveIntegerBound)`
-- `floor(number)`
-- `sqrt(number)`
-- `abs(number)`
 - `strInput()` and `strInput(prompt)`
 - `len(stringOrCollection)`
 - `type(value)`

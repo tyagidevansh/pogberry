@@ -54,16 +54,6 @@ Value randNative(int argCount, Value *args)
     return NUMBER_VAL(nextRandom() % (uint32_t)bound);
 }
 
-Value floorNative(int argCount, Value *args)
-{
-    if (argCount != 1 || !IS_NUMBER(args[0]))
-    {
-        runtimeError("floor expects a single number.");
-        return NIL_VAL;
-    }
-    return NUMBER_VAL(floor(AS_NUMBER(args[0])));
-}
-
 Value strInputNative(int argCount, Value *args)
 {
     if (argCount > 1 || (argCount == 1 && !IS_STRING(args[0])))
@@ -87,26 +77,6 @@ Value strInputNative(int argCount, Value *args)
     }
     buffer[strcspn(buffer, "\n")] = 0;
     return OBJ_VAL(copyString(buffer, strlen(buffer)));
-}
-
-Value sqrtNative(int argCount, Value *args)
-{
-    if (argCount != 1 || !IS_NUMBER(args[0]))
-    {
-        runtimeError("sqrt expects a single number.");
-        return NIL_VAL;
-    }
-    return NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
-}
-
-Value absNative(int argCount, Value *args)
-{
-    if (argCount != 1 || !IS_NUMBER(args[0]))
-    {
-        runtimeError("abs expects a single value.");
-        return NIL_VAL;
-    }
-    return NUMBER_VAL(fabs(AS_NUMBER(args[0])));
 }
 
 int Valuecomp(const void *elem1, const void *elem2)

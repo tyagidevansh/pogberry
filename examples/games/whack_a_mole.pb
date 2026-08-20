@@ -1,4 +1,5 @@
 use "pb_gui" as gui;
+use "std.math";
 
 var BLOCK_SIZE = 100;
 var GRID_WIDTH = 5;
@@ -10,8 +11,8 @@ var moleY = 0;
 var score = 0;
 
 fun spawnMole() {
-    moleX = floor(rand() * GRID_WIDTH);
-    moleY = floor(rand() * GRID_HEIGHT);
+    moleX = math.floor(rand() * GRID_WIDTH);
+    moleY = math.floor(rand() * GRID_HEIGHT);
 }
 
 fun handleClick() {
@@ -19,8 +20,8 @@ fun handleClick() {
         var mx = gui.getMouseX();
         var my = gui.getMouseY();
 
-        var gx = floor(mx / BLOCK_SIZE);
-        var gy = floor(my / BLOCK_SIZE);
+        var gx = math.floor(mx / BLOCK_SIZE);
+        var gy = math.floor(my / BLOCK_SIZE);
 
         if (gx == moleX and gy == moleY) {
             score = score + 1;
@@ -44,7 +45,7 @@ fun drawGame(timeLeft) {
     gui.drawRectangle(moleX * BLOCK_SIZE, moleY * BLOCK_SIZE, BLOCK_SIZE - 2, BLOCK_SIZE - 2, 200, 50, 50);
 
     gui.drawText("Score: " + str(score), 10, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 255, 255, 255);
-    gui.drawText("Time: " + str(floor(timeLeft)), 400, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 200, 200, 0);
+    gui.drawText("Time: " + str(math.floor(timeLeft)), 400, BLOCK_SIZE * GRID_HEIGHT + 10, 24, 200, 200, 0);
 
     gui.endDrawing();
 }

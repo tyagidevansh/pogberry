@@ -1,4 +1,5 @@
 use "pb_gui" as gui;
+use "std.math";
 
 var BLOCK_SIZE = 20;
 var GRID_WIDTH = 40;
@@ -23,8 +24,8 @@ fun resetGame() {
 fun spawnFruit() {
     var placed = false;
     while (!placed) {
-        var fx = floor(rand() * GRID_WIDTH);
-        var fy = floor(rand() * GRID_HEIGHT);
+        var fx = math.floor(rand() * GRID_WIDTH);
+        var fy = math.floor(rand() * GRID_HEIGHT);
         var valid = true;
         var i = 0;
 

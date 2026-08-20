@@ -128,10 +128,7 @@ static void initialiseActiveVM(const PbConfig *config)
     vm.randomState = 0x9e3779b9u;
   defineNative("clock", clockNative);
   defineNative("rand", randNative);
-  defineNative("floor", floorNative);
   defineNative("strInput", strInputNative);
-  defineNative("sqrt", sqrtNative);
-  defineNative("abs", absNative);
   defineNative("getTime", getTime);
   defineNative("len", lenNative);
   defineNative("type", typeNative);

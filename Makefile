@@ -30,7 +30,8 @@ endif
 TARGET := $(BUILD_DIR)/pb$(EXEEXT)
 SOURCES := $(wildcard $(SRC_DIR)/*.c)
 OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
-CORE_OBJECTS := $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/module_loader.o,$(OBJECTS))
+HOST_OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/module_loader.o $(BUILD_DIR)/math_module.o
+CORE_OBJECTS := $(filter-out $(HOST_OBJECTS),$(OBJECTS))
 DEPS := $(OBJECTS:.o=.d)
 
 CPPFLAGS := -I$(SRC_DIR)
