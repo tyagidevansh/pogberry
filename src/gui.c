@@ -46,7 +46,7 @@ typedef int (*GetScreenWidthFunc)(void);
 typedef int (*GetScreenHeightFunc)(void);
 typedef int (*GetFPSFunc)(void);
 
-#define GUI_BINDINGS(X) \
+#define GUI_WINDOW_BINDINGS(X) \
   X(initWindow, InitWindowFunc, "initWindow", initWindowNative) \
   X(closeWindow, CloseWindowFunc, "closeWindow", closeWindowNative) \
   X(windowShouldClose, WindowShouldCloseFunc, "windowShouldClose", windowShouldCloseNative) \
@@ -55,10 +55,12 @@ typedef int (*GetFPSFunc)(void);
   X(getScreenWidth, GetScreenWidthFunc, "getScreenWidth", getScreenWidthNative) \
   X(getScreenHeight, GetScreenHeightFunc, "getScreenHeight", getScreenHeightNative) \
   X(getFPS, GetFPSFunc, "getFPS", getFPSNative) \
+  X(setTargetFPS, SetTargetFPSFunc, "setTargetFPS", setTargetFPSNative)
+
+#define GUI_LEGACY_BINDINGS(X) \
   X(clearBackground, ClearBackgroundFunc, "clearBackground", clearBackgroundNative) \
   X(beginDrawing, BeginDrawingFunc, "beginDrawing", beginDrawingNative) \
   X(endDrawing, EndDrawingFunc, "endDrawing", endDrawingNative) \
-  X(setTargetFPS, SetTargetFPSFunc, "setTargetFPS", setTargetFPSNative) \
   X(swapScreenBuffer, SwapScreenBufferFunc, "swapScreenBuffer", swapScreenBufferNative) \
   X(drawPixel, DrawPixelFunc, "drawPixel", drawPixelNative) \
   X(drawLine, DrawLineFunc, "drawLine", drawLineNative) \
@@ -78,6 +80,10 @@ typedef int (*GetFPSFunc)(void);
   X(isMouseButtonUp, IsMouseButtonUpFunc, "isMouseButtonUp", isMouseButtonUpNative) \
   X(getMouseX, GetMouseXFunc, "getMouseX", getMouseXNative) \
   X(getMouseY, GetMouseYFunc, "getMouseY", getMouseYNative)
+
+#define GUI_BINDINGS(X) \
+  GUI_WINDOW_BINDINGS(X) \
+  GUI_LEGACY_BINDINGS(X)
 
 #define GUI_FIELD(field, type, symbol, native) type field;
 typedef struct
@@ -158,70 +164,111 @@ static Value argumentError(const char *message)
   return NIL_VAL;
 }
 
-static Value initWindowNative(int argCount, Value *args)
+static PbValue guiArgumentError(PbVM *instance, const char *message)
 {
-  if (argCount != 3 || !IS_NUMBER(args[0]) || !IS_NUMBER(args[1]) || !IS_STRING(args[2]))
-    return argumentError("initWindow(width, height, title) expected.");
-  gui.initWindow((int)AS_NUMBER(args[0]), (int)AS_NUMBER(args[1]), AS_CSTRING(args[2]));
-  return NIL_VAL;
+    pbRuntimeError(instance, message);
+  return pbNilValue();
 }
 
-static Value closeWindowNative(int argCount, Value *args)
+static PbValue initWindowNative(PbVM *instance, int argCount,
+                                const PbValue *args, void *userData)
+{
+  (void)userData;
+  if (argCount != 3 || args[0].type != PB_VALUE_NUMBER ||
+      args[1].type != PB_VALUE_NUMBER || args[2].type != PB_VALUE_STRING)
+    return guiArgumentError(instance,
+                            "initWindow(width, height, title) expected.");
+  gui.initWindow((int)args[0].as.number, (int)args[1].as.number,
+                 args[2].as.string.chars);
+  return pbNilValue();
+}
+
+static PbValue closeWindowNative(PbVM *instance, int argCount,
+                                 const PbValue *args, void *userData)
 {
   (void)args;
+  (void)userData;
   if (argCount != 0)
-    return argumentError("closeWindow() takes no arguments.");
+    return guiArgumentError(instance, "closeWindow() takes no arguments.");
   gui.closeWindow();
-  return NIL_VAL;
+  return pbNilValue();
 }
 
-static Value windowShouldCloseNative(int argCount, Value *args)
+static PbValue windowShouldCloseNative(PbVM *instance, int argCount,
+                                       const PbValue *args, void *userData)
 {
   (void)args;
+  (void)userData;
   if (argCount != 0)
-    return argumentError("windowShouldClose() takes no arguments.");
-  return BOOL_VAL(gui.windowShouldClose());
+    return guiArgumentError(instance,
+                            "windowShouldClose() takes no arguments.");
+  return pbBoolValue(gui.windowShouldClose());
 }
 
-static Value isWindowMinimizedNative(int argCount, Value *args)
+static PbValue isWindowMinimizedNative(PbVM *instance, int argCount,
+                                       const PbValue *args, void *userData)
 {
   (void)args;
+  (void)userData;
   if (argCount != 0)
-    return argumentError("isWindowMinimized() takes no arguments.");
-  return BOOL_VAL(gui.isWindowMinimized());
+    return guiArgumentError(instance,
+                            "isWindowMinimized() takes no arguments.");
+  return pbBoolValue(gui.isWindowMinimized());
 }
 
-static Value toggleBorderlessWindowedNative(int argCount, Value *args)
+static PbValue toggleBorderlessWindowedNative(PbVM *instance, int argCount,
+                                              const PbValue *args,
+                                              void *userData)
 {
   (void)args;
+  (void)userData;
   if (argCount != 0)
-    return argumentError("toggleBorderlessWindowed() takes no arguments.");
+    return guiArgumentError(
+        instance, "toggleBorderlessWindowed() takes no arguments.");
   gui.toggleBorderlessWindowed();
-  return NIL_VAL;
+  return pbNilValue();
 }
 
-static Value getScreenWidthNative(int argCount, Value *args)
+static PbValue getScreenWidthNative(PbVM *instance, int argCount,
+                                    const PbValue *args, void *userData)
 {
   (void)args;
+  (void)userData;
   if (argCount != 0)
-    return argumentError("getScreenWidth() takes no arguments.");
-  return NUMBER_VAL(gui.getScreenWidth());
+    return guiArgumentError(instance,
+                            "getScreenWidth() takes no arguments.");
+  return pbNumberValue(gui.getScreenWidth());
 }
 
-static Value getScreenHeightNative(int argCount, Value *args)
+static PbValue getScreenHeightNative(PbVM *instance, int argCount,
+                                     const PbValue *args, void *userData)
 {
   (void)args;
+  (void)userData;
   if (argCount != 0)
-    return argumentError("getScreenHeight() takes no arguments.");
-  return NUMBER_VAL(gui.getScreenHeight());
+    return guiArgumentError(instance,
+                            "getScreenHeight() takes no arguments.");
+  return pbNumberValue(gui.getScreenHeight());
 }
 
-static Value getFPSNative(int argCount, Value *args)
+static PbValue getFPSNative(PbVM *instance, int argCount,
+                            const PbValue *args, void *userData)
 {
   (void)args;
+  (void)userData;
   if (argCount != 0)
-    return argumentError("getFPS() takes no arguments.");
-  return NUMBER_VAL(gui.getFPS());
+    return guiArgumentError(instance, "getFPS() takes no arguments.");
+  return pbNumberValue(gui.getFPS());
+}
+
+static PbValue setTargetFPSNative(PbVM *instance, int argCount,
+                                  const PbValue *args, void *userData)
+{
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_NUMBER)
+    return guiArgumentError(instance, "setTargetFPS(fps) expected.");
+  gui.setTargetFPS((int)args[0].as.number);
+  return pbNilValue();
 }
 
 static Value clearBackgroundNative(int argCount, Value *args)
@@ -248,14 +295,6 @@ static Value endDrawingNative(int argCount, Value *args)
   if (argCount != 0)
     return argumentError("endDrawing() takes no arguments.");
   gui.endDrawing();
-  return NIL_VAL;
-}
-
-static Value setTargetFPSNative(int argCount, Value *args)
-{
-  if (argCount != 1 || !IS_NUMBER(args[0]))
-    return argumentError("setTargetFPS(fps) expected.");
-  gui.setTargetFPS((int)AS_NUMBER(args[0]));
   return NIL_VAL;
 }
 
@@ -572,9 +611,15 @@ typedef struct
 
 #define GUI_NATIVE(field, type, symbol, native) {symbol, native},
 static GuiNative guiNatives[] = {
-    GUI_BINDINGS(GUI_NATIVE)
+    GUI_LEGACY_BINDINGS(GUI_NATIVE)
 };
 #undef GUI_NATIVE
+
+#define GUI_DIRECT_NATIVE(field, type, symbol, native) {symbol, native, NULL},
+static const PbNativeDefinition guiDirectNatives[] = {
+    GUI_WINDOW_BINDINGS(GUI_DIRECT_NATIVE)
+};
+#undef GUI_DIRECT_NATIVE
 
 static Value fromPbValue(PbValue value)
 {
@@ -643,13 +688,20 @@ bool registerGuiModule(PbVM *instance, const char *name)
   if (!loadGui())
     return false;
 
-  size_t count = sizeof(guiNatives) / sizeof(guiNatives[0]);
-  PbNativeDefinition definitions[sizeof(guiNatives) / sizeof(guiNatives[0])];
-  for (size_t i = 0; i < count; i++)
+  size_t directCount = sizeof(guiDirectNatives) / sizeof(guiDirectNatives[0]);
+  size_t legacyCount = sizeof(guiNatives) / sizeof(guiNatives[0]);
+  size_t count = directCount + legacyCount;
+  PbNativeDefinition definitions[
+      sizeof(guiDirectNatives) / sizeof(guiDirectNatives[0]) +
+      sizeof(guiNatives) / sizeof(guiNatives[0])];
+  for (size_t i = 0; i < directCount; i++)
+    definitions[i] = guiDirectNatives[i];
+  for (size_t i = 0; i < legacyCount; i++)
   {
-    definitions[i].name = guiNatives[i].name;
-    definitions[i].function = callGuiNative;
-    definitions[i].userData = &guiNatives[i];
+    size_t definition = directCount + i;
+    definitions[definition].name = guiNatives[i].name;
+    definitions[definition].function = callGuiNative;
+    definitions[definition].userData = &guiNatives[i];
   }
   if (!pbRegisterCapability(instance, name, definitions, count))
   {

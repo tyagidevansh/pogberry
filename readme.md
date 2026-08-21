@@ -337,6 +337,8 @@ The module currently provides window control, drawing primitives, text,
 keyboard queries, mouse queries, screen dimensions, and FPS information. Its
 implementation dynamically loads the platform GUI library through the host;
 scripts never call `dlopen` or load arbitrary native libraries themselves.
+Window and lifecycle functions now use the public host callback API directly.
+Drawing and input still pass through the old internal adapter.
 
 `pb_gui` is a transitional module. The planned game API will split it into
 smaller engine modules while preserving the same module boundary.
