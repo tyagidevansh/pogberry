@@ -20,7 +20,7 @@ CLEAN_BUILD = cmd /c if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)"
 else
 EXEEXT :=
 LDLIBS := -lm -lreadline -ldl
-CORE_LDLIBS := -lm -ldl
+CORE_LDLIBS := -lm
 PLATFORM_CFLAGS := -fPIC
 SHARED_LIBRARY := $(BUILD_DIR)/libpb.so
 MAKE_DIR = mkdir -p "$(1)"
@@ -30,7 +30,8 @@ endif
 TARGET := $(BUILD_DIR)/pb$(EXEEXT)
 SOURCES := $(wildcard $(SRC_DIR)/*.c)
 OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
-HOST_OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/module_loader.o $(BUILD_DIR)/math_module.o
+HOST_OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/module_loader.o \
+	$(BUILD_DIR)/math_module.o $(BUILD_DIR)/gui.o
 CORE_OBJECTS := $(filter-out $(HOST_OBJECTS),$(OBJECTS))
 DEPS := $(OBJECTS:.o=.d)
 

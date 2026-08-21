@@ -392,9 +392,10 @@ Source passes through a scanner and a single-pass Pratt compiler into bytecode.
 The VM executes that bytecode with lexical closures, per-VM globals, module
 namespaces, native callbacks, interned strings, and garbage-collected objects.
 
-The CLI owns filesystem and built-in module resolution. The language core does
-not know about project paths or `pb_gui`, which keeps the shared VM reusable by
-the editor and other embedding hosts.
+The CLI owns filesystem and built-in module resolution. Its host objects include
+the current GUI adapter and internal math capability; neither is linked into the
+shared VM. The language core does not know about project paths or `pb_gui`,
+which keeps it reusable by the editor and other embedding hosts.
 
 See [`language-spec.md`](language-spec.md) for the target language design and
 [`tests/README.md`](tests/README.md) for the test runner.

@@ -545,4 +545,5 @@ These requirements exist to keep language semantics separate from VM details:
 - The CLI resolves safe project-local source modules relative to the entry file.
 - Module imports derive an alias from the final name component when `as` is omitted.
 - `std.math` is source-defined; only `floor` and `sqrt` use an internal host capability.
+- The transitional GUI adapter is owned by the CLI host, not the shared VM core.
 - Shortened embedding and build identifiers to the `Pb`/`pb` prefix.
