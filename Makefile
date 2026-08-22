@@ -28,11 +28,12 @@ CLEAN_BUILD = rm -rf "$(BUILD_DIR)"
 endif
 
 TARGET := $(BUILD_DIR)/pb$(EXEEXT)
-SOURCES := $(wildcard $(SRC_DIR)/*.c)
-OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
-HOST_OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/module_loader.o \
-	$(BUILD_DIR)/math_module.o $(BUILD_DIR)/gui.o
-CORE_OBJECTS := $(filter-out $(HOST_OBJECTS),$(OBJECTS))
+CORE_SOURCES := $(wildcard $(SRC_DIR)/*.c)
+HOST_SOURCES := $(wildcard $(SRC_DIR)/host/*.c) \
+	$(wildcard $(SRC_DIR)/host/modules/*.c)
+CORE_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(CORE_SOURCES))
+HOST_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(HOST_SOURCES))
+OBJECTS := $(CORE_OBJECTS) $(HOST_OBJECTS)
 DEPS := $(OBJECTS:.o=.d)
 
 CPPFLAGS := -I$(SRC_DIR)
@@ -66,7 +67,8 @@ $(TARGET): $(OBJECTS) | $(BUILD_DIR)
 $(SHARED_LIBRARY): $(CORE_OBJECTS) | $(BUILD_DIR)
 	$(CC) -shared $(CORE_OBJECTS) $(LDFLAGS) $(CORE_LDLIBS) -o $@
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@$(call MAKE_DIR,$(@D))
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR):

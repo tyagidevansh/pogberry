@@ -15,9 +15,9 @@
 #include <unistd.h>
 #endif
 
-#include "headers/gui.h"
-#include "headers/math_module.h"
-#include "headers/module_loader.h"
+#include "host/module_loader.h"
+#include "host/modules/gui.h"
+#include "host/modules/math.h"
 
 typedef bool (*ModuleProviderLoadFn)(PbVM *vm, const char *name);
 typedef void (*ModuleProviderUnloadFn)(void);

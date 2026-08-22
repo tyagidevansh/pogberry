@@ -1,7 +1,7 @@
-#ifndef PB_GUI_H
-#define PB_GUI_H
+#ifndef PB_HOST_GUI_H
+#define PB_HOST_GUI_H
 
-#include "pb.h"
+#include "headers/pb.h"
 
 bool registerGuiModule(PbVM *vm, const char *name);
 void releaseGuiModule(void);

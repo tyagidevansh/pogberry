@@ -1,6 +1,6 @@
 #include <math.h>
 
-#include "headers/math_module.h"
+#include "host/modules/math.h"
 
 static PbValue mathFloor(PbVM *vm, int argCount,
                          const PbValue *args, void *userData)

@@ -1,7 +1,7 @@
-#ifndef PB_MODULE_LOADER_H
-#define PB_MODULE_LOADER_H
+#ifndef PB_HOST_MODULE_LOADER_H
+#define PB_HOST_MODULE_LOADER_H
 
-#include "pb.h"
+#include "headers/pb.h"
 
 typedef struct
 {

@@ -8,7 +8,7 @@
 #include <readline/history.h>
 #endif
 
-#include "headers/module_loader.h"
+#include "host/module_loader.h"
 #include "headers/pb.h"
 
 static void printUsage(FILE *stream)
