@@ -4,8 +4,8 @@
 #include "object.h"
 #include "vm.h"
 
-ObjFunction* compile(const char* source);
-ObjFunction* compileModule(const char* source, const char* moduleName);
+ObjFunction *compile(const char *source);
+ObjFunction *compileModule(const char *source, const char *moduleName);
 void markCompilerRoots();
 
 #endif // !clox_compiler_h

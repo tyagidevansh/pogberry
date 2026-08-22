@@ -21,21 +21,21 @@ typedef struct {
   int firstOrder;
   int lastOrder;
   int freeList;
-  MapEntry* entries;
-  int* buckets;
+  MapEntry *entries;
+  int *buckets;
 } Map;
 
-void initMap(Map* map);
-void freeMap(Map* map);
-void markMap(Map* map);
+void initMap(Map *map);
+void freeMap(Map *map);
+void markMap(Map *map);
 bool mapKeyIsValid(Value key);
-bool mapGet(Map* map, Value key, Value* value);
-bool mapSet(Map* map, Value key, Value value, bool* isNewKey);
-bool mapDelete(Map* map, Value key);
-void mapClear(Map* map);
-int mapCount(Map* map);
-int mapFirstEntry(Map* map);
-int mapNextEntry(Map* map, int entryIndex);
-MapEntry* mapEntryAt(Map* map, int entryIndex);
+bool mapGet(Map *map, Value key, Value *value);
+bool mapSet(Map *map, Value key, Value value, bool *isNewKey);
+bool mapDelete(Map *map, Value key);
+void mapClear(Map *map);
+int mapCount(Map *map);
+int mapFirstEntry(Map *map);
+int mapNextEntry(Map *map, int entryIndex);
+MapEntry *mapEntryAt(Map *map, int entryIndex);
 
 #endif

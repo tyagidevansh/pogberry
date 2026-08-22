@@ -9,32 +9,33 @@
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
-typedef struct
-{
+typedef struct {
   ObjClosure *closure;
   uint8_t *ip;
   Value *slots;
 } CallFrame;
 
-typedef struct
-{
+typedef struct {
   char *name;
   PbNativeDefinition *definitions;
   size_t definitionCount;
   char *source;
 } HostCapability;
 
-struct PbVM
-{
+struct PbVM {
   CallFrame frames[FRAMES_MAX];
   int frameCount;
   bool hadRuntimeError;
 
-  Value stack[STACK_MAX]; // time for implementing a stack in the virtual machine babyyyy also this is the pointer to the first element of the array by default (if we dont do any pointer arithmetic)
-  Value *stackTop;        // pointer to the element (pointer faster than indexing) just after the last stack, so pointing to 0 index means stack empty
+  Value stack[STACK_MAX]; // time for implementing a stack in the virtual machine babyyyy also this is the pointer to
+                          // the first element of the array by default (if we dont do any pointer arithmetic)
+  Value *stackTop; // pointer to the element (pointer faster than indexing) just after the last stack, so pointing to 0
+                   // index means stack empty
   Table globals;
   Table prelude;
-  Table strings; // for interning strings, each unique string will only be stored once in memory, so "=" operation can be carried out fast -> just compare the memory address rather than comparing the string character by character
+  Table strings; // for interning strings, each unique string will only be stored once in memory, so "=" operation can
+                 // be carried out fast -> just compare the memory address rather than comparing the string character by
+                 // character
   Table modules;
   ObjString *initString;
   ObjUpvalue *openUpvalues;

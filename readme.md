@@ -335,9 +335,18 @@ gui.closeWindow();
 
 The module currently provides window control, drawing primitives, text,
 keyboard queries, mouse queries, screen dimensions, and FPS information. Its
-implementation dynamically loads the platform GUI library through the host;
-scripts never call `dlopen` or load arbitrary native libraries themselves.
-All GUI functions use the public host callback API directly.
+current implementation is the Raylib adapter in `src/host/modules/raylib.c`,
+with platform bindings in `backends/raylib`. It loads the backend through the
+host; scripts never call `dlopen` or load arbitrary native libraries
+themselves. `pb_gui` stays backend-neutral, so another adapter can replace
+Raylib in the host module table without changing game code. Set
+`PB_RAYLIB_LIBRARY` to override the backend library while developing or testing.
+
+The practical API also includes held-key input, mouse-wheel movement, frame
+time, text measurement, outline circles and rectangles, window focus and resize
+queries, title changes, and fullscreen toggling. RGB channels must be integers
+from `0` through `255`. `endDrawing()` completes and presents the frame; there
+is no separate screen-swap function.
 
 `pb_gui` is a transitional module. The planned game API will split it into
 smaller engine modules while preserving the same module boundary.

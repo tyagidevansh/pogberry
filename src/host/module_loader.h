@@ -3,8 +3,7 @@
 
 #include "headers/pb.h"
 
-typedef struct
-{
+typedef struct {
   char *root;
   char *standardRoot;
   bool *loadedProviders;

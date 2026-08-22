@@ -27,7 +27,7 @@ Value mapClearNative(int argCount, Value *args);
 Value lenNative(int argCount, Value *args);
 Value typeNative(int argCount, Value *args);
 Value strNative(int argCount, Value *args);
-Value getTime(int argCount, Value* args);
+Value getTime(int argCount, Value *args);
 
 void defineNative(const char *name, NativeFn function);
 void defineHostNative(const char *name, PbNativeFn function, void *userData);

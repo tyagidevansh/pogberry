@@ -8,30 +8,30 @@
 #include "map.h"
 #include "pb.h"
 
-#define OBJ_TYPE(value)      (AS_OBJ(value)->type)
+#define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
-#define IS_FUNCTION(value)    isObjType(value, OBJ_FUNCTION)
-#define IS_CLOSURE(value)     isObjType(value, OBJ_CLOSURE)
-#define IS_NATIVE(value)      isObjType(value, OBJ_NATIVE)
-#define IS_STRING(value)      isObjType(value, OBJ_STRING)
-#define IS_LIST(value)        isObjType(value, OBJ_LIST)
-#define IS_HASHMAP(value)     isObjType(value, OBJ_HASHMAP)
-#define IS_CLASS(value)       isObjType(value, OBJ_CLASS)
-#define IS_INSTANCE(value)    isObjType(value, OBJ_INSTANCE)
+#define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
+#define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
+#define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
+#define IS_STRING(value) isObjType(value, OBJ_STRING)
+#define IS_LIST(value) isObjType(value, OBJ_LIST)
+#define IS_HASHMAP(value) isObjType(value, OBJ_HASHMAP)
+#define IS_CLASS(value) isObjType(value, OBJ_CLASS)
+#define IS_INSTANCE(value) isObjType(value, OBJ_INSTANCE)
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
-#define IS_MODULE(value)      isObjType(value, OBJ_MODULE)
+#define IS_MODULE(value) isObjType(value, OBJ_MODULE)
 
-#define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
-#define AS_CLOSURE(value)      ((ObjClosure*)AS_OBJ(value))
-#define AS_NATIVE(value)      ((ObjNative*)AS_OBJ(value))
-#define AS_STRING(value)      ((ObjString*)AS_OBJ(value))
-#define AS_CSTRING(value)     (((ObjString*)AS_OBJ(value))->chars)
-#define AS_LIST(value)        ((ObjList*)AS_OBJ(value))
-#define AS_HASHMAP(value)     ((ObjHashmap*)AS_OBJ(value))
-#define AS_CLASS(value)       ((ObjClass*)AS_OBJ(value))
-#define AS_INSTANCE(value)    ((ObjInstance*)AS_OBJ(value))
-#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
-#define AS_MODULE(value)      ((ObjModule*)AS_OBJ(value))
+#define AS_FUNCTION(value) ((ObjFunction *)AS_OBJ(value))
+#define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
+#define AS_NATIVE(value) ((ObjNative *)AS_OBJ(value))
+#define AS_STRING(value) ((ObjString *)AS_OBJ(value))
+#define AS_CSTRING(value) (((ObjString *)AS_OBJ(value))->chars)
+#define AS_LIST(value) ((ObjList *)AS_OBJ(value))
+#define AS_HASHMAP(value) ((ObjHashmap *)AS_OBJ(value))
+#define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
+#define AS_INSTANCE(value) ((ObjInstance *)AS_OBJ(value))
+#define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
+#define AS_MODULE(value) ((ObjModule *)AS_OBJ(value))
 
 typedef enum {
   OBJ_FUNCTION,
@@ -50,7 +50,7 @@ typedef enum {
 struct Obj {
   ObjType type;
   bool isMarked;
-  struct Obj* next;
+  struct Obj *next;
 };
 
 typedef struct ObjFunction {
@@ -58,42 +58,43 @@ typedef struct ObjFunction {
   int arity;
   int upvalueCount;
   Chunk chunk;
-  ObjString* name;
-  ObjString* sourceName;
+  ObjString *name;
+  ObjString *sourceName;
 } ObjFunction;
 
 typedef struct ObjModule ObjModule;
 
 typedef struct ObjUpvalue {
   Obj obj;
-  Value* location;
+  Value *location;
   Value closed;
-  struct ObjUpvalue* next;
+  struct ObjUpvalue *next;
 } ObjUpvalue;
 
 typedef struct {
   Obj obj;
-  ObjFunction* function;
-  ObjUpvalue** upvalues;
+  ObjFunction *function;
+  ObjUpvalue **upvalues;
   int upvalueCount;
-  ObjModule* module;
+  ObjModule *module;
 } ObjClosure;
 
-typedef Value (*NativeFn)(int argCount, Value* args);
+typedef Value (*NativeFn)(int argCount, Value *args);
 
 typedef struct {
   Obj obj;
   NativeFn legacyFunction;
   PbNativeFn hostFunction;
-  void* userData;
+  void *userData;
 } ObjNative;
 
 // string payload
 struct ObjString {
   Obj obj;
   int length;
-  char* chars;
-  uint32_t hash; //each string stores its own hash so we dont have to calculate it everytime we have to look something up in the hashmap
+  char *chars;
+  uint32_t hash; // each string stores its own hash so we dont have to calculate it everytime we have to look something
+                 // up in the hashmap
 };
 
 typedef struct {
@@ -109,48 +110,47 @@ typedef struct {
 
 typedef struct {
   Obj obj;
-  ObjString* name;
+  ObjString *name;
   Table methods;
 } ObjClass;
 
 typedef struct {
   Obj obj;
-  ObjClass* klass;
+  ObjClass *klass;
   Table fields;
 } ObjInstance;
 
 typedef struct {
   Obj obj;
   Value receiver;
-  ObjClosure* method;
+  ObjClosure *method;
 } ObjBoundMethod;
 
 struct ObjModule {
   Obj obj;
-  ObjString* name;
+  ObjString *name;
   Table globals;
   Table exports;
   bool isLoading;
 };
 
-ObjFunction* newFunction();
-ObjClosure* newClosure(ObjFunction* function);
-ObjUpvalue* newUpvalue(Value* slot);
-ObjNative* newNative(NativeFn function);
-ObjNative* newHostNative(PbNativeFn function, void* userData);
-ObjString* takeString(char* chars, int length);
-ObjString* copyString(const char* chars, int length);
-ObjList* newList();
-ObjHashmap* newHashmap();
-ObjClass* newClass(ObjString* name);
-ObjInstance* newInstance(ObjClass* klass);
-ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
-ObjModule* newModule(ObjString* name);
+ObjFunction *newFunction();
+ObjClosure *newClosure(ObjFunction *function);
+ObjUpvalue *newUpvalue(Value *slot);
+ObjNative *newNative(NativeFn function);
+ObjNative *newHostNative(PbNativeFn function, void *userData);
+ObjString *takeString(char *chars, int length);
+ObjString *copyString(const char *chars, int length);
+ObjList *newList();
+ObjHashmap *newHashmap();
+ObjClass *newClass(ObjString *name);
+ObjInstance *newInstance(ObjClass *klass);
+ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
+ObjModule *newModule(ObjString *name);
 void printObject(Value value);
 
-// function rather than just putting it in the macro coz this uses a value twice, that would cause the macro to be evaluated twice
-static inline bool isObjType(Value value, ObjType type) {
-  return IS_OBJ(value) && AS_OBJ(value)->type == type;
-}
+// function rather than just putting it in the macro coz this uses a value twice, that would cause the macro to be
+// evaluated twice
+static inline bool isObjType(Value value, ObjType type) { return IS_OBJ(value) && AS_OBJ(value)->type == type; }
 
-#endif 
+#endif

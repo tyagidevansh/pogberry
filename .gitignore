@@ -1,7 +1,8 @@
-.vscode
+.vscode/
 *.o
 *.exe
 test.pb
 /build/
 pb
 .log
+.clang-format

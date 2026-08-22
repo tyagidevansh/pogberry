@@ -1,7 +1,7 @@
 use "pb_gui" as gui;
-gui.isMouseButtonDown("NOPE");
+gui.swapScreenBuffer();
 // EXPECTED STATUS: 70
 // EXPECTED OUTPUT:
-//|Invalid mouse button name: NOPE.
+//|Module 'pb_gui' does not export 'swapScreenBuffer'.
 //|[line 2] in script
 // END EXPECTED OUTPUT

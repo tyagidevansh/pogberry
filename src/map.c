@@ -22,20 +22,20 @@ static uint32_t hashNumber(double number) {
 
 static uint32_t mapKeyHash(Value key) {
   switch (key.type) {
-    case VAL_NIL:
-      return 0x9e3779b9u;
-    case VAL_BOOL:
-      return AS_BOOL(key) ? 0x85ebca6bu : 0xc2b2ae35u;
-    case VAL_NUMBER:
-      return hashNumber(AS_NUMBER(key));
-    case VAL_OBJ:
-      return AS_STRING(key)->hash;
+  case VAL_NIL:
+    return 0x9e3779b9u;
+  case VAL_BOOL:
+    return AS_BOOL(key) ? 0x85ebca6bu : 0xc2b2ae35u;
+  case VAL_NUMBER:
+    return hashNumber(AS_NUMBER(key));
+  case VAL_OBJ:
+    return AS_STRING(key)->hash;
   }
 
   return 0;
 }
 
-static int findEntry(Map* map, Value key, uint32_t hash, int* previous) {
+static int findEntry(Map *map, Value key, uint32_t hash, int *previous) {
   if (map->bucketCapacity == 0) return -1;
 
   int bucket = (int)(hash & (uint32_t)(map->bucketCapacity - 1));
@@ -43,7 +43,7 @@ static int findEntry(Map* map, Value key, uint32_t hash, int* previous) {
   int prior = -1;
 
   while (current != -1) {
-    MapEntry* entry = &map->entries[current];
+    MapEntry *entry = &map->entries[current];
     if (entry->hash == hash && valuesEqual(entry->key, key)) {
       if (previous != NULL) *previous = prior;
       return current;
@@ -56,14 +56,14 @@ static int findEntry(Map* map, Value key, uint32_t hash, int* previous) {
   return -1;
 }
 
-static void adjustBucketCapacity(Map* map, int capacity) {
-  int* buckets = ALLOCATE(int, capacity);
+static void adjustBucketCapacity(Map *map, int capacity) {
+  int *buckets = ALLOCATE(int, capacity);
   for (int i = 0; i < capacity; i++) {
     buckets[i] = -1;
   }
 
   for (int i = 0; i < map->used; i++) {
-    MapEntry* entry = &map->entries[i];
+    MapEntry *entry = &map->entries[i];
     if (!entry->occupied) continue;
 
     int bucket = (int)(entry->hash & (uint32_t)(capacity - 1));
@@ -76,7 +76,7 @@ static void adjustBucketCapacity(Map* map, int capacity) {
   map->bucketCapacity = capacity;
 }
 
-static int allocateEntry(Map* map) {
+static int allocateEntry(Map *map) {
   if (map->freeList != -1) {
     int index = map->freeList;
     map->freeList = map->entries[index].nextBucket;
@@ -92,7 +92,7 @@ static int allocateEntry(Map* map) {
   return map->used++;
 }
 
-void initMap(Map* map) {
+void initMap(Map *map) {
   map->count = 0;
   map->capacity = 0;
   map->used = 0;
@@ -104,7 +104,7 @@ void initMap(Map* map) {
   map->buckets = NULL;
 }
 
-void freeMap(Map* map) {
+void freeMap(Map *map) {
   FREE_ARRAY(MapEntry, map->entries, map->capacity);
   FREE_ARRAY(int, map->buckets, map->bucketCapacity);
   initMap(map);
@@ -116,7 +116,7 @@ bool mapKeyIsValid(Value key) {
   return IS_STRING(key);
 }
 
-bool mapGet(Map* map, Value key, Value* value) {
+bool mapGet(Map *map, Value key, Value *value) {
   if (!mapKeyIsValid(key)) return false;
 
   int index = findEntry(map, key, mapKeyHash(key), NULL);
@@ -126,7 +126,7 @@ bool mapGet(Map* map, Value key, Value* value) {
   return true;
 }
 
-bool mapSet(Map* map, Value key, Value value, bool* isNewKey) {
+bool mapSet(Map *map, Value key, Value value, bool *isNewKey) {
   if (!mapKeyIsValid(key)) return false;
 
   uint32_t hash = mapKeyHash(key);
@@ -142,7 +142,7 @@ bool mapSet(Map* map, Value key, Value value, bool* isNewKey) {
   }
 
   int index = allocateEntry(map);
-  MapEntry* entry = &map->entries[index];
+  MapEntry *entry = &map->entries[index];
   int bucket = (int)(hash & (uint32_t)(map->bucketCapacity - 1));
 
   entry->key = key;
@@ -166,7 +166,7 @@ bool mapSet(Map* map, Value key, Value value, bool* isNewKey) {
   return true;
 }
 
-bool mapDelete(Map* map, Value key) {
+bool mapDelete(Map *map, Value key) {
   if (!mapKeyIsValid(key)) return false;
 
   uint32_t hash = mapKeyHash(key);
@@ -174,7 +174,7 @@ bool mapDelete(Map* map, Value key) {
   int index = findEntry(map, key, hash, &previousBucket);
   if (index == -1) return false;
 
-  MapEntry* entry = &map->entries[index];
+  MapEntry *entry = &map->entries[index];
   int bucket = (int)(hash & (uint32_t)(map->bucketCapacity - 1));
   if (previousBucket == -1) {
     map->buckets[bucket] = entry->nextBucket;
@@ -204,29 +204,19 @@ bool mapDelete(Map* map, Value key) {
   return true;
 }
 
-void mapClear(Map* map) {
-  freeMap(map);
-}
+void mapClear(Map *map) { freeMap(map); }
 
-int mapCount(Map* map) {
-  return map->count;
-}
+int mapCount(Map *map) { return map->count; }
 
-int mapFirstEntry(Map* map) {
-  return map->firstOrder;
-}
+int mapFirstEntry(Map *map) { return map->firstOrder; }
 
-int mapNextEntry(Map* map, int entryIndex) {
-  return map->entries[entryIndex].nextOrder;
-}
+int mapNextEntry(Map *map, int entryIndex) { return map->entries[entryIndex].nextOrder; }
 
-MapEntry* mapEntryAt(Map* map, int entryIndex) {
-  return &map->entries[entryIndex];
-}
+MapEntry *mapEntryAt(Map *map, int entryIndex) { return &map->entries[entryIndex]; }
 
-void markMap(Map* map) {
+void markMap(Map *map) {
   for (int index = map->firstOrder; index != -1; index = map->entries[index].nextOrder) {
-    MapEntry* entry = &map->entries[index];
+    MapEntry *entry = &map->entries[index];
     markValue(entry->key);
     markValue(entry->value);
   }
