@@ -5,6 +5,7 @@ RUNTIME_DIR ?= $(PREFIX)/lib/pb
 DATADIR ?= $(PREFIX)/share/pb
 STDLIB_DIR ?= $(DATADIR)/stdlib
 INSTALL ?= install
+PKG_CONFIG ?= pkg-config
 
 SRC_DIR := src
 BUILD_DIR := build
@@ -44,6 +45,9 @@ TEST_ARGS ?=
 TEST_RUNNER := tests/runner/run_tests.py
 CLI_MODULE_TEST := tests/runner/cli_module_test.py
 HOST_API_TEST := $(BUILD_DIR)/host_api_test$(EXEEXT)
+RAYLIB_BACKEND := $(BUILD_DIR)/pb_raylib_linux.so
+RAYLIB_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags raylib)
+RAYLIB_LIBS ?= $(shell $(PKG_CONFIG) --libs raylib)
 
 ifeq ($(OS),Windows_NT)
 RAYLIB_TEST_LIBRARY := $(BUILD_DIR)/pb_raylib_test.dll
@@ -55,11 +59,22 @@ RAYLIB_TEST_FLAGS := -fPIC
 TEST_RAYLIB_ENV := PB_RAYLIB_LIBRARY="$(abspath $(RAYLIB_TEST_LIBRARY))"
 endif
 
-.PHONY: all shared test install clean
+.PHONY: all shared raylib-backend test install clean
 
 all: $(TARGET)
 
 shared: $(SHARED_LIBRARY)
+
+ifeq ($(OS),Windows_NT)
+raylib-backend:
+	@echo "raylib-backend is currently only available on Linux."
+else
+raylib-backend: $(RAYLIB_BACKEND)
+
+$(RAYLIB_BACKEND): backends/raylib/linux.c | $(BUILD_DIR)
+	@$(PKG_CONFIG) --exists raylib || { echo "Raylib development files were not found. Install raylib-devel."; exit 1; }
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -fPIC $(RAYLIB_CFLAGS) -shared $< -o $@ $(RAYLIB_LIBS)
+endif
 
 $(TARGET): $(OBJECTS) | $(BUILD_DIR)
 	$(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@

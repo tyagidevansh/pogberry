@@ -6,3 +6,4 @@ test.pb
 pb
 .log
 .clang-format
+*.md
