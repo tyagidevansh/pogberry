@@ -33,28 +33,37 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line) {
   chunk->count++;
 }
 
-int addConstant(Chunk *chunk, Value value) {
+void writeChunkU16BE(Chunk *chunk, uint16_t value, int line) {
+  uint8_t bytes[2];
+  encodeU16BE(bytes, value);
+  writeChunk(chunk, bytes[0], line);
+  writeChunk(chunk, bytes[1], line);
+}
+
+void writeChunkU24LE(Chunk *chunk, uint32_t value, int line) {
+  uint8_t bytes[3];
+  encodeU24LE(bytes, value);
+  writeChunk(chunk, bytes[0], line);
+  writeChunk(chunk, bytes[1], line);
+  writeChunk(chunk, bytes[2], line);
+}
+
+ConstantIndex addConstant(Chunk *chunk, Value value) {
   push(value); // GC schenanigans
   writeValueArray(&chunk->constants, value);
   pop();
-  return chunk->constants.count - 1;
+  return (ConstantIndex)(chunk->constants.count - 1);
 }
 
 // support for if we want more than 256 constants per chunk
 void writeConstant(Chunk *chunk, Value value, int line) {
-  int index = addConstant(chunk, value);
+  ConstantIndex index = addConstant(chunk, value);
 
-  if (index < 255) {
+  if (index <= UINT8_MAX) {
     writeChunk(chunk, OP_CONSTANT, line);
-    writeChunk(chunk, index, line);
+    writeChunk(chunk, (uint8_t)index, line);
   } else {
     writeChunk(chunk, OP_CONSTANT_LONG, line);
-
-    // 24 bit support
-    writeChunk(chunk, (index >> 0) & 0xFF, line); // low byte
-    writeChunk(chunk, (index >> 8) & 0xFF,
-               line); // mid byte, ">>" is rightshift operator and shifts the bits by 8, 0xff represents 1111 1111 and
-                      // masks out all the bits except the last 8, essentially giving us
-    writeChunk(chunk, (index >> 16) & 0xFF, line); // high byte
+    writeChunkU24LE(chunk, index, line);
   }
 }

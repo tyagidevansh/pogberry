@@ -4,6 +4,31 @@
 #include "common.h"
 #include "value.h"
 
+// Constant-pool references use this logical type while individual instructions
+// retain a smaller encoding when the value fits.
+typedef uint32_t ConstantIndex;
+
+#define BYTECODE_U24_MAX UINT32_C(0xFFFFFF)
+
+static inline void encodeU16BE(uint8_t *bytes, uint16_t value) {
+  bytes[0] = (uint8_t)(value >> 8);
+  bytes[1] = (uint8_t)value;
+}
+
+static inline uint16_t decodeU16BE(const uint8_t *bytes) {
+  return (uint16_t)(((uint16_t)bytes[0] << 8) | bytes[1]);
+}
+
+static inline void encodeU24LE(uint8_t *bytes, uint32_t value) {
+  bytes[0] = (uint8_t)value;
+  bytes[1] = (uint8_t)(value >> 8);
+  bytes[2] = (uint8_t)(value >> 16);
+}
+
+static inline uint32_t decodeU24LE(const uint8_t *bytes) {
+  return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16);
+}
+
 typedef enum {
   OP_CONSTANT,      // 8 bit store
   OP_CONSTANT_LONG, // 24 bit store
@@ -56,6 +81,19 @@ typedef enum {
   OP_METHOD,
   OP_IMPORT,
   OP_EXPORT,
+  OP_GET_GLOBAL_LONG,
+  OP_DEFINE_GLOBAL_LONG,
+  OP_SET_GLOBAL_LONG,
+  OP_SET_PROPERTY_LONG,
+  OP_GET_PROPERTY_LONG,
+  OP_GET_SUPER_LONG,
+  OP_SUPER_INVOKE_LONG,
+  OP_INVOKE_LONG,
+  OP_CLOSURE_LONG,
+  OP_CLASS_LONG,
+  OP_METHOD_LONG,
+  OP_IMPORT_LONG,
+  OP_EXPORT_LONG,
 } OpCode;
 
 // unit of bytecode, essentially the entire AST class from JLOX
@@ -71,7 +109,9 @@ typedef struct {
 void initChunk(Chunk *chunk);
 void freeChunk(Chunk *chunk);
 void writeChunk(Chunk *chunk, uint8_t byte, int line);
-int addConstant(Chunk *chunk, Value value);
+void writeChunkU16BE(Chunk *chunk, uint16_t value, int line);
+void writeChunkU24LE(Chunk *chunk, uint32_t value, int line);
+ConstantIndex addConstant(Chunk *chunk, Value value);
 void writeConstant(Chunk *chunk, Value value, int line);
 
 #endif // !clox_chunk_h

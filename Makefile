@@ -45,6 +45,7 @@ TEST_ARGS ?=
 TEST_RUNNER := tests/runner/run_tests.py
 CLI_MODULE_TEST := tests/runner/cli_module_test.py
 HOST_API_TEST := $(BUILD_DIR)/host_api_test$(EXEEXT)
+BYTECODE_ENCODING_TEST := $(BUILD_DIR)/bytecode_encoding_test$(EXEEXT)
 RAYLIB_BACKEND := $(BUILD_DIR)/pb_raylib_linux.so
 RAYLIB_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags raylib)
 RAYLIB_LIBS ?= $(shell $(PKG_CONFIG) --libs raylib)
@@ -89,8 +90,9 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 $(BUILD_DIR):
 	@$(call MAKE_DIR,$@)
 
-test: $(TARGET) $(RAYLIB_TEST_LIBRARY) $(HOST_API_TEST)
+test: $(TARGET) $(RAYLIB_TEST_LIBRARY) $(HOST_API_TEST) $(BYTECODE_ENCODING_TEST)
 	@$(TEST_RAYLIB_ENV) $(HOST_API_TEST)
+	@$(BYTECODE_ENCODING_TEST)
 	@$(TEST_RAYLIB_ENV) $(PYTHON) $(CLI_MODULE_TEST) $(TARGET)
 	@$(TEST_RAYLIB_ENV) $(PYTHON) $(TEST_RUNNER) $(TEST_PATH) $(TEST_ARGS)
 
@@ -110,6 +112,9 @@ $(RAYLIB_TEST_LIBRARY): tests/runner/fake_raylib.c | $(BUILD_DIR)
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic $(RAYLIB_TEST_FLAGS) -shared $< -o $@
 
 $(HOST_API_TEST): tests/runner/host_api_test.c $(CORE_OBJECTS) | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) -std=c11 -Wall -Wextra -Wpedantic $< $(CORE_OBJECTS) $(LDFLAGS) $(CORE_LDLIBS) -o $@
+
+$(BYTECODE_ENCODING_TEST): tests/runner/bytecode_encoding_test.c $(CORE_OBJECTS) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -std=c11 -Wall -Wextra -Wpedantic $< $(CORE_OBJECTS) $(LDFLAGS) $(CORE_LDLIBS) -o $@
 
 clean:

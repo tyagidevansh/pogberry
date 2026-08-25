@@ -538,11 +538,13 @@ static InterpretResult run(int stopFrameCount) {
 
 #define READ_BYTE() (*frame->ip++)
 
-#define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+#define READ_SHORT() (frame->ip += 2, decodeU16BE(frame->ip - 2))
 
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT_LONG() (frame->ip += 3, frame->closure->function->chunk.constants.values[decodeU24LE(frame->ip - 3)])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
 // awkward do-while and then while(false) just to run it once so that this preprocessor can be defined at all. this faux
 // loop is a workaround allowing preprocessor to take multiple statements really pushing macros to the limit here
 #define BINARY_OP(valueType, op) \
@@ -572,6 +574,11 @@ static InterpretResult run(int stopFrameCount) {
     case OP_CONSTANT: {
       Value constant = READ_CONSTANT();
       push(constant); // load a value (push it onto the stack)
+      break;
+    }
+    case OP_CONSTANT_LONG: {
+      Value constant = READ_CONSTANT_LONG();
+      push(constant);
       break;
     }
     case OP_NIL:
@@ -606,8 +613,9 @@ static InterpretResult run(int stopFrameCount) {
       *frame->closure->upvalues[slot]->location = peek(0);
       break;
     }
-    case OP_GET_GLOBAL: {
-      ObjString *name = READ_STRING();
+    case OP_GET_GLOBAL:
+    case OP_GET_GLOBAL_LONG: {
+      ObjString *name = instruction == OP_GET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
       Value value;
       if (!tableGet(globalsForFrame(frame), name, &value)) {
         runtimeError("Undefined variable '%s'.", name->chars);
@@ -616,14 +624,16 @@ static InterpretResult run(int stopFrameCount) {
       push(value);
       break;
     }
-    case OP_DEFINE_GLOBAL: {
-      ObjString *name = READ_STRING();
+    case OP_DEFINE_GLOBAL:
+    case OP_DEFINE_GLOBAL_LONG: {
+      ObjString *name = instruction == OP_DEFINE_GLOBAL ? READ_STRING() : READ_STRING_LONG();
       tableSet(globalsForFrame(frame), name, peek(0));
       pop();
       break;
     }
-    case OP_SET_GLOBAL: {
-      ObjString *name = READ_STRING();
+    case OP_SET_GLOBAL:
+    case OP_SET_GLOBAL_LONG: {
+      ObjString *name = instruction == OP_SET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
       Table *globals = globalsForFrame(frame);
       if (tableSet(globals, name, peek(0))) {
         tableDelete(globals, name);
@@ -636,8 +646,9 @@ static InterpretResult run(int stopFrameCount) {
         tableSet(&module->exports, name, peek(0));
       break;
     }
-    case OP_GET_PROPERTY: {
-      ObjString *name = READ_STRING();
+    case OP_GET_PROPERTY:
+    case OP_GET_PROPERTY_LONG: {
+      ObjString *name = instruction == OP_GET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
 
       if (IS_MODULE(peek(0))) {
         ObjModule *module = AS_MODULE(peek(0));
@@ -683,7 +694,8 @@ static InterpretResult run(int stopFrameCount) {
       // need to define a way to check if a field exists, also delete
       // push(NIL_VAL); // if the property doesnt exist dont crash the vm just return nil
     }
-    case OP_SET_PROPERTY: {
+    case OP_SET_PROPERTY:
+    case OP_SET_PROPERTY_LONG: {
       if (IS_MODULE(peek(1))) {
         runtimeError("Module exports are read-only.");
         return INTERPRET_RUNTIME_ERROR;
@@ -694,14 +706,16 @@ static InterpretResult run(int stopFrameCount) {
       }
 
       ObjInstance *instance = AS_INSTANCE(peek(1));
-      tableSet(&instance->fields, READ_STRING(), peek(0));
+      ObjString *name = instruction == OP_SET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
+      tableSet(&instance->fields, name, peek(0));
       Value value = pop();
       pop();
       push(value);
       break;
     }
-    case OP_INVOKE: {
-      ObjString *method = READ_STRING();
+    case OP_INVOKE:
+    case OP_INVOKE_LONG: {
+      ObjString *method = instruction == OP_INVOKE ? READ_STRING() : READ_STRING_LONG();
       int argCount = READ_BYTE();
       if (!invoke(method, argCount)) {
         return INTERPRET_RUNTIME_ERROR;
@@ -709,8 +723,9 @@ static InterpretResult run(int stopFrameCount) {
       frame = &vm.frames[vm.frameCount - 1];
       break;
     }
-    case OP_SUPER_INVOKE: {
-      ObjString *method = READ_STRING();
+    case OP_SUPER_INVOKE:
+    case OP_SUPER_INVOKE_LONG: {
+      ObjString *method = instruction == OP_SUPER_INVOKE ? READ_STRING() : READ_STRING_LONG();
       int argCount = READ_BYTE();
       ObjClass *superclass = AS_CLASS(pop());
       if (!invokeFromClass(superclass, method, argCount)) {
@@ -719,8 +734,9 @@ static InterpretResult run(int stopFrameCount) {
       frame = &vm.frames[vm.frameCount - 1];
       break;
     }
-    case OP_GET_SUPER: {
-      ObjString *name = READ_STRING();
+    case OP_GET_SUPER:
+    case OP_GET_SUPER_LONG: {
+      ObjString *name = instruction == OP_GET_SUPER ? READ_STRING() : READ_STRING_LONG();
       ObjClass *superclass = AS_CLASS(pop());
 
       if (!bindMethod(superclass, name)) {
@@ -998,8 +1014,10 @@ static InterpretResult run(int stopFrameCount) {
       push(OBJ_VAL(hashmap));
       break;
     }
-    case OP_CLOSURE: {
-      ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
+    case OP_CLOSURE:
+    case OP_CLOSURE_LONG: {
+      ObjFunction *function =
+          AS_FUNCTION(instruction == OP_CLOSURE ? READ_CONSTANT() : READ_CONSTANT_LONG());
       ObjClosure *closure = newClosure(function);
       closure->module = frame->closure->module;
       if (!push(OBJ_VAL(closure))) return INTERPRET_RUNTIME_ERROR;
@@ -1031,8 +1049,10 @@ static InterpretResult run(int stopFrameCount) {
       if (vm.frameCount == stopFrameCount) return INTERPRET_OK;
       break;
     }
-    case OP_CLASS: {
-      push(OBJ_VAL(newClass(READ_STRING())));
+    case OP_CLASS:
+    case OP_CLASS_LONG: {
+      ObjString *name = instruction == OP_CLASS ? READ_STRING() : READ_STRING_LONG();
+      push(OBJ_VAL(newClass(name)));
       break;
     }
     case OP_INHERIT: {
@@ -1046,13 +1066,16 @@ static InterpretResult run(int stopFrameCount) {
       pop();
       break;
     }
-    case OP_METHOD: {
-      defineMethod(READ_STRING());
+    case OP_METHOD:
+    case OP_METHOD_LONG: {
+      ObjString *name = instruction == OP_METHOD ? READ_STRING() : READ_STRING_LONG();
+      defineMethod(name);
       break;
     }
-    case OP_IMPORT: {
-      ObjString *moduleName = READ_STRING();
-      ObjString *alias = READ_STRING();
+    case OP_IMPORT:
+    case OP_IMPORT_LONG: {
+      ObjString *moduleName = instruction == OP_IMPORT ? READ_STRING() : READ_STRING_LONG();
+      ObjString *alias = instruction == OP_IMPORT ? READ_STRING() : READ_STRING_LONG();
       Table *globals = globalsForFrame(frame);
       Value existing;
       if (tableGet(globals, alias, &existing)) {
@@ -1066,8 +1089,9 @@ static InterpretResult run(int stopFrameCount) {
       tableSet(globals, alias, module);
       break;
     }
-    case OP_EXPORT: {
-      ObjString *name = READ_STRING();
+    case OP_EXPORT:
+    case OP_EXPORT_LONG: {
+      ObjString *name = instruction == OP_EXPORT ? READ_STRING() : READ_STRING_LONG();
       ObjModule *module = frame->closure->module;
       Value exported;
       if (module == NULL || !tableGet(&module->globals, name, &exported)) {
@@ -1081,7 +1105,9 @@ static InterpretResult run(int stopFrameCount) {
     if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
   }
 #undef BINARY_OP
+#undef READ_STRING_LONG
 #undef READ_CONSTANT
+#undef READ_CONSTANT_LONG
 #undef READ_STRING
 #undef READ_SHORT
 #undef READ_BYTE

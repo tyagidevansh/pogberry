@@ -28,6 +28,15 @@ static int invokeInstruction(const char *name, Chunk *chunk, int offset) {
   return offset + 3;
 }
 
+static int invokeLongInstruction(const char *name, Chunk *chunk, int offset) {
+  ConstantIndex constant = decodeU24LE(&chunk->code[offset + 1]);
+  uint8_t argCount = chunk->code[offset + 4];
+  printf("%-16s (%d args) %4u '", name, argCount, (unsigned int)constant);
+  printValue(chunk->constants.values[constant]);
+  printf("'\n");
+  return offset + 5;
+}
+
 static int importInstruction(Chunk *chunk, int offset) {
   uint8_t module = chunk->code[offset + 1];
   uint8_t alias = chunk->code[offset + 2];
@@ -39,11 +48,20 @@ static int importInstruction(Chunk *chunk, int offset) {
   return offset + 3;
 }
 
+static int importLongInstruction(Chunk *chunk, int offset) {
+  ConstantIndex module = decodeU24LE(&chunk->code[offset + 1]);
+  ConstantIndex alias = decodeU24LE(&chunk->code[offset + 4]);
+  printf("%-16s %4u '", "OP_IMPORT_LONG", (unsigned int)module);
+  printValue(chunk->constants.values[module]);
+  printf("' as %4u '", (unsigned int)alias);
+  printValue(chunk->constants.values[alias]);
+  printf("'\n");
+  return offset + 7;
+}
+
 static int constantLongInstruction(const char *name, Chunk *chunk, int offset) {
-  // to find the total 24 bit index we shift the later bits by 8 and then 16 and take their OR to fit all 24 bits stored
-  // at different offsets in the same number
-  uint32_t constantIndex = chunk->code[offset + 1] | (chunk->code[offset + 2] << 8) | (chunk->code[offset + 3] << 16);
-  printf("%-16s %14d '", name, constantIndex);
+  ConstantIndex constantIndex = decodeU24LE(&chunk->code[offset + 1]);
+  printf("%-16s %14u '", name, (unsigned int)constantIndex);
   printValue(chunk->constants.values[constantIndex]);
   printf("'\n");
   return offset + 4;
@@ -61,16 +79,21 @@ static int byteInstruction(const char *name, Chunk *chunk, int offset) {
 }
 
 static int jumpInstruction(const char *name, int sign, Chunk *chunk, int offset) {
-  uint16_t jump = (uint16_t)(chunk->code[offset + 1] << 8);
-  jump |= chunk->code[offset + 2];
+  uint16_t jump = decodeU16BE(&chunk->code[offset + 1]);
   printf("%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
   return offset + 3;
 }
 
-static int closureInstruction(Chunk *chunk, int offset) {
+static int closureInstruction(const char *name, Chunk *chunk, int offset, bool isLong) {
   offset++;
-  uint8_t constant = chunk->code[offset++];
-  printf("%-16s %4d '", "OP_CLOSURE", constant);
+  ConstantIndex constant;
+  if (isLong) {
+    constant = decodeU24LE(&chunk->code[offset]);
+    offset += 3;
+  } else {
+    constant = chunk->code[offset++];
+  }
+  printf("%-16s %4u '", name, (unsigned int)constant);
   printValue(chunk->constants.values[constant]);
   printf("'\n");
 
@@ -119,20 +142,36 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return byteInstruction("OP_SET_UPVALUE", chunk, offset);
   case OP_GET_GLOBAL:
     return constantInstruction("OP_GET_GLOBAL", chunk, offset);
+  case OP_GET_GLOBAL_LONG:
+    return constantLongInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
   case OP_DEFINE_GLOBAL:
     return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
+  case OP_DEFINE_GLOBAL_LONG:
+    return constantLongInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
   case OP_SET_GLOBAL:
     return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+  case OP_SET_GLOBAL_LONG:
+    return constantLongInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
   case OP_GET_PROPERTY:
     return constantInstruction("OP_GET_PROPERTY", chunk, offset);
+  case OP_GET_PROPERTY_LONG:
+    return constantLongInstruction("OP_GET_PROPERTY_LONG", chunk, offset);
   case OP_SET_PROPERTY:
     return constantInstruction("OP_SET_PROPERTY", chunk, offset);
+  case OP_SET_PROPERTY_LONG:
+    return constantLongInstruction("OP_SET_PROPERTY_LONG", chunk, offset);
   case OP_INVOKE:
     return invokeInstruction("OP_INVOKE", chunk, offset);
+  case OP_INVOKE_LONG:
+    return invokeLongInstruction("OP_INVOKE_LONG", chunk, offset);
   case OP_GET_SUPER:
     return constantInstruction("OP_GET_SUPER", chunk, offset);
+  case OP_GET_SUPER_LONG:
+    return constantLongInstruction("OP_GET_SUPER_LONG", chunk, offset);
   case OP_SUPER_INVOKE:
     return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
+  case OP_SUPER_INVOKE_LONG:
+    return invokeLongInstruction("OP_SUPER_INVOKE_LONG", chunk, offset);
   case OP_EQUAL:
     return simpleInstruction("OP_EQUAL", offset);
   case OP_GREATER:
@@ -174,21 +213,31 @@ int disassembleInstruction(Chunk *chunk, int offset) {
   case OP_HASHMAP_LITERAL_INSERT:
     return simpleInstruction("OP_HASHMAP_LITERAL_INSERT", offset);
   case OP_CLOSURE:
-    return closureInstruction(chunk, offset);
+    return closureInstruction("OP_CLOSURE", chunk, offset, false);
+  case OP_CLOSURE_LONG:
+    return closureInstruction("OP_CLOSURE_LONG", chunk, offset, true);
   case OP_CLOSE_UPVALUE:
     return simpleInstruction("OP_CLOSE_UPVALUE", offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   case OP_CLASS:
     return constantInstruction("OP_CLASS", chunk, offset);
+  case OP_CLASS_LONG:
+    return constantLongInstruction("OP_CLASS_LONG", chunk, offset);
   case OP_INHERIT:
     return simpleInstruction("OP_INHERIT", offset);
   case OP_METHOD:
     return constantInstruction("OP_METHOD", chunk, offset);
+  case OP_METHOD_LONG:
+    return constantLongInstruction("OP_METHOD_LONG", chunk, offset);
   case OP_IMPORT:
     return importInstruction(chunk, offset);
+  case OP_IMPORT_LONG:
+    return importLongInstruction(chunk, offset);
   case OP_EXPORT:
     return constantInstruction("OP_EXPORT", chunk, offset);
+  case OP_EXPORT_LONG:
+    return constantLongInstruction("OP_EXPORT_LONG", chunk, offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;
