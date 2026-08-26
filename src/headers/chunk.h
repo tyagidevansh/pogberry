@@ -6,9 +6,7 @@
 
 // Constant-pool references use this logical type while individual instructions
 // retain a smaller encoding when the value fits.
-typedef uint32_t ConstantIndex;
-
-#define BYTECODE_U24_MAX UINT32_C(0xFFFFFF)
+typedef uint16_t ConstantIndex;
 
 static inline void encodeU16BE(uint8_t *bytes, uint16_t value) {
   bytes[0] = (uint8_t)(value >> 8);
@@ -19,19 +17,9 @@ static inline uint16_t decodeU16BE(const uint8_t *bytes) {
   return (uint16_t)(((uint16_t)bytes[0] << 8) | bytes[1]);
 }
 
-static inline void encodeU24LE(uint8_t *bytes, uint32_t value) {
-  bytes[0] = (uint8_t)value;
-  bytes[1] = (uint8_t)(value >> 8);
-  bytes[2] = (uint8_t)(value >> 16);
-}
-
-static inline uint32_t decodeU24LE(const uint8_t *bytes) {
-  return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16);
-}
-
 typedef enum {
-  OP_CONSTANT,      // 8 bit store
-  OP_CONSTANT_LONG, // 24 bit store
+  OP_CONSTANT,      // 8-bit constant index
+  OP_CONSTANT_LONG, // 16-bit constant index
   OP_NIL,
   OP_TRUE,
   OP_FALSE,
@@ -110,8 +98,7 @@ void initChunk(Chunk *chunk);
 void freeChunk(Chunk *chunk);
 void writeChunk(Chunk *chunk, uint8_t byte, int line);
 void writeChunkU16BE(Chunk *chunk, uint16_t value, int line);
-void writeChunkU24LE(Chunk *chunk, uint32_t value, int line);
-ConstantIndex addConstant(Chunk *chunk, Value value);
+int addConstant(Chunk *chunk, Value value);
 void writeConstant(Chunk *chunk, Value value, int line);
 
 #endif // !clox_chunk_h

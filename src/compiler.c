@@ -219,14 +219,6 @@ static void emitU16BE(uint16_t value) {
   emitBytes(bytes[0], bytes[1]);
 }
 
-static void emitU24LE(ConstantIndex value) {
-  uint8_t bytes[3];
-  encodeU24LE(bytes, value);
-  emitByte(bytes[0]);
-  emitByte(bytes[1]);
-  emitByte(bytes[2]);
-}
-
 static void emitLoop(int loopStart) {
   emitByte(OP_LOOP);
 
@@ -252,13 +244,13 @@ static void emitReturn() {
 }
 
 static ConstantIndex makeConstant(Value value) {
-  ConstantIndex constant = addConstant(currentChunk(), value);
-  if (constant > BYTECODE_U24_MAX) {
+  int constant = addConstant(currentChunk(), value);
+  if (constant > UINT16_MAX) {
     error("Too many constants in one chunk.");
     return 0;
   }
 
-  return constant;
+  return (ConstantIndex)constant;
 }
 
 static void emitConstantInstruction(uint8_t shortInstruction, uint8_t longInstruction, ConstantIndex constant) {
@@ -268,7 +260,7 @@ static void emitConstantInstruction(uint8_t shortInstruction, uint8_t longInstru
   }
 
   emitByte(longInstruction);
-  emitU24LE(constant);
+  emitU16BE(constant);
 }
 
 static void emitConstant(Value value) {
@@ -281,7 +273,7 @@ static void emitInvokeInstruction(uint8_t shortInstruction, uint8_t longInstruct
     emitBytes(shortInstruction, (uint8_t)method);
   } else {
     emitByte(longInstruction);
-    emitU24LE(method);
+    emitU16BE(method);
   }
   emitByte(argCount);
 }
@@ -294,8 +286,8 @@ static void emitImportInstruction(ConstantIndex module, ConstantIndex alias) {
   }
 
   emitByte(OP_IMPORT_LONG);
-  emitU24LE(module);
-  emitU24LE(alias);
+  emitU16BE(module);
+  emitU16BE(alias);
 }
 
 static void patchJump(int offset) {

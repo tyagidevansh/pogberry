@@ -40,30 +40,22 @@ void writeChunkU16BE(Chunk *chunk, uint16_t value, int line) {
   writeChunk(chunk, bytes[1], line);
 }
 
-void writeChunkU24LE(Chunk *chunk, uint32_t value, int line) {
-  uint8_t bytes[3];
-  encodeU24LE(bytes, value);
-  writeChunk(chunk, bytes[0], line);
-  writeChunk(chunk, bytes[1], line);
-  writeChunk(chunk, bytes[2], line);
-}
-
-ConstantIndex addConstant(Chunk *chunk, Value value) {
+int addConstant(Chunk *chunk, Value value) {
   push(value); // GC schenanigans
   writeValueArray(&chunk->constants, value);
   pop();
-  return (ConstantIndex)(chunk->constants.count - 1);
+  return chunk->constants.count - 1;
 }
 
 // support for if we want more than 256 constants per chunk
 void writeConstant(Chunk *chunk, Value value, int line) {
-  ConstantIndex index = addConstant(chunk, value);
+  int index = addConstant(chunk, value);
 
   if (index <= UINT8_MAX) {
     writeChunk(chunk, OP_CONSTANT, line);
     writeChunk(chunk, (uint8_t)index, line);
   } else {
     writeChunk(chunk, OP_CONSTANT_LONG, line);
-    writeChunkU24LE(chunk, index, line);
+    writeChunkU16BE(chunk, (uint16_t)index, line);
   }
 }

@@ -82,24 +82,20 @@ int main(void) {
   require(shortBytes[0] == UINT8_C(0xBE) && shortBytes[1] == UINT8_C(0xEF), "16-bit big-endian encoding");
   require(decodeU16BE(shortBytes) == UINT16_C(0xBEEF), "16-bit big-endian decoding");
 
-  uint8_t longBytes[3];
-  encodeU24LE(longBytes, UINT32_C(0xAB12EF));
-  require(longBytes[0] == UINT8_C(0xEF) && longBytes[1] == UINT8_C(0x12) && longBytes[2] == UINT8_C(0xAB),
-          "24-bit little-endian encoding");
-  require(decodeU24LE(longBytes) == UINT32_C(0xAB12EF), "24-bit little-endian decoding");
-  encodeU24LE(longBytes, BYTECODE_U24_MAX);
-  require(decodeU24LE(longBytes) == BYTECODE_U24_MAX, "24-bit maximum value round trip");
+  uint8_t constantBytes[2];
+  encodeU16BE(constantBytes, UINT16_MAX);
+  require(decodeU16BE(constantBytes) == UINT16_MAX, "16-bit maximum constant index round trip");
 
   initVM();
   Chunk chunk;
   initChunk(&chunk);
   writeChunkU16BE(&chunk, UINT16_C(0xABCD), 11);
-  writeChunkU24LE(&chunk, UINT32_C(0x123456), 12);
+  writeChunkU16BE(&chunk, UINT16_C(0x1234), 12);
 
-  require(chunk.count == 5, "multi-byte chunk writes append all bytes");
+  require(chunk.count == 4, "multi-byte chunk writes append all bytes");
   require(decodeU16BE(chunk.code) == UINT16_C(0xABCD), "chunk 16-bit write order");
-  require(decodeU24LE(&chunk.code[2]) == UINT32_C(0x123456), "chunk 24-bit write order");
-  require(chunk.lines[0] == 11 && chunk.lines[1] == 11 && chunk.lines[2] == 12 && chunk.lines[4] == 12,
+  require(decodeU16BE(&chunk.code[2]) == UINT16_C(0x1234), "second chunk 16-bit write order");
+  require(chunk.lines[0] == 11 && chunk.lines[1] == 11 && chunk.lines[2] == 12 && chunk.lines[3] == 12,
           "multi-byte chunk writes preserve line information");
 
   freeChunk(&chunk);

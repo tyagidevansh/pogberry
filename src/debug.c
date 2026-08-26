@@ -29,12 +29,12 @@ static int invokeInstruction(const char *name, Chunk *chunk, int offset) {
 }
 
 static int invokeLongInstruction(const char *name, Chunk *chunk, int offset) {
-  ConstantIndex constant = decodeU24LE(&chunk->code[offset + 1]);
-  uint8_t argCount = chunk->code[offset + 4];
+  ConstantIndex constant = decodeU16BE(&chunk->code[offset + 1]);
+  uint8_t argCount = chunk->code[offset + 3];
   printf("%-16s (%d args) %4u '", name, argCount, (unsigned int)constant);
   printValue(chunk->constants.values[constant]);
   printf("'\n");
-  return offset + 5;
+  return offset + 4;
 }
 
 static int importInstruction(Chunk *chunk, int offset) {
@@ -49,22 +49,22 @@ static int importInstruction(Chunk *chunk, int offset) {
 }
 
 static int importLongInstruction(Chunk *chunk, int offset) {
-  ConstantIndex module = decodeU24LE(&chunk->code[offset + 1]);
-  ConstantIndex alias = decodeU24LE(&chunk->code[offset + 4]);
+  ConstantIndex module = decodeU16BE(&chunk->code[offset + 1]);
+  ConstantIndex alias = decodeU16BE(&chunk->code[offset + 3]);
   printf("%-16s %4u '", "OP_IMPORT_LONG", (unsigned int)module);
   printValue(chunk->constants.values[module]);
   printf("' as %4u '", (unsigned int)alias);
   printValue(chunk->constants.values[alias]);
   printf("'\n");
-  return offset + 7;
+  return offset + 5;
 }
 
 static int constantLongInstruction(const char *name, Chunk *chunk, int offset) {
-  ConstantIndex constantIndex = decodeU24LE(&chunk->code[offset + 1]);
+  ConstantIndex constantIndex = decodeU16BE(&chunk->code[offset + 1]);
   printf("%-16s %14u '", name, (unsigned int)constantIndex);
   printValue(chunk->constants.values[constantIndex]);
   printf("'\n");
-  return offset + 4;
+  return offset + 3;
 }
 
 static int simpleInstruction(const char *name, int offset) {
@@ -88,8 +88,8 @@ static int closureInstruction(const char *name, Chunk *chunk, int offset, bool i
   offset++;
   ConstantIndex constant;
   if (isLong) {
-    constant = decodeU24LE(&chunk->code[offset]);
-    offset += 3;
+    constant = decodeU16BE(&chunk->code[offset]);
+    offset += 2;
   } else {
     constant = chunk->code[offset++];
   }

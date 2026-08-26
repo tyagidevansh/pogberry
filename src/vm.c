@@ -541,7 +541,8 @@ static InterpretResult run(int stopFrameCount) {
 #define READ_SHORT() (frame->ip += 2, decodeU16BE(frame->ip - 2))
 
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
-#define READ_CONSTANT_LONG() (frame->ip += 3, frame->closure->function->chunk.constants.values[decodeU24LE(frame->ip - 3)])
+#define READ_CONSTANT_LONG() \
+  (frame->ip += 2, frame->closure->function->chunk.constants.values[decodeU16BE(frame->ip - 2)])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
@@ -1016,8 +1017,7 @@ static InterpretResult run(int stopFrameCount) {
     }
     case OP_CLOSURE:
     case OP_CLOSURE_LONG: {
-      ObjFunction *function =
-          AS_FUNCTION(instruction == OP_CLOSURE ? READ_CONSTANT() : READ_CONSTANT_LONG());
+      ObjFunction *function = AS_FUNCTION(instruction == OP_CLOSURE ? READ_CONSTANT() : READ_CONSTANT_LONG());
       ObjClosure *closure = newClosure(function);
       closure->module = frame->closure->module;
       if (!push(OBJ_VAL(closure))) return INTERPRET_RUNTIME_ERROR;
