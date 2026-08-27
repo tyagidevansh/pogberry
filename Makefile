@@ -9,6 +9,7 @@ PKG_CONFIG ?= pkg-config
 
 SRC_DIR := src
 BUILD_DIR := build
+RELEASE_BUILD_DIR := build/release
 
 ifeq ($(OS),Windows_NT)
 EXEEXT := .exe
@@ -60,7 +61,25 @@ RAYLIB_TEST_FLAGS := -fPIC
 TEST_RAYLIB_ENV := PB_RAYLIB_LIBRARY="$(abspath $(RAYLIB_TEST_LIBRARY))"
 endif
 
-.PHONY: all shared raylib-backend test install clean
+RELEASE_CORE_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(RELEASE_BUILD_DIR)/%.o,$(CORE_SOURCES))
+RELEASE_HOST_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(RELEASE_BUILD_DIR)/%.o,$(HOST_SOURCES))
+RELEASE_OBJECTS := $(RELEASE_CORE_OBJECTS) $(RELEASE_HOST_OBJECTS)
+RELEASE_TARGET := $(RELEASE_BUILD_DIR)/pb$(EXEEXT)
+
+.PHONY: all release shared raylib-backend test install clean
+
+release: $(RELEASE_TARGET)
+	strip $(RELEASE_TARGET)
+
+$(RELEASE_BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@$(call MAKE_DIR,$(@D))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -O3 -DNDEBUG -c $< -o $@
+
+$(RELEASE_TARGET): $(RELEASE_OBJECTS) | $(RELEASE_BUILD_DIR)
+	$(CC) $(RELEASE_OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@
+
+$(RELEASE_BUILD_DIR):
+	@$(call MAKE_DIR,$@)
 
 all: $(TARGET)
 
