@@ -47,6 +47,7 @@ TEST_RUNNER := tests/runner/run_tests.py
 CLI_MODULE_TEST := tests/runner/cli_module_test.py
 HOST_API_TEST := $(BUILD_DIR)/host_api_test$(EXEEXT)
 BYTECODE_ENCODING_TEST := $(BUILD_DIR)/bytecode_encoding_test$(EXEEXT)
+BENCH_RUNNER := bench/run_bench.py
 RAYLIB_BACKEND := $(BUILD_DIR)/pb_raylib_linux.so
 RAYLIB_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags raylib)
 RAYLIB_LIBS ?= $(shell $(PKG_CONFIG) --libs raylib)
@@ -66,7 +67,7 @@ RELEASE_HOST_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(RELEASE_BUILD_DIR)/%.o,$(HOS
 RELEASE_OBJECTS := $(RELEASE_CORE_OBJECTS) $(RELEASE_HOST_OBJECTS)
 RELEASE_TARGET := $(RELEASE_BUILD_DIR)/pb$(EXEEXT)
 
-.PHONY: all release shared raylib-backend test install clean
+.PHONY: all release shared raylib-backend test bench install clean
 
 release: $(RELEASE_TARGET)
 	strip $(RELEASE_TARGET)
@@ -114,6 +115,9 @@ test: $(TARGET) $(RAYLIB_TEST_LIBRARY) $(HOST_API_TEST) $(BYTECODE_ENCODING_TEST
 	@$(BYTECODE_ENCODING_TEST)
 	@$(TEST_RAYLIB_ENV) $(PYTHON) $(CLI_MODULE_TEST) $(TARGET)
 	@$(TEST_RAYLIB_ENV) $(PYTHON) $(TEST_RUNNER) $(TEST_PATH) $(TEST_ARGS)
+
+bench: $(RELEASE_TARGET)
+	@$(PYTHON) $(BENCH_RUNNER) --binary $(RELEASE_TARGET)
 
 ifeq ($(OS),Windows_NT)
 install:
