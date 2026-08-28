@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pogberry Benchmark Report</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #090a0f;
+      --card: #111318;
+      --border: #1e222b;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --text-muted: #64748b;
+      --accent-pb: #818cf8;
+      --accent-py: #38bdf8;
+      --success: #34d399;
+      --danger: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2.5rem 1.5rem;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    header {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.25rem;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #f8fafc;
+      margin-bottom: 0.5rem;
+    }
+    .meta-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      font-size: 0.825rem;
+      color: var(--text-dim);
+    }
+    .meta-item strong { color: var(--text); font-weight: 500; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+    }
+    .panel h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+    .full-width { grid-column: 1 / -1; }
+    .chart-box { position: relative; height: 380px; width: 100%; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th, td {
+      padding: 0.65rem 0.85rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    th:first-child, td:first-child { text-align: left; }
+    th {
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    td {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.825rem;
+    }
+    td:first-child {
+      font-family: inherit;
+      font-weight: 500;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .tag {
+      display: inline-block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.775rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+    .tag-faster { color: var(--success); background: rgba(52, 211, 153, 0.1); }
+    .tag-slower { color: var(--danger); background: rgba(248, 113, 113, 0.1); }
+    .tag-equal { color: var(--text-dim); background: rgba(148, 163, 184, 0.1); }
+    .section-row td {
+      background: rgba(255, 255, 255, 0.03);
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      text-align: left;
+    }
+    footer {
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Pogberry Benchmark Results</h1>
+      <div class="meta-list">
+        <div class="meta-item">Linux <strong>7.1.7-200.fc44.x86_64</strong></div>
+        <div class="meta-item">CPU <strong>AMD Ryzen 5 5600H with Radeon Graphics</strong></div>
+        <div class="meta-item">GCC <strong>16.1.1</strong></div>
+        <div class="meta-item">Python <strong>3.14.6</strong></div>
+        <div class="meta-item">Runs: <strong>1 (0 warmup)</strong></div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>Relative Speedup (vs Python)</h2>
+        <div class="chart-box">
+          <canvas id="speedupChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Peak Memory (MB)</h2>
+        <div class="chart-box">
+          <canvas id="ramChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel full-width">
+        <h2>Execution Time (Milliseconds)</h2>
+        <div class="chart-box" style="height: 360px;">
+          <canvas id="timeChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel full-width">
+        <h2>Benchmark Summary Table</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Benchmark</th>
+              <th>Pogberry Time</th>
+              <th>Python Time</th>
+              <th>Speedup</th>
+              <th>Pogberry RAM</th>
+              <th>Python RAM</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>astar</td>
+              <td>88.6ms</td>
+              <td>61.7ms</td>
+              <td><span class="tag tag-slower">0.70x</span></td>
+              <td>3.8MB</td>
+              <td>9.7MB</td>
+            </tr>
+            <tr>
+              <td>binary_trees</td>
+              <td>1.143s</td>
+              <td>396.4ms</td>
+              <td><span class="tag tag-slower">0.35x</span></td>
+              <td>17.4MB</td>
+              <td>12.2MB</td>
+            </tr>
+            <tr>
+              <td>bubble_sort</td>
+              <td>2.925s</td>
+              <td>1.302s</td>
+              <td><span class="tag tag-slower">0.45x</span></td>
+              <td>2.9MB</td>
+              <td>9.8MB</td>
+            </tr>
+            <tr>
+              <td>class_hierarchy</td>
+              <td>67.5ms</td>
+              <td>80.1ms</td>
+              <td><span class="tag tag-faster">1.19x</span></td>
+              <td>4.0MB</td>
+              <td>9.5MB</td>
+            </tr>
+            <tr>
+              <td>closures</td>
+              <td>18.1ms</td>
+              <td>33.4ms</td>
+              <td><span class="tag tag-faster">1.84x</span></td>
+              <td>2.9MB</td>
+              <td>9.3MB</td>
+            </tr>
+            <tr>
+              <td>fib_recursive</td>
+              <td>590.6ms</td>
+              <td>395.6ms</td>
+              <td><span class="tag tag-slower">0.67x</span></td>
+              <td>2.9MB</td>
+              <td>9.2MB</td>
+            </tr>
+            <tr>
+              <td>list_operations</td>
+              <td>21.1ms</td>
+              <td>33.1ms</td>
+              <td><span class="tag tag-faster">1.57x</span></td>
+              <td>3.8MB</td>
+              <td>11.7MB</td>
+            </tr>
+            <tr>
+              <td>mandelbrot</td>
+              <td>171.0ms</td>
+              <td>128.0ms</td>
+              <td><span class="tag tag-slower">0.75x</span></td>
+              <td>2.6MB</td>
+              <td>9.5MB</td>
+            </tr>
+            <tr>
+              <td>map_operations</td>
+              <td>132.7ms</td>
+              <td>56.4ms</td>
+              <td><span class="tag tag-slower">0.42x</span></td>
+              <td>14.5MB</td>
+              <td>15.3MB</td>
+            </tr>
+            <tr>
+              <td>nbody</td>
+              <td>605.4ms</td>
+              <td>392.3ms</td>
+              <td><span class="tag tag-slower">0.65x</span></td>
+              <td>2.8MB</td>
+              <td>9.9MB</td>
+            </tr>
+            <tr>
+              <td>nested_loops</td>
+              <td>1.237s</td>
+              <td>805.6ms</td>
+              <td><span class="tag tag-slower">0.65x</span></td>
+              <td>2.8MB</td>
+              <td>9.3MB</td>
+            </tr>
+            <tr>
+              <td>string_concat</td>
+              <td>1.684s</td>
+              <td>35.8ms</td>
+              <td><span class="tag tag-slower">0.02x</span></td>
+              <td>4.5MB</td>
+              <td>9.2MB</td>
+            </tr>
+            <tr class="section-row"><td colspan="6">Headed GUI Benchmarks (pb_gui / Raylib vs Pygame)</td></tr>
+            <tr>
+              <td>gui_draw_stress</td>
+              <td>5.6ms/fr</td>
+              <td>13.2ms/fr</td>
+              <td><span class="tag tag-faster">2.38x</span></td>
+              <td>74.1MB</td>
+              <td>164.7MB</td>
+            </tr>
+            <tr>
+              <td>gui_particles</td>
+              <td>5.9ms/fr</td>
+              <td>4.7ms/fr</td>
+              <td><span class="tag tag-slower">0.79x</span></td>
+              <td>74.9MB</td>
+              <td>163.2MB</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>
+      Pogberry Benchmark Suite · Generated on 2026-08-28 23:35:56
+    </footer>
+  </div>
+
+  <script>
+    const labels = ["astar", "binary_trees", "bubble_sort", "class_hierarchy", "closures", "fib_recursive", "list_operations", "mandelbrot", "map_operations", "nbody", "nested_loops", "string_concat"];
+
+    // Chart.js default styling
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = '#1e222b';
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+    // 1. Speedup Chart (Horizontal linear)
+    new Chart(document.getElementById('speedupChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Speedup vs Python',
+          data: [0.7, 0.35, 0.45, 1.19, 1.84, 0.67, 1.57, 0.75, 0.42, 0.65, 0.65, 0.02],
+          backgroundColor: ["#ef4444", "#ef4444", "#ef4444", "#10b981", "#10b981", "#ef4444", "#10b981", "#ef4444", "#ef4444", "#ef4444", "#ef4444", "#ef4444"],
+          borderRadius: 3
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.parsed.x}x relative to Python`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: '#1e222b' },
+            title: { display: true, text: 'Speedup Ratio (1.0 = equal)' }
+          },
+          y: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+
+    // 2. RAM Chart (Horizontal linear)
+    new Chart(document.getElementById('ramChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Pogberry',
+            data: [3.8, 17.4, 2.9, 4.0, 2.9, 2.9, 3.8, 2.6, 14.5, 2.8, 2.8, 4.5],
+            backgroundColor: '#818cf8',
+            borderRadius: 3
+          },
+          {
+            label: 'Python',
+            data: [9.7, 12.2, 9.8, 9.5, 9.3, 9.2, 11.7, 9.5, 15.3, 9.9, 9.3, 9.2],
+            backgroundColor: '#38bdf8',
+            borderRadius: 3
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, padding: 12 } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.x} MB`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: '#1e222b' },
+            title: { display: true, text: 'Peak Resident Memory (MB)' }
+          },
+          y: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+
+    // 3. Execution Time Chart (Grouped horizontal bar chart)
+    new Chart(document.getElementById('timeChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Pogberry',
+            data: [88.6, 1143.2, 2925.3, 67.5, 18.1, 590.6, 21.1, 171.0, 132.7, 605.4, 1236.8, 1684.1],
+            backgroundColor: '#818cf8',
+            borderRadius: 3
+          },
+          {
+            label: 'Python',
+            data: [61.7, 396.4, 1301.9, 80.1, 33.4, 395.6, 33.1, 128.0, 56.4, 392.3, 805.6, 35.8],
+            backgroundColor: '#38bdf8',
+            borderRadius: 3
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, padding: 12 } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.x} ms`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: '#1e222b' },
+            title: { display: true, text: 'Execution Time (ms)' }
+          },
+          y: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

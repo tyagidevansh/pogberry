@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import math
 import os
@@ -85,7 +87,7 @@ def pad_box_row(content: str, width: int, style: Style) -> str:
 
 @dataclass
 class PerfCounters:
-    """Hardware counters from one perf-stat invocation."""
+    """Hardware counters from perf-stat."""
     instructions: Optional[int] = None
     cycles: Optional[int] = None
     cache_misses: Optional[int] = None
@@ -102,6 +104,7 @@ class PerfCounters:
 class RunResult:
     """Outcome of a single benchmark run."""
     wall_time: float           # seconds
+    peak_rss_mb: float = 0.0   # Megabytes
     output: str = ""
     perf: Optional[PerfCounters] = None
 
@@ -128,12 +131,24 @@ class BenchmarkResult:
         return statistics.stdev(self.times) if len(self.times) >= 2 else 0.0
 
     @property
+    def rsd_pct(self) -> float:
+        """Relative standard deviation percentage."""
+        m = self.mean
+        return (self.stdev / m * 100.0) if m > 0 else 0.0
+
+    @property
     def best(self) -> float:
         return min(self.times) if self.times else 0.0
 
     @property
     def worst(self) -> float:
         return max(self.times) if self.times else 0.0
+
+    @property
+    def peak_rss_mb(self) -> float:
+        """Max peak RSS recorded across runs."""
+        rss_list = [r.peak_rss_mb for r in self.runs if r.peak_rss_mb > 0]
+        return max(rss_list) if rss_list else 0.0
 
     @property
     def last_perf(self) -> Optional[PerfCounters]:
@@ -149,12 +164,11 @@ class BenchmarkResult:
 
 @dataclass
 class BenchmarkEntry:
-    """One benchmark with results for all runtimes."""
+    """One benchmark with results for Pogberry and Python."""
     name: str
     is_gui: bool = False
     pogberry: Optional[BenchmarkResult] = None
     python: Optional[BenchmarkResult] = None
-    python_jit: Optional[BenchmarkResult] = None
     correct: bool = True
     error: str = ""
 
@@ -177,16 +191,6 @@ def detect_python_version() -> str:
     return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 
 
-def detect_python_jit() -> bool:
-    """Check whether Python supports JIT compilation."""
-    try:
-        if hasattr(sys, "_jit"):
-            return bool(sys._jit.is_available())
-    except Exception:
-        pass
-    return False
-
-
 def detect_perf() -> bool:
     """Check if perf stat works with user-space counters."""
     try:
@@ -197,6 +201,11 @@ def detect_perf() -> bool:
         return result.returncode == 0
     except Exception:
         return False
+
+
+def detect_time_binary() -> bool:
+    """Check if /usr/bin/time is available for RSS tracking."""
+    return Path("/usr/bin/time").is_file()
 
 
 def detect_kernel() -> str:
@@ -283,14 +292,22 @@ def parse_perf_csv(csv_path: str) -> PerfCounters:
 def run_single(
     cmd: list[str],
     use_perf: bool,
-    timeout: float = 120.0,
+    has_time_bin: bool,
+    timeout: float = 180.0,
     env: Optional[dict] = None,
     cwd: Optional[Path] = None,
 ) -> RunResult:
-    """Run a single benchmark invocation, optionally with perf stat."""
+    """Run a single benchmark invocation, measuring wall-clock, memory, and perf counters."""
     run_env = os.environ.copy()
     if env:
         run_env.update(env)
+
+    perf_counters = None
+    peak_rss_mb = 0.0
+
+    exec_cmd = list(cmd)
+    if has_time_bin:
+        exec_cmd = ["/usr/bin/time", "-f", "BENCH_PEAK_RSS_KB:%M"] + exec_cmd
 
     if use_perf:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as tmp:
@@ -302,7 +319,7 @@ def run_single(
             "-x", ",",
             "-o", perf_csv,
             "--",
-        ] + cmd
+        ] + exec_cmd
 
         start = time.perf_counter()
         try:
@@ -324,36 +341,49 @@ def run_single(
             os.unlink(perf_csv)
         except OSError:
             pass
-
-        output = result.stdout.strip()
-        return RunResult(wall_time=elapsed, output=output, perf=perf_counters)
     else:
         start = time.perf_counter()
         try:
             result = subprocess.run(
-                cmd,
+                exec_cmd,
                 capture_output=True, text=True, timeout=timeout,
                 env=run_env, cwd=cwd,
             )
         except subprocess.TimeoutExpired:
             return RunResult(wall_time=timeout, output="TIMEOUT")
         elapsed = time.perf_counter() - start
-        output = result.stdout.strip()
-        return RunResult(wall_time=elapsed, output=output)
+
+    stdout_lines = result.stdout.strip().splitlines()
+    stderr_lines = result.stderr.strip().splitlines()
+
+    for line in stderr_lines:
+        if "BENCH_PEAK_RSS_KB:" in line:
+            m = re.search(r"BENCH_PEAK_RSS_KB:(\d+)", line)
+            if m:
+                kb = int(m.group(1))
+                peak_rss_mb = kb / 1024.0
+
+    output = "\n".join(stdout_lines).strip()
+    return RunResult(wall_time=elapsed, peak_rss_mb=peak_rss_mb, output=output, perf=perf_counters)
 
 
 def run_benchmark_set(
     cmd: list[str],
     num_runs: int,
+    warmup_runs: int,
     use_perf: bool,
+    has_time_bin: bool,
     env: Optional[dict] = None,
     cwd: Optional[Path] = None,
 ) -> BenchmarkResult:
-    """Run a benchmark multiple times and aggregate."""
+    """Execute warmup runs and measured runs, aggregating the results."""
+    for _ in range(warmup_runs):
+        run_single(cmd, False, has_time_bin, env=env, cwd=cwd)
+
     result = BenchmarkResult()
     for i in range(num_runs):
         do_perf = use_perf and (i == num_runs - 1)
-        run = run_single(cmd, do_perf, env=env, cwd=cwd)
+        run = run_single(cmd, do_perf, has_time_bin, env=env, cwd=cwd)
         result.runs.append(run)
     return result
 
@@ -385,7 +415,7 @@ def fmt_count(n: Optional[int]) -> str:
 
 
 def fmt_speedup(pb_time: float, other_time: float, style: Style) -> str:
-    """Format a speedup ratio with colour (Pogberry relative to other)."""
+    """Format a speedup ratio with colour (Pogberry relative to Python)."""
     if pb_time <= 0 or other_time <= 0:
         return "─"
     ratio = other_time / pb_time
@@ -410,12 +440,19 @@ def fmt_msframe(seconds: float, frames: int) -> str:
     return f"{ms:.1f}ms/fr"
 
 
-# ── Output rendering ────────────────────────────────────────────────
+def fmt_mb(mb: float) -> str:
+    if mb <= 0:
+        return "─"
+    return f"{mb:.1f}MB"
 
-def print_header(style: Style, gcc_ver: str, py_ver: str, has_jit: bool,
-                 kernel: str, cpu: str, num_runs: int, has_perf: bool) -> None:
+
+# ── Terminal Output Rendering ────────────────────────────────────────
+
+def print_header(style: Style, gcc_ver: str, py_ver: str,
+                 kernel: str, cpu: str, num_runs: int, warmup_runs: int,
+                 has_perf: bool) -> None:
     """Print the suite header."""
-    w = 90
+    w = 88
     print()
     print(style.bold(style.cyan("┌" + "─" * (w - 2) + "┐")))
     title = "🍇  Pogberry Benchmark Suite"
@@ -423,8 +460,7 @@ def print_header(style: Style, gcc_ver: str, py_ver: str, has_jit: bool,
     print(style.bold(style.cyan("│")) + " " * pad + style.bold(title) +
           " " * (w - 3 - pad - len(title)) + style.bold(style.cyan("│")))
 
-    jit_label = " (JIT available)" if has_jit else ""
-    info = f"gcc {gcc_ver} · Python {py_ver}{jit_label} · Linux {kernel}"
+    info = f"gcc {gcc_ver} · Python {py_ver} · Linux {kernel}"
     pad = (w - 4 - len(info)) // 2
     print(style.bold(style.cyan("│")) + " " * pad + style.dim(info) +
           " " * (w - 3 - pad - len(info)) + style.bold(style.cyan("│")))
@@ -434,7 +470,7 @@ def print_header(style: Style, gcc_ver: str, py_ver: str, has_jit: bool,
     print(style.bold(style.cyan("│")) + " " * pad + style.dim(cpu_short) +
           " " * (w - 3 - pad - len(cpu_short)) + style.bold(style.cyan("│")))
 
-    run_info = f"{num_runs} runs per benchmark · median times"
+    run_info = f"{num_runs} runs per benchmark ({warmup_runs} warmup) · medians & peak RAM"
     if has_perf:
         run_info += " · perf counters"
     pad = (w - 4 - len(run_info)) // 2
@@ -445,33 +481,30 @@ def print_header(style: Style, gcc_ver: str, py_ver: str, has_jit: bool,
     print(style.bold(style.cyan("│")) + " " * (w - 2) + style.bold(style.cyan("│")))
 
 
-def print_timing_table(entries: list[BenchmarkEntry], style: Style,
-                       has_jit: bool, verbose: bool) -> None:
-    """Print the main timing comparison table."""
-    w = 90
-    col_bench = 22
-    col_num = 10
+def print_timing_table(entries: list[BenchmarkEntry], style: Style, verbose: bool) -> None:
+    """Print the main timing & memory comparison table."""
+    w = 88
+    col_bench = 20
+    col_time = 11
+    col_ratio = 12
+    col_ram = 10
 
-    # Header row
-    if has_jit:
-        hdr = (f"  {pad_vis('BENCHMARK', col_bench)}"
-               f"{pad_vis('POGBERRY', col_num, 'right')}  "
-               f"{pad_vis('PYTHON', col_num, 'right')}  "
-               f"{pad_vis('PY+JIT', col_num, 'right')}  "
-               f"{pad_vis('vs PY', col_num, 'center')}  "
-               f"{pad_vis('vs JIT', col_num, 'center')}")
-        sep = f"  {'─' * col_bench}{'─' * col_num}  {'─' * col_num}  {'─' * col_num}  {'─' * col_num}  {'─' * col_num}"
-    else:
-        hdr = (f"  {pad_vis('BENCHMARK', col_bench)}"
-               f"{pad_vis('POGBERRY', col_num, 'right')}  "
-               f"{pad_vis('PYTHON', col_num, 'right')}  "
-               f"{pad_vis('vs PY', col_num, 'center')}")
-        sep = f"  {'─' * col_bench}{'─' * col_num}  {'─' * col_num}  {'─' * col_num}"
+    hdr = (f"  {pad_vis('BENCHMARK', col_bench)}"
+           f"{pad_vis('POGBERRY', col_time, 'right')}  "
+           f"{pad_vis('PYTHON', col_time, 'right')}  "
+           f"{pad_vis('SPEEDUP', col_ratio, 'center')}  "
+           f"{pad_vis('PB RAM', col_ram, 'right')}  "
+           f"{pad_vis('PY RAM', col_ram, 'right')}")
+    sep = (f"  {'─' * col_bench}"
+           f"{'─' * col_time}  "
+           f"{'─' * col_time}  "
+           f"{'─' * col_ratio}  "
+           f"{'─' * col_ram}  "
+           f"{'─' * col_ram}")
 
     print(pad_box_row(style.bold(hdr), w, style))
     print(pad_box_row(style.dim(sep), w, style))
 
-    # Separate pure and GUI entries
     pure_entries = [e for e in entries if not e.is_gui]
     gui_entries = [e for e in entries if e.is_gui]
 
@@ -483,7 +516,9 @@ def print_timing_table(entries: list[BenchmarkEntry], style: Style,
 
         pb_time = e.pogberry.median if e.pogberry else 0
         py_time = e.python.median if e.python else 0
-        jit_time = e.python_jit.median if e.python_jit else 0
+
+        pb_ram = e.pogberry.peak_rss_mb if e.pogberry else 0
+        py_ram = e.python.peak_rss_mb if e.python else 0
 
         if e.is_gui:
             frames = 300 if "stress" in e.name else 500
@@ -495,27 +530,12 @@ def print_timing_table(entries: list[BenchmarkEntry], style: Style,
 
         vs_py = fmt_speedup(pb_time, py_time, style) if (pb_time and py_time) else "─"
 
-        if has_jit and not e.is_gui:
-            jit_str = fmt_time(jit_time) if jit_time else "─"
-            vs_jit = fmt_speedup(pb_time, jit_time, style) if (pb_time and jit_time) else "─"
-            line = (f"  {pad_vis(e.name, col_bench)}"
-                    f"{pad_vis(pb_str, col_num, 'right')}  "
-                    f"{pad_vis(py_str, col_num, 'right')}  "
-                    f"{pad_vis(jit_str, col_num, 'right')}  "
-                    f"{pad_vis(vs_py, col_num, 'center')}  "
-                    f"{pad_vis(vs_jit, col_num, 'center')}")
-        elif has_jit and e.is_gui:
-            line = (f"  {pad_vis(e.name, col_bench)}"
-                    f"{pad_vis(pb_str, col_num, 'right')}  "
-                    f"{pad_vis(py_str, col_num, 'right')}  "
-                    f"{pad_vis('─', col_num, 'center')}  "
-                    f"{pad_vis(vs_py, col_num, 'center')}  "
-                    f"{pad_vis('─', col_num, 'center')}")
-        else:
-            line = (f"  {pad_vis(e.name, col_bench)}"
-                    f"{pad_vis(pb_str, col_num, 'right')}  "
-                    f"{pad_vis(py_str, col_num, 'right')}  "
-                    f"{pad_vis(vs_py, col_num, 'center')}")
+        line = (f"  {pad_vis(e.name, col_bench)}"
+                f"{pad_vis(pb_str, col_time, 'right')}  "
+                f"{pad_vis(py_str, col_time, 'right')}  "
+                f"{pad_vis(vs_py, col_ratio, 'center')}  "
+                f"{pad_vis(fmt_mb(pb_ram), col_ram, 'right')}  "
+                f"{pad_vis(fmt_mb(py_ram), col_ram, 'right')}")
 
         if not e.correct:
             line += style.red(" ⚠")
@@ -525,7 +545,8 @@ def print_timing_table(entries: list[BenchmarkEntry], style: Style,
         if verbose and e.pogberry and len(e.pogberry.times) >= 2:
             detail = (f"     pb: min={fmt_time(e.pogberry.best)} "
                       f"max={fmt_time(e.pogberry.worst)} "
-                      f"σ={fmt_time(e.pogberry.stdev)}")
+                      f"σ={fmt_time(e.pogberry.stdev)} "
+                      f"(±{e.pogberry.rsd_pct:.1f}%)")
             print(pad_box_row(style.dim(detail), w, style))
 
     for e in pure_entries:
@@ -542,38 +563,24 @@ def print_timing_table(entries: list[BenchmarkEntry], style: Style,
         geo_py = math.exp(sum(math.log(t) for t in py_times) / len(py_times))
         vs_geo_py = fmt_speedup(geo_pb, geo_py, style)
 
-        if has_jit:
-            jit_times = [e.python_jit.median for e in pure_entries
-                         if e.python_jit and e.python_jit.median > 0]
-            if len(jit_times) == len(pb_times):
-                geo_jit = math.exp(sum(math.log(t) for t in jit_times) / len(jit_times))
-                vs_geo_jit = fmt_speedup(geo_pb, geo_jit, style)
-                line = (f"  {pad_vis(style.bold('GEOMETRIC MEAN'), col_bench)}"
-                        f"{pad_vis(fmt_time(geo_pb), col_num, 'right')}  "
-                        f"{pad_vis(fmt_time(geo_py), col_num, 'right')}  "
-                        f"{pad_vis(fmt_time(geo_jit), col_num, 'right')}  "
-                        f"{pad_vis(vs_geo_py, col_num, 'center')}  "
-                        f"{pad_vis(vs_geo_jit, col_num, 'center')}")
-            else:
-                line = (f"  {pad_vis(style.bold('GEOMETRIC MEAN'), col_bench)}"
-                        f"{pad_vis(fmt_time(geo_pb), col_num, 'right')}  "
-                        f"{pad_vis(fmt_time(geo_py), col_num, 'right')}  "
-                        f"{pad_vis('─', col_num, 'center')}  "
-                        f"{pad_vis(vs_geo_py, col_num, 'center')}  "
-                        f"{pad_vis('─', col_num, 'center')}")
-        else:
-            line = (f"  {pad_vis(style.bold('GEOMETRIC MEAN'), col_bench)}"
-                    f"{pad_vis(fmt_time(geo_pb), col_num, 'right')}  "
-                    f"{pad_vis(fmt_time(geo_py), col_num, 'right')}  "
-                    f"{pad_vis(vs_geo_py, col_num, 'center')}")
+        # Average peak RAM
+        pb_avg_ram = statistics.mean([e.pogberry.peak_rss_mb for e in pure_entries if e.pogberry])
+        py_avg_ram = statistics.mean([e.python.peak_rss_mb for e in pure_entries if e.python])
+
+        line = (f"  {pad_vis(style.bold('GEOMETRIC MEAN'), col_bench)}"
+                f"{pad_vis(fmt_time(geo_pb), col_time, 'right')}  "
+                f"{pad_vis(fmt_time(geo_py), col_time, 'right')}  "
+                f"{pad_vis(vs_geo_py, col_ratio, 'center')}  "
+                f"{pad_vis(fmt_mb(pb_avg_ram), col_ram, 'right')}  "
+                f"{pad_vis(fmt_mb(py_avg_ram), col_ram, 'right')}")
 
         print(pad_box_row(line, w, style))
 
     # GUI section
     if gui_entries:
         print(pad_box_row("", w, style))
-        gui_label = "  ── GUI BENCHMARKS (pb_gui/Raylib vs pygame) "
-        gui_label += "─" * max(0, 84 - len(gui_label))
+        gui_label = "  ── HEADED GUI BENCHMARKS (pb_gui/Raylib vs pygame) "
+        gui_label += "─" * max(0, 82 - len(gui_label))
         print(pad_box_row(style.bold(gui_label), w, style))
         print(pad_box_row("", w, style))
         for e in gui_entries:
@@ -584,7 +591,7 @@ def print_timing_table(entries: list[BenchmarkEntry], style: Style,
 
 
 def print_perf_table(entries: list[BenchmarkEntry], style: Style) -> None:
-    """Print the hardware counters table."""
+    """Print the hardware performance counters table."""
     has_any = any(
         (e.pogberry and e.pogberry.last_perf and e.pogberry.last_perf.instructions)
         or (e.python and e.python.last_perf and e.python.last_perf.instructions)
@@ -593,7 +600,7 @@ def print_perf_table(entries: list[BenchmarkEntry], style: Style) -> None:
     if not has_any:
         return
 
-    w = 90
+    w = 88
     print()
     print(style.bold(style.cyan("┌" + "─" * (w - 2) + "┐")))
     title = "⚡ Hardware Performance Counters (via perf stat)"
@@ -619,24 +626,534 @@ def print_perf_table(entries: list[BenchmarkEntry], style: Style) -> None:
         if e.is_gui:
             continue
         for label, result in [("pb", e.pogberry), ("py", e.python)]:
-            if not result or not result.last_perf:
+            if not result:
                 continue
             p = result.last_perf
             line = (f"  {pad_vis(e.name, col_bench)} "
                     f"{pad_vis(label, 3, 'right')}  "
                     f"{pad_vis(fmt_time(result.median), 8, 'right')}  "
-                    f"{pad_vis(fmt_count(p.instructions), 10, 'right')}  "
-                    f"{pad_vis(fmt_count(p.cycles), 10, 'right')}  "
-                    f"{pad_vis(fmt_ipc(p.ipc), 5, 'right')}  "
-                    f"{pad_vis(fmt_count(p.cache_misses), 8, 'right')}  "
-                    f"{pad_vis(fmt_count(p.branch_misses), 8, 'right')}")
+                    f"{pad_vis(fmt_count(p.instructions) if p else '─', 10, 'right')}  "
+                    f"{pad_vis(fmt_count(p.cycles) if p else '─', 10, 'right')}  "
+                    f"{pad_vis(fmt_ipc(p.ipc) if p else '─', 5, 'right')}  "
+                    f"{pad_vis(fmt_count(p.cache_misses) if p else '─', 8, 'right')}  "
+                    f"{pad_vis(fmt_count(p.branch_misses) if p else '─', 8, 'right')}")
             print(pad_box_row(line, w, style))
 
     print(pad_box_row("", w, style))
     print(style.bold(style.cyan("└" + "─" * (w - 2) + "┘")))
 
 
-# ── Progress display ─────────────────────────────────────────────────
+# ── Interactive HTML Report Generator ────────────────────────────────
+
+def generate_html_report(
+    entries: list[BenchmarkEntry],
+    meta: dict,
+    output_path: Path,
+) -> None:
+    """Generate a modern, standalone interactive HTML report with charts."""
+    """Generate a clean, minimalist developer HTML dashboard."""
+    bench_names = [e.name for e in entries if not e.is_gui]
+    pb_times = [e.pogberry.median * 1000 if e.pogberry else 0 for e in entries if not e.is_gui]
+    py_times = [e.python.median * 1000 if e.python else 0 for e in entries if not e.is_gui]
+    pb_times_ms = [round(e.pogberry.median * 1000, 1) if e.pogberry else 0 for e in entries if not e.is_gui]
+    py_times_ms = [round(e.python.median * 1000, 1) if e.python else 0 for e in entries if not e.is_gui]
+
+    pb_ram = [e.pogberry.peak_rss_mb if e.pogberry else 0 for e in entries if not e.is_gui]
+    py_ram = [e.python.peak_rss_mb if e.python else 0 for e in entries if not e.is_gui]
+    pb_ram = [round(e.pogberry.peak_rss_mb, 1) if e.pogberry else 0 for e in entries if not e.is_gui]
+    py_ram = [round(e.python.peak_rss_mb, 1) if e.python else 0 for e in entries if not e.is_gui]
+
+    speedup_py = [
+        (e.python.median / e.pogberry.median) if (e.pogberry and e.python and e.pogberry.median > 0) else 1.0
+    speedup_values = [
+        round((e.python.median / e.pogberry.median), 2) if (e.pogberry and e.python and e.pogberry.median > 0) else 1.0
+        for e in entries if not e.is_gui
+    ]
+    speedup_colors = [
+        "#10b981" if s >= 1.05 else ("#ef4444" if s <= 0.95 else "#6b7280")
+        for s in speedup_values
+    ]
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pogberry Benchmark Suite Report</title>
+  <title>Pogberry Benchmark Report</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {{
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --accent: #a371f7;
+      --accent-green: #3fb950;
+      --accent-red: #f85149;
+      --accent-blue: #58a6ff;
+      --accent-yellow: #d29922;
+      --bg: #090a0f;
+      --card: #111318;
+      --border: #1e222b;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --text-muted: #64748b;
+      --accent-pb: #818cf8;
+      --accent-py: #38bdf8;
+      --success: #34d399;
+      --danger: #f87171;
+    }}
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem 1rem;
+      line-height: 1.5;
+      padding: 2.5rem 1.5rem;
+    }}
+    .container {{ max-width: 1200px; margin: 0 auto; }}
+    .container {{ max-width: 1100px; margin: 0 auto; }}
+    header {{
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.25rem;
+    }}
+    header h1 {{ font-size: 2.2rem; color: #f0f6fc; margin-bottom: 0.5rem; }}
+    header .meta {{ color: var(--text-muted); font-size: 0.95rem; }}
+    .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }}
+    @media (max-width: 900px) {{ .grid {{ grid-template-columns: 1fr; }} }}
+    .card {{
+      background: var(--card-bg);
+    header h1 {{
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #f8fafc;
+      margin-bottom: 0.5rem;
+    }}
+    .meta-list {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      font-size: 0.825rem;
+      color: var(--text-dim);
+    }}
+    .meta-item strong {{ color: var(--text); font-weight: 500; }}
+    .grid {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }}
+    @media (max-width: 860px) {{ .grid {{ grid-template-columns: 1fr; }} }}
+    .panel {{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      padding: 1.25rem;
+    }}
+    .card h2 {{ font-size: 1.2rem; color: #f0f6fc; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }}
+    .chart-container {{ position: relative; height: 320px; width: 100%; }}
+    .panel h2 {{
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }}
+    .full-width {{ grid-column: 1 / -1; }}
+    .chart-box {{ position: relative; height: 380px; width: 100%; }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }}
+    th, td {{
+      padding: 0.75rem 1rem;
+      padding: 0.65rem 0.85rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }}
+    th:first-child, td:first-child {{ text-align: left; }}
+    th {{ background: #21262d; color: #f0f6fc; font-weight: 600; }}
+    tr:hover td {{ background: #1f242c; }}
+    .badge {{
+    th {{
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(255, 255, 255, 0.02);
+    }}
+    td {{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.825rem;
+    }}
+    td:first-child {{
+      font-family: inherit;
+      font-weight: 500;
+    }}
+    tr:last-child td {{ border-bottom: none; }}
+    tr:hover td {{ background: rgba(255, 255, 255, 0.02); }}
+    .tag {{
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.775rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-weight: 500;
+    }}
+    .tag-faster {{ color: var(--success); background: rgba(52, 211, 153, 0.1); }}
+    .tag-slower {{ color: var(--danger); background: rgba(248, 113, 113, 0.1); }}
+    .tag-equal {{ color: var(--text-dim); background: rgba(148, 163, 184, 0.1); }}
+    .section-row td {{
+      background: rgba(255, 255, 255, 0.03);
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      text-align: left;
+    }}
+    .badge-win {{ background: rgba(63, 185, 80, 0.2); color: var(--accent-green); }}
+    .badge-lose {{ background: rgba(248, 81, 73, 0.2); color: var(--accent-red); }}
+    .badge-tie {{ background: rgba(210, 153, 34, 0.2); color: var(--accent-yellow); }}
+    footer {{ text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-top: 3rem; }}
+    footer {{
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🍇 Pogberry Benchmark Suite Report</h1>
+      <div class="meta">
+        <strong>OS:</strong> Linux {html.escape(meta.get('kernel', ''))} &nbsp;|&nbsp;
+        <strong>CPU:</strong> {html.escape(meta.get('cpu', ''))} &nbsp;|&nbsp;
+        <strong>Compiler:</strong> gcc {html.escape(meta.get('gcc', ''))} &nbsp;|&nbsp;
+        <strong>Python:</strong> {html.escape(meta.get('python', ''))}
+      <h1>Pogberry Benchmark Results</h1>
+      <div class="meta-list">
+        <div class="meta-item">Linux <strong>{html.escape(meta.get('kernel', ''))}</strong></div>
+        <div class="meta-item">CPU <strong>{html.escape(meta.get('cpu', ''))}</strong></div>
+        <div class="meta-item">GCC <strong>{html.escape(meta.get('gcc', ''))}</strong></div>
+        <div class="meta-item">Python <strong>{html.escape(meta.get('python', ''))}</strong></div>
+        <div class="meta-item">Runs: <strong>{meta.get('runs', 5)} ({meta.get('warmup', 1)} warmup)</strong></div>
+      </div>
+      <div class="meta" style="margin-top: 0.4rem;">
+        Runs: {meta.get('runs', 5)} (Warmup: {meta.get('warmup', 1)}) · Statistically measured medians & peak RAM
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <h2>⏱️ Execution Time (ms, log scale, lower is better)</h2>
+        <div class="chart-container">
+          <canvas id="timeChart"></canvas>
+      <div class="panel">
+        <h2>Relative Speedup (vs Python)</h2>
+        <div class="chart-box">
+          <canvas id="speedupChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>⚡ Pogberry Speedup (vs Python)</h2>
+        <div class="chart-container">
+          <canvas id="speedupChart"></canvas>
+      <div class="panel">
+        <h2>Peak Memory (MB)</h2>
+        <div class="chart-box">
+          <canvas id="ramChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card full-width">
+        <h2>💾 Peak Memory Footprint (RAM in MB, lower is better)</h2>
+        <div class="chart-container" style="height: 280px;">
+          <canvas id="ramChart"></canvas>
+      <div class="panel full-width">
+        <h2>Execution Time (Milliseconds)</h2>
+        <div class="chart-box" style="height: 360px;">
+          <canvas id="timeChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card full-width">
+        <h2>📊 Detailed Results Summary</h2>
+      <div class="panel full-width">
+        <h2>Benchmark Summary Table</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Benchmark</th>
+              <th>Pogberry Time</th>
+              <th>Python Time</th>
+              <th>Speedup</th>
+              <th>Pogberry RAM</th>
+              <th>Python Time</th>
+              <th>Python RAM</th>
+              <th>Speedup (vs Python)</th>
+            </tr>
+          </thead>
+          <tbody>"""
+
+    for e in entries:
+        if e.is_gui:
+            continue
+        pb_t = e.pogberry.median if e.pogberry else 0
+        py_t = e.python.median if e.python else 0
+
+        pb_ram_val = e.pogberry.peak_rss_mb if e.pogberry else 0
+        py_ram_val = e.python.peak_rss_mb if e.python else 0
+
+        ratio_py = (py_t / pb_t) if (pb_t > 0 and py_t > 0) else 0
+        badge_py = "badge-win" if ratio_py >= 1.05 else ("badge-lose" if ratio_py <= 0.95 else "badge-tie")
+        ratio = (py_t / pb_t) if (pb_t > 0 and py_t > 0) else 0
+        tag_cls = "tag-faster" if ratio >= 1.05 else ("tag-slower" if ratio <= 0.95 else "tag-equal")
+
+        html_content += f"""
+            <tr>
+              <td><strong>{html.escape(e.name)}</strong></td>
+              <td>{html.escape(e.name)}</td>
+              <td>{fmt_time(pb_t)}</td>
+              <td>{fmt_time(py_t)}</td>
+              <td><span class="tag {tag_cls}">{ratio:.2f}x</span></td>
+              <td>{fmt_mb(pb_ram_val)}</td>
+              <td>{fmt_time(py_t)}</td>
+              <td>{fmt_mb(py_ram_val)}</td>
+              <td><span class="badge {badge_py}">{ratio_py:.1f}x</span></td>
+            </tr>"""
+
+    gui_entries = [e for e in entries if e.is_gui]
+    if gui_entries:
+        html_content += """
+            <tr style="background: #21262d;"><td colspan="6" style="text-align: left; font-weight: bold; color: var(--accent);">🎮 Headed GUI Benchmarks (pb_gui / Raylib vs Pygame)</td></tr>"""
+            <tr class="section-row"><td colspan="6">Headed GUI Benchmarks (pb_gui / Raylib vs Pygame)</td></tr>"""
+        for e in gui_entries:
+            frames = 300 if "stress" in e.name else 500
+            pb_t = e.pogberry.median if e.pogberry else 0
+            py_t = e.python.median if e.python else 0
+            ratio_py = (py_t / pb_t) if (pb_t > 0 and py_t > 0) else 0
+            badge_py = "badge-win" if ratio_py >= 1.05 else ("badge-lose" if ratio_py <= 0.95 else "badge-tie")
+            ratio = (py_t / pb_t) if (pb_t > 0 and py_t > 0) else 0
+            tag_cls = "tag-faster" if ratio >= 1.05 else ("tag-slower" if ratio <= 0.95 else "tag-equal")
+
+            html_content += f"""
+            <tr>
+              <td><strong>{html.escape(e.name)}</strong></td>
+              <td>{html.escape(e.name)}</td>
+              <td>{fmt_msframe(pb_t, frames)}</td>
+              <td>{fmt_msframe(py_t, frames)}</td>
+              <td><span class="tag {tag_cls}">{ratio:.2f}x</span></td>
+              <td>{fmt_mb(e.pogberry.peak_rss_mb if e.pogberry else 0)}</td>
+              <td>{fmt_msframe(py_t, frames)}</td>
+              <td>{fmt_mb(e.python.peak_rss_mb if e.python else 0)}</td>
+              <td><span class="badge {badge_py}">{ratio_py:.1f}x</span></td>
+            </tr>"""
+
+    html_content += f"""
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>
+      Generated by Pogberry Benchmark Framework · {time.strftime('%Y-%m-%d %H:%M:%S')}
+      Pogberry Benchmark Suite · Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}
+    </footer>
+  </div>
+
+  <script>
+    const labels = {json.dumps(bench_names)};
+    
+    // Time Chart
+    new Chart(document.getElementById('timeChart'), {{
+
+    // Chart.js default styling
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = '#1e222b';
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+    // 1. Speedup Chart (Horizontal linear)
+    new Chart(document.getElementById('speedupChart'), {{
+      type: 'bar',
+      data: {{
+        labels: labels,
+        datasets: [
+          {{ label: 'Pogberry (ms)', data: {json.dumps(pb_times)}, backgroundColor: '#a371f7' }},
+          {{ label: 'Python (ms)', data: {json.dumps(py_times)}, backgroundColor: '#58a6ff' }}
+        ]
+        datasets: [{{
+          label: 'Speedup vs Python',
+          data: {json.dumps(speedup_values)},
+          backgroundColor: {json.dumps(speedup_colors)},
+          borderRadius: 3
+        }}]
+      }},
+      options: {{
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {{
+          legend: {{ display: false }},
+          tooltip: {{
+            callbacks: {{
+              label: (ctx) => ` ${{ctx.parsed.x}}x relative to Python`
+            }}
+          }}
+        }},
+        scales: {{
+          y: {{ type: 'logarithmic', title: {{ display: true, text: 'Time (ms, log scale)', color: '#8b949e' }}, grid: {{ color: '#30363d' }} }},
+          x: {{ grid: {{ color: '#30363d' }} }}
+        }},
+        plugins: {{ legend: {{ labels: {{ color: '#c9d1d9' }} }} }}
+          x: {{
+            grid: {{ color: '#1e222b' }},
+            title: {{ display: true, text: 'Speedup Ratio (1.0 = equal)' }}
+          }},
+          y: {{
+            grid: {{ display: false }}
+          }}
+        }}
+      }}
+    }});
+
+    // Speedup Chart
+    new Chart(document.getElementById('speedupChart'), {{
+    // 2. RAM Chart (Horizontal linear)
+    new Chart(document.getElementById('ramChart'), {{
+      type: 'bar',
+      data: {{
+        labels: labels,
+        datasets: [
+          {{ label: 'Pogberry Speedup Ratio (1.0 = equal)', data: {json.dumps(speedup_py)}, backgroundColor: '#3fb950' }}
+          {{
+            label: 'Pogberry',
+            data: {json.dumps(pb_ram)},
+            backgroundColor: '#818cf8',
+            borderRadius: 3
+          }},
+          {{
+            label: 'Python',
+            data: {json.dumps(py_ram)},
+            backgroundColor: '#38bdf8',
+            borderRadius: 3
+          }}
+        ]
+      }},
+      options: {{
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {{
+          legend: {{ position: 'top', labels: {{ boxWidth: 12, padding: 12 }} }},
+          tooltip: {{
+            callbacks: {{
+              label: (ctx) => ` ${{ctx.dataset.label}}: ${{ctx.parsed.x}} MB`
+            }}
+          }}
+        }},
+        scales: {{
+          y: {{ title: {{ display: true, text: 'Speedup Ratio (x)', color: '#8b949e' }}, grid: {{ color: '#30363d' }} }},
+          x: {{ grid: {{ color: '#30363d' }} }}
+        }},
+        plugins: {{ legend: {{ labels: {{ color: '#c9d1d9' }} }} }}
+          x: {{
+            grid: {{ color: '#1e222b' }},
+            title: {{ display: true, text: 'Peak Resident Memory (MB)' }}
+          }},
+          y: {{
+            grid: {{ display: false }}
+          }}
+        }}
+      }}
+    }});
+
+    // RAM Chart
+    new Chart(document.getElementById('ramChart'), {{
+    // 3. Execution Time Chart (Grouped horizontal bar chart)
+    new Chart(document.getElementById('timeChart'), {{
+      type: 'bar',
+      data: {{
+        labels: labels,
+        datasets: [
+          {{ label: 'Pogberry RAM (MB)', data: {json.dumps(pb_ram)}, backgroundColor: '#a371f7' }},
+          {{ label: 'Python RAM (MB)', data: {json.dumps(py_ram)}, backgroundColor: '#58a6ff' }}
+          {{
+            label: 'Pogberry',
+            data: {json.dumps(pb_times_ms)},
+            backgroundColor: '#818cf8',
+            borderRadius: 3
+          }},
+          {{
+            label: 'Python',
+            data: {json.dumps(py_times_ms)},
+            backgroundColor: '#38bdf8',
+            borderRadius: 3
+          }}
+        ]
+      }},
+      options: {{
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {{
+          legend: {{ position: 'top', labels: {{ boxWidth: 12, padding: 12 }} }},
+          tooltip: {{
+            callbacks: {{
+              label: (ctx) => ` ${{ctx.dataset.label}}: ${{ctx.parsed.x}} ms`
+            }}
+          }}
+        }},
+        scales: {{
+          y: {{ title: {{ display: true, text: 'Peak RSS (MB)', color: '#8b949e' }}, grid: {{ color: '#30363d' }} }},
+          x: {{ grid: {{ color: '#30363d' }} }}
+        }},
+        plugins: {{ legend: {{ labels: {{ color: '#c9d1d9' }} }} }}
+          x: {{
+            grid: {{ color: '#1e222b' }},
+            title: {{ display: true, text: 'Execution Time (ms)' }}
+          }},
+          y: {{
+            grid: {{ display: false }}
+          }}
+        }}
+      }}
+    }});
+  </script>
+</body>
+</html>"""
+
+    output_path.write_text(html_content, encoding="utf-8")
+    print(f"  Interactive HTML report generated at {output_path}")
+    print(f"  Report generated at {output_path}")
+
+
+# ── Main logic ───────────────────────────────────────────────────────
 
 class ProgressPrinter:
     """Prints progress during benchmark execution."""
@@ -647,10 +1164,11 @@ class ProgressPrinter:
         self.current = 0
         self.is_tty = sys.stdout.isatty()
 
-    def start(self, name: str, runtime: str, run_num: int, total_runs: int) -> None:
+    def start(self, name: str, runtime: str, run_num: int, total_runs: int, is_warmup: bool = False) -> None:
         if self.is_tty:
             bar = f"[{self.current + 1}/{self.total}]"
-            msg = f"\r  {self.style.dim(bar)} {name} ({runtime}) run {run_num}/{total_runs}..."
+            tag = "warmup" if is_warmup else f"run {run_num}/{total_runs}"
+            msg = f"\r  {self.style.dim(bar)} {name} ({runtime}) {tag}..."
             print(msg, end="", flush=True)
 
     def finish_benchmark(self, name: str, pb_time: float, py_time: float) -> None:
@@ -668,8 +1186,6 @@ class ProgressPrinter:
             print("\r" + " " * 80 + "\r", end="", flush=True)
         print(f"  {self.style.red('✗')} {name:<22} {self.style.red(error)}")
 
-
-# ── Main logic ───────────────────────────────────────────────────────
 
 def check_gui_available(project_root: Path) -> bool:
     """Check if pb_gui (Raylib backend) is available."""
@@ -719,15 +1235,15 @@ def main() -> int:
     parser.add_argument("--binary", type=Path,
                         help="path to the pb executable")
     parser.add_argument("--runs", type=int, default=5,
-                        help="number of runs per benchmark")
+                        help="number of measured runs per benchmark")
+    parser.add_argument("--warmup", type=int, default=1,
+                        help="number of unmeasured warmup runs per benchmark")
     parser.add_argument("--filter", type=str, default="",
                         help="only run benchmarks matching this pattern")
     parser.add_argument("--gui", dest="gui", action="store_true", default=None,
                         help="include GUI benchmarks")
     parser.add_argument("--no-gui", dest="gui", action="store_false",
                         help="exclude GUI benchmarks")
-    parser.add_argument("--headless", action="store_true",
-                        help="run GUI benchmarks with virtual display")
     parser.add_argument("--perf", dest="perf", action="store_true", default=None,
                         help="enable perf stat collection")
     parser.add_argument("--no-perf", dest="perf", action="store_false",
@@ -735,14 +1251,15 @@ def main() -> int:
     parser.add_argument("--build", action="store_true",
                         help="run `make release` before benchmarking")
     parser.add_argument("--json", action="store_true",
-                        help="output machine-readable JSON")
+                        help="output machine-readable JSON to bench/results.json")
+    parser.add_argument("--html", nargs="?", const="bench/report.html", default=None,
+                        help="generate interactive standalone HTML report")
     parser.add_argument("--verbose", action="store_true",
-                        help="show min/max/stddev per benchmark")
+                        help="show min/max/stddev and RAM per benchmark")
     parser.add_argument("--no-color", action="store_true",
                         help="disable ANSI colours")
     args = parser.parse_args()
 
-    # Resolve paths
     runner_dir = Path(__file__).resolve().parent
     project_root = runner_dir.parent
     programs_dir = runner_dir / "programs"
@@ -752,7 +1269,6 @@ def main() -> int:
                      and sys.stdout.isatty())
     style = Style(color_enabled)
 
-    # Build if requested
     if args.build:
         print(style.bold("Building release binary..."))
         result = subprocess.run(["make", "release"], cwd=project_root,
@@ -762,27 +1278,23 @@ def main() -> int:
             print(result.stderr)
             return 2
 
-    # Find binary
     binary = find_binary(args.binary, project_root)
     try:
         binary_label = binary.relative_to(project_root)
     except ValueError:
         binary_label = binary
 
-    # Detect environment
     gcc_ver = detect_gcc_version()
     py_ver = detect_python_version()
-    has_jit = detect_python_jit()
     kernel = detect_kernel()
     cpu = detect_cpu()
+    has_time_bin = detect_time_binary()
 
-    # Detect perf
     if args.perf is None:
         use_perf = detect_perf()
     else:
         use_perf = args.perf
 
-    # Detect GUI availability
     gui_pb_ok = check_gui_available(project_root)
     gui_py_ok = check_pygame_available()
     gui_available = gui_pb_ok and gui_py_ok
@@ -802,7 +1314,6 @@ def main() -> int:
     else:
         include_gui = False
 
-    # Discover benchmarks
     all_benchmarks = discover_benchmarks(programs_dir, args.filter)
 
     if include_gui:
@@ -814,28 +1325,18 @@ def main() -> int:
         print("error: no benchmarks found", file=sys.stderr)
         return 2
 
-    # Print header info
     print()
     print(style.bold("Pogberry benchmark suite"))
     print(f"  binary   {binary_label}")
-    print(f"  python   {sys.executable} ({py_ver}{' · JIT available' if has_jit else ''})")
-    print(f"  runs     {args.runs}")
+    print(f"  python   {sys.executable} ({py_ver})")
+    print(f"  runs     {args.runs} (warmup: {args.warmup})")
     print(f"  perf     {'enabled' if use_perf else 'disabled'}")
+    print(f"  memory   {'enabled (/usr/bin/time)' if has_time_bin else 'disabled'}")
     gui_count = sum(1 for b in benchmarks if b["is_gui"])
     pure_count = len(benchmarks) - gui_count
     print(f"  tests    {pure_count} pure + {gui_count} GUI")
     print()
 
-    # Prepare GUI env
-    gui_env = {}
-    if args.headless:
-        gui_env["SDL_VIDEODRIVER"] = "dummy"
-
-    # Environments for Python runs
-    py_nojit_env = {"PYTHON_JIT": "0"}
-    py_jit_env = {"PYTHON_JIT": "1"}
-
-    # Run benchmarks
     total_benches = len(benchmarks)
     progress = ProgressPrinter(style, total_benches)
     entries: list[BenchmarkEntry] = []
@@ -848,36 +1349,25 @@ def main() -> int:
         entry = BenchmarkEntry(name=name, is_gui=is_gui)
 
         try:
-            # Run Pogberry
+            # 1. Run Pogberry
             pb_cmd = [str(binary), str(pb_file)]
-            pb_env = gui_env if is_gui else None
+            for i in range(args.warmup):
+                progress.start(name, "pogberry", i + 1, args.warmup, is_warmup=True)
             for i in range(args.runs):
                 progress.start(name, "pogberry", i + 1, args.runs)
             entry.pogberry = run_benchmark_set(
-                pb_cmd, args.runs, use_perf, env=pb_env, cwd=project_root
+                pb_cmd, args.runs, args.warmup, use_perf, has_time_bin, cwd=project_root
             )
 
-            # Run Python (no JIT)
-            py_cmd_nojit = [sys.executable]
-            if has_jit:
-                py_cmd_nojit += ["-X", "jit=off"]
-            py_cmd_nojit.append(str(py_file))
+            # 2. Run Python
+            py_cmd = [sys.executable, str(py_file)]
+            for i in range(args.warmup):
+                progress.start(name, "python", i + 1, args.warmup, is_warmup=True)
             for i in range(args.runs):
                 progress.start(name, "python", i + 1, args.runs)
-            
-            env_for_nojit = {**py_nojit_env, **gui_env} if is_gui else py_nojit_env
             entry.python = run_benchmark_set(
-                py_cmd_nojit, args.runs, use_perf, env=env_for_nojit
+                py_cmd, args.runs, args.warmup, use_perf, has_time_bin
             )
-
-            # Run Python with JIT (only for pure benchmarks)
-            if has_jit and not is_gui:
-                py_cmd_jit = [sys.executable, "-X", "jit", str(py_file)]
-                for i in range(args.runs):
-                    progress.start(name, "python+jit", i + 1, args.runs)
-                entry.python_jit = run_benchmark_set(
-                    py_cmd_jit, args.runs, use_perf, env=py_jit_env
-                )
 
             # Correctness check: compare pb and py output
             if entry.pogberry and entry.python:
@@ -899,25 +1389,27 @@ def main() -> int:
 
     # Print results
     print()
-    print_header(style, gcc_ver, py_ver, has_jit, kernel, cpu,
-                 args.runs, use_perf)
-    print_timing_table(entries, style, has_jit, args.verbose)
+    print_header(style, gcc_ver, py_ver, kernel, cpu,
+                 args.runs, args.warmup, use_perf)
+    print_timing_table(entries, style, args.verbose)
 
-    if use_perf:
+    if use_perf or has_time_bin:
         print_perf_table(entries, style)
 
-    # JSON output
+    # JSON export
+    meta_dict = {
+        "gcc": gcc_ver,
+        "python": py_ver,
+        "kernel": kernel,
+        "cpu": cpu,
+        "runs": args.runs,
+        "warmup": args.warmup,
+        "binary": str(binary),
+    }
+
     if args.json:
         json_data = {
-            "meta": {
-                "gcc": gcc_ver,
-                "python": py_ver,
-                "jit": has_jit,
-                "kernel": kernel,
-                "cpu": cpu,
-                "runs": args.runs,
-                "binary": str(binary),
-            },
+            "meta": meta_dict,
             "benchmarks": [],
         }
         for e in entries:
@@ -926,16 +1418,16 @@ def main() -> int:
                 "is_gui": e.is_gui,
                 "correct": e.correct,
             }
-            for label, result in [("pogberry", e.pogberry),
-                                   ("python", e.python),
-                                   ("python_jit", e.python_jit)]:
+            for label, result in [("pogberry", e.pogberry), ("python", e.python)]:
                 if result:
                     d: dict = {
                         "median": result.median,
                         "mean": result.mean,
                         "stdev": result.stdev,
+                        "rsd_pct": result.rsd_pct,
                         "min": result.best,
                         "max": result.worst,
+                        "peak_rss_mb": result.peak_rss_mb,
                         "times": result.times,
                     }
                     if result.last_perf:
@@ -950,9 +1442,16 @@ def main() -> int:
                     bench_data[label] = d
             json_data["benchmarks"].append(bench_data)
 
-        json_path = Path(__file__).resolve().parent / "results.json"
+        json_path = project_root / "bench" / "results.json"
         json_path.write_text(json.dumps(json_data, indent=2) + "\n")
         print(f"\n  JSON results written to {json_path}")
+
+    # HTML export
+    if args.html:
+        html_path = Path(args.html)
+        if not html_path.is_absolute():
+            html_path = project_root / html_path
+        generate_html_report(entries, meta_dict, html_path)
 
     print()
     return 0
