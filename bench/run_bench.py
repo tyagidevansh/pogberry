@@ -650,21 +650,14 @@ def generate_html_report(
     meta: dict,
     output_path: Path,
 ) -> None:
-    """Generate a modern, standalone interactive HTML report with charts."""
     """Generate a clean, minimalist developer HTML dashboard."""
     bench_names = [e.name for e in entries if not e.is_gui]
-    pb_times = [e.pogberry.median * 1000 if e.pogberry else 0 for e in entries if not e.is_gui]
-    py_times = [e.python.median * 1000 if e.python else 0 for e in entries if not e.is_gui]
     pb_times_ms = [round(e.pogberry.median * 1000, 1) if e.pogberry else 0 for e in entries if not e.is_gui]
     py_times_ms = [round(e.python.median * 1000, 1) if e.python else 0 for e in entries if not e.is_gui]
 
-    pb_ram = [e.pogberry.peak_rss_mb if e.pogberry else 0 for e in entries if not e.is_gui]
-    py_ram = [e.python.peak_rss_mb if e.python else 0 for e in entries if not e.is_gui]
     pb_ram = [round(e.pogberry.peak_rss_mb, 1) if e.pogberry else 0 for e in entries if not e.is_gui]
     py_ram = [round(e.python.peak_rss_mb, 1) if e.python else 0 for e in entries if not e.is_gui]
 
-    speedup_py = [
-        (e.python.median / e.pogberry.median) if (e.pogberry and e.python and e.pogberry.median > 0) else 1.0
     speedup_values = [
         round((e.python.median / e.pogberry.median), 2) if (e.pogberry and e.python and e.pogberry.median > 0) else 1.0
         for e in entries if not e.is_gui
@@ -679,21 +672,10 @@ def generate_html_report(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pogberry Benchmark Suite Report</title>
   <title>Pogberry Benchmark Report</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {{
-      --bg: #0d1117;
-      --card-bg: #161b22;
-      --border: #30363d;
-      --text: #c9d1d9;
-      --text-muted: #8b949e;
-      --accent: #a371f7;
-      --accent-green: #3fb950;
-      --accent-red: #f85149;
-      --accent-blue: #58a6ff;
-      --accent-yellow: #d29922;
       --bg: #090a0f;
       --card: #111318;
       --border: #1e222b;
@@ -707,31 +689,18 @@ def generate_html_report(
     }}
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background-color: var(--bg);
       color: var(--text);
-      line-height: 1.6;
-      padding: 2rem 1rem;
       line-height: 1.5;
       padding: 2.5rem 1.5rem;
     }}
-    .container {{ max-width: 1200px; margin: 0 auto; }}
     .container {{ max-width: 1100px; margin: 0 auto; }}
     header {{
-      text-align: center;
-      margin-bottom: 2.5rem;
-      padding-bottom: 1.5rem;
       margin-bottom: 2rem;
       border-bottom: 1px solid var(--border);
       padding-bottom: 1.25rem;
     }}
-    header h1 {{ font-size: 2.2rem; color: #f0f6fc; margin-bottom: 0.5rem; }}
-    header .meta {{ color: var(--text-muted); font-size: 0.95rem; }}
-    .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }}
-    @media (max-width: 900px) {{ .grid {{ grid-template-columns: 1fr; }} }}
-    .card {{
-      background: var(--card-bg);
     header h1 {{
       font-size: 1.5rem;
       font-weight: 600;
@@ -757,14 +726,9 @@ def generate_html_report(
     .panel {{
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       border-radius: 6px;
       padding: 1.25rem;
     }}
-    .card h2 {{ font-size: 1.2rem; color: #f0f6fc; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }}
-    .chart-container {{ position: relative; height: 320px; width: 100%; }}
     .panel h2 {{
       font-size: 0.9rem;
       font-weight: 600;
@@ -778,20 +742,14 @@ def generate_html_report(
     table {{
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.9rem;
-      margin-top: 1rem;
       font-size: 0.85rem;
     }}
     th, td {{
-      padding: 0.75rem 1rem;
       padding: 0.65rem 0.85rem;
       text-align: right;
       border-bottom: 1px solid var(--border);
     }}
     th:first-child, td:first-child {{ text-align: left; }}
-    th {{ background: #21262d; color: #f0f6fc; font-weight: 600; }}
-    tr:hover td {{ background: #1f242c; }}
-    .badge {{
     th {{
       color: var(--text-dim);
       font-size: 0.75rem;
@@ -812,8 +770,6 @@ def generate_html_report(
     tr:hover td {{ background: rgba(255, 255, 255, 0.02); }}
     .tag {{
       display: inline-block;
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.775rem;
       padding: 0.15rem 0.4rem;
@@ -828,16 +784,11 @@ def generate_html_report(
       font-family: inherit;
       font-size: 0.75rem;
       font-weight: 600;
-      font-size: 0.8rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: var(--text-dim);
       text-align: left;
     }}
-    .badge-win {{ background: rgba(63, 185, 80, 0.2); color: var(--accent-green); }}
-    .badge-lose {{ background: rgba(248, 81, 73, 0.2); color: var(--accent-red); }}
-    .badge-tie {{ background: rgba(210, 153, 34, 0.2); color: var(--accent-yellow); }}
-    footer {{ text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-top: 3rem; }}
     footer {{
       margin-top: 2rem;
       font-size: 0.75rem;
@@ -849,12 +800,6 @@ def generate_html_report(
 <body>
   <div class="container">
     <header>
-      <h1>🍇 Pogberry Benchmark Suite Report</h1>
-      <div class="meta">
-        <strong>OS:</strong> Linux {html.escape(meta.get('kernel', ''))} &nbsp;|&nbsp;
-        <strong>CPU:</strong> {html.escape(meta.get('cpu', ''))} &nbsp;|&nbsp;
-        <strong>Compiler:</strong> gcc {html.escape(meta.get('gcc', ''))} &nbsp;|&nbsp;
-        <strong>Python:</strong> {html.escape(meta.get('python', ''))}
       <h1>Pogberry Benchmark Results</h1>
       <div class="meta-list">
         <div class="meta-item">Linux <strong>{html.escape(meta.get('kernel', ''))}</strong></div>
@@ -863,16 +808,9 @@ def generate_html_report(
         <div class="meta-item">Python <strong>{html.escape(meta.get('python', ''))}</strong></div>
         <div class="meta-item">Runs: <strong>{meta.get('runs', 5)} ({meta.get('warmup', 1)} warmup)</strong></div>
       </div>
-      <div class="meta" style="margin-top: 0.4rem;">
-        Runs: {meta.get('runs', 5)} (Warmup: {meta.get('warmup', 1)}) · Statistically measured medians & peak RAM
-      </div>
     </header>
 
     <div class="grid">
-      <div class="card">
-        <h2>⏱️ Execution Time (ms, log scale, lower is better)</h2>
-        <div class="chart-container">
-          <canvas id="timeChart"></canvas>
       <div class="panel">
         <h2>Relative Speedup (vs Python)</h2>
         <div class="chart-box">
@@ -880,10 +818,6 @@ def generate_html_report(
         </div>
       </div>
 
-      <div class="card">
-        <h2>⚡ Pogberry Speedup (vs Python)</h2>
-        <div class="chart-container">
-          <canvas id="speedupChart"></canvas>
       <div class="panel">
         <h2>Peak Memory (MB)</h2>
         <div class="chart-box">
@@ -891,10 +825,6 @@ def generate_html_report(
         </div>
       </div>
 
-      <div class="card full-width">
-        <h2>💾 Peak Memory Footprint (RAM in MB, lower is better)</h2>
-        <div class="chart-container" style="height: 280px;">
-          <canvas id="ramChart"></canvas>
       <div class="panel full-width">
         <h2>Execution Time (Milliseconds)</h2>
         <div class="chart-box" style="height: 360px;">
@@ -902,8 +832,6 @@ def generate_html_report(
         </div>
       </div>
 
-      <div class="card full-width">
-        <h2>📊 Detailed Results Summary</h2>
       <div class="panel full-width">
         <h2>Benchmark Summary Table</h2>
         <table>
@@ -914,9 +842,7 @@ def generate_html_report(
               <th>Python Time</th>
               <th>Speedup</th>
               <th>Pogberry RAM</th>
-              <th>Python Time</th>
               <th>Python RAM</th>
-              <th>Speedup (vs Python)</th>
             </tr>
           </thead>
           <tbody>"""
@@ -930,49 +856,38 @@ def generate_html_report(
         pb_ram_val = e.pogberry.peak_rss_mb if e.pogberry else 0
         py_ram_val = e.python.peak_rss_mb if e.python else 0
 
-        ratio_py = (py_t / pb_t) if (pb_t > 0 and py_t > 0) else 0
-        badge_py = "badge-win" if ratio_py >= 1.05 else ("badge-lose" if ratio_py <= 0.95 else "badge-tie")
         ratio = (py_t / pb_t) if (pb_t > 0 and py_t > 0) else 0
         tag_cls = "tag-faster" if ratio >= 1.05 else ("tag-slower" if ratio <= 0.95 else "tag-equal")
 
         html_content += f"""
             <tr>
-              <td><strong>{html.escape(e.name)}</strong></td>
               <td>{html.escape(e.name)}</td>
               <td>{fmt_time(pb_t)}</td>
               <td>{fmt_time(py_t)}</td>
               <td><span class="tag {tag_cls}">{ratio:.2f}x</span></td>
               <td>{fmt_mb(pb_ram_val)}</td>
-              <td>{fmt_time(py_t)}</td>
               <td>{fmt_mb(py_ram_val)}</td>
-              <td><span class="badge {badge_py}">{ratio_py:.1f}x</span></td>
             </tr>"""
 
     gui_entries = [e for e in entries if e.is_gui]
     if gui_entries:
         html_content += """
-            <tr style="background: #21262d;"><td colspan="6" style="text-align: left; font-weight: bold; color: var(--accent);">🎮 Headed GUI Benchmarks (pb_gui / Raylib vs Pygame)</td></tr>"""
             <tr class="section-row"><td colspan="6">Headed GUI Benchmarks (pb_gui / Raylib vs Pygame)</td></tr>"""
         for e in gui_entries:
             frames = 300 if "stress" in e.name else 500
             pb_t = e.pogberry.median if e.pogberry else 0
             py_t = e.python.median if e.python else 0
-            ratio_py = (py_t / pb_t) if (pb_t > 0 and py_t > 0) else 0
-            badge_py = "badge-win" if ratio_py >= 1.05 else ("badge-lose" if ratio_py <= 0.95 else "badge-tie")
             ratio = (py_t / pb_t) if (pb_t > 0 and py_t > 0) else 0
             tag_cls = "tag-faster" if ratio >= 1.05 else ("tag-slower" if ratio <= 0.95 else "tag-equal")
 
             html_content += f"""
             <tr>
-              <td><strong>{html.escape(e.name)}</strong></td>
               <td>{html.escape(e.name)}</td>
               <td>{fmt_msframe(pb_t, frames)}</td>
               <td>{fmt_msframe(py_t, frames)}</td>
               <td><span class="tag {tag_cls}">{ratio:.2f}x</span></td>
               <td>{fmt_mb(e.pogberry.peak_rss_mb if e.pogberry else 0)}</td>
-              <td>{fmt_msframe(py_t, frames)}</td>
               <td>{fmt_mb(e.python.peak_rss_mb if e.python else 0)}</td>
-              <td><span class="badge {badge_py}">{ratio_py:.1f}x</span></td>
             </tr>"""
 
     html_content += f"""
@@ -982,16 +897,12 @@ def generate_html_report(
     </div>
 
     <footer>
-      Generated by Pogberry Benchmark Framework · {time.strftime('%Y-%m-%d %H:%M:%S')}
       Pogberry Benchmark Suite · Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}
     </footer>
   </div>
 
   <script>
     const labels = {json.dumps(bench_names)};
-    
-    // Time Chart
-    new Chart(document.getElementById('timeChart'), {{
 
     // Chart.js default styling
     Chart.defaults.color = '#94a3b8';
@@ -1003,10 +914,6 @@ def generate_html_report(
       type: 'bar',
       data: {{
         labels: labels,
-        datasets: [
-          {{ label: 'Pogberry (ms)', data: {json.dumps(pb_times)}, backgroundColor: '#a371f7' }},
-          {{ label: 'Python (ms)', data: {json.dumps(py_times)}, backgroundColor: '#58a6ff' }}
-        ]
         datasets: [{{
           label: 'Speedup vs Python',
           data: {json.dumps(speedup_values)},
@@ -1027,10 +934,6 @@ def generate_html_report(
           }}
         }},
         scales: {{
-          y: {{ type: 'logarithmic', title: {{ display: true, text: 'Time (ms, log scale)', color: '#8b949e' }}, grid: {{ color: '#30363d' }} }},
-          x: {{ grid: {{ color: '#30363d' }} }}
-        }},
-        plugins: {{ legend: {{ labels: {{ color: '#c9d1d9' }} }} }}
           x: {{
             grid: {{ color: '#1e222b' }},
             title: {{ display: true, text: 'Speedup Ratio (1.0 = equal)' }}
@@ -1042,15 +945,12 @@ def generate_html_report(
       }}
     }});
 
-    // Speedup Chart
-    new Chart(document.getElementById('speedupChart'), {{
     // 2. RAM Chart (Horizontal linear)
     new Chart(document.getElementById('ramChart'), {{
       type: 'bar',
       data: {{
         labels: labels,
         datasets: [
-          {{ label: 'Pogberry Speedup Ratio (1.0 = equal)', data: {json.dumps(speedup_py)}, backgroundColor: '#3fb950' }}
           {{
             label: 'Pogberry',
             data: {json.dumps(pb_ram)},
@@ -1078,10 +978,6 @@ def generate_html_report(
           }}
         }},
         scales: {{
-          y: {{ title: {{ display: true, text: 'Speedup Ratio (x)', color: '#8b949e' }}, grid: {{ color: '#30363d' }} }},
-          x: {{ grid: {{ color: '#30363d' }} }}
-        }},
-        plugins: {{ legend: {{ labels: {{ color: '#c9d1d9' }} }} }}
           x: {{
             grid: {{ color: '#1e222b' }},
             title: {{ display: true, text: 'Peak Resident Memory (MB)' }}
@@ -1093,16 +989,12 @@ def generate_html_report(
       }}
     }});
 
-    // RAM Chart
-    new Chart(document.getElementById('ramChart'), {{
     // 3. Execution Time Chart (Grouped horizontal bar chart)
     new Chart(document.getElementById('timeChart'), {{
       type: 'bar',
       data: {{
         labels: labels,
         datasets: [
-          {{ label: 'Pogberry RAM (MB)', data: {json.dumps(pb_ram)}, backgroundColor: '#a371f7' }},
-          {{ label: 'Python RAM (MB)', data: {json.dumps(py_ram)}, backgroundColor: '#58a6ff' }}
           {{
             label: 'Pogberry',
             data: {json.dumps(pb_times_ms)},
@@ -1130,10 +1022,6 @@ def generate_html_report(
           }}
         }},
         scales: {{
-          y: {{ title: {{ display: true, text: 'Peak RSS (MB)', color: '#8b949e' }}, grid: {{ color: '#30363d' }} }},
-          x: {{ grid: {{ color: '#30363d' }} }}
-        }},
-        plugins: {{ legend: {{ labels: {{ color: '#c9d1d9' }} }} }}
           x: {{
             grid: {{ color: '#1e222b' }},
             title: {{ display: true, text: 'Execution Time (ms)' }}
@@ -1149,7 +1037,6 @@ def generate_html_report(
 </html>"""
 
     output_path.write_text(html_content, encoding="utf-8")
-    print(f"  Interactive HTML report generated at {output_path}")
     print(f"  Report generated at {output_path}")
 
 

@@ -137,7 +137,7 @@
         <div class="meta-item">CPU <strong>AMD Ryzen 5 5600H with Radeon Graphics</strong></div>
         <div class="meta-item">GCC <strong>16.1.1</strong></div>
         <div class="meta-item">Python <strong>3.14.6</strong></div>
-        <div class="meta-item">Runs: <strong>1 (0 warmup)</strong></div>
+        <div class="meta-item">Runs: <strong>5 (1 warmup)</strong></div>
       </div>
     </header>
 
@@ -178,117 +178,12 @@
           </thead>
           <tbody>
             <tr>
-              <td>astar</td>
-              <td>88.6ms</td>
-              <td>61.7ms</td>
-              <td><span class="tag tag-slower">0.70x</span></td>
-              <td>3.8MB</td>
-              <td>9.7MB</td>
-            </tr>
-            <tr>
-              <td>binary_trees</td>
-              <td>1.143s</td>
-              <td>396.4ms</td>
-              <td><span class="tag tag-slower">0.35x</span></td>
-              <td>17.4MB</td>
-              <td>12.2MB</td>
-            </tr>
-            <tr>
-              <td>bubble_sort</td>
-              <td>2.925s</td>
-              <td>1.302s</td>
-              <td><span class="tag tag-slower">0.45x</span></td>
-              <td>2.9MB</td>
-              <td>9.8MB</td>
-            </tr>
-            <tr>
-              <td>class_hierarchy</td>
-              <td>67.5ms</td>
-              <td>80.1ms</td>
-              <td><span class="tag tag-faster">1.19x</span></td>
-              <td>4.0MB</td>
-              <td>9.5MB</td>
-            </tr>
-            <tr>
-              <td>closures</td>
-              <td>18.1ms</td>
-              <td>33.4ms</td>
-              <td><span class="tag tag-faster">1.84x</span></td>
-              <td>2.9MB</td>
-              <td>9.3MB</td>
-            </tr>
-            <tr>
-              <td>fib_recursive</td>
-              <td>590.6ms</td>
-              <td>395.6ms</td>
-              <td><span class="tag tag-slower">0.67x</span></td>
-              <td>2.9MB</td>
-              <td>9.2MB</td>
-            </tr>
-            <tr>
-              <td>list_operations</td>
-              <td>21.1ms</td>
-              <td>33.1ms</td>
-              <td><span class="tag tag-faster">1.57x</span></td>
-              <td>3.8MB</td>
-              <td>11.7MB</td>
-            </tr>
-            <tr>
-              <td>mandelbrot</td>
-              <td>171.0ms</td>
-              <td>128.0ms</td>
-              <td><span class="tag tag-slower">0.75x</span></td>
-              <td>2.6MB</td>
-              <td>9.5MB</td>
-            </tr>
-            <tr>
-              <td>map_operations</td>
-              <td>132.7ms</td>
-              <td>56.4ms</td>
-              <td><span class="tag tag-slower">0.42x</span></td>
-              <td>14.5MB</td>
-              <td>15.3MB</td>
-            </tr>
-            <tr>
-              <td>nbody</td>
-              <td>605.4ms</td>
-              <td>392.3ms</td>
-              <td><span class="tag tag-slower">0.65x</span></td>
-              <td>2.8MB</td>
-              <td>9.9MB</td>
-            </tr>
-            <tr>
-              <td>nested_loops</td>
-              <td>1.237s</td>
-              <td>805.6ms</td>
-              <td><span class="tag tag-slower">0.65x</span></td>
-              <td>2.8MB</td>
-              <td>9.3MB</td>
-            </tr>
-            <tr>
-              <td>string_concat</td>
-              <td>1.684s</td>
-              <td>35.8ms</td>
-              <td><span class="tag tag-slower">0.02x</span></td>
-              <td>4.5MB</td>
-              <td>9.2MB</td>
-            </tr>
-            <tr class="section-row"><td colspan="6">Headed GUI Benchmarks (pb_gui / Raylib vs Pygame)</td></tr>
-            <tr>
-              <td>gui_draw_stress</td>
-              <td>5.6ms/fr</td>
-              <td>13.2ms/fr</td>
-              <td><span class="tag tag-faster">2.38x</span></td>
-              <td>74.1MB</td>
-              <td>164.7MB</td>
-            </tr>
-            <tr>
-              <td>gui_particles</td>
-              <td>5.9ms/fr</td>
-              <td>4.7ms/fr</td>
-              <td><span class="tag tag-slower">0.79x</span></td>
-              <td>74.9MB</td>
-              <td>163.2MB</td>
+              <td>string_operations</td>
+              <td>38.4ms</td>
+              <td>24.2ms</td>
+              <td><span class="tag tag-slower">0.63x</span></td>
+              <td>6.0MB</td>
+              <td>10.5MB</td>
             </tr>
           </tbody>
         </table>
@@ -296,12 +191,12 @@
     </div>
 
     <footer>
-      Pogberry Benchmark Suite · Generated on 2026-08-28 23:35:56
+      Pogberry Benchmark Suite · Generated on 2026-08-30 23:29:42
     </footer>
   </div>
 
   <script>
-    const labels = ["astar", "binary_trees", "bubble_sort", "class_hierarchy", "closures", "fib_recursive", "list_operations", "mandelbrot", "map_operations", "nbody", "nested_loops", "string_concat"];
+    const labels = ["string_operations"];
 
     // Chart.js default styling
     Chart.defaults.color = '#94a3b8';
@@ -315,8 +210,8 @@
         labels: labels,
         datasets: [{
           label: 'Speedup vs Python',
-          data: [0.7, 0.35, 0.45, 1.19, 1.84, 0.67, 1.57, 0.75, 0.42, 0.65, 0.65, 0.02],
-          backgroundColor: ["#ef4444", "#ef4444", "#ef4444", "#10b981", "#10b981", "#ef4444", "#10b981", "#ef4444", "#ef4444", "#ef4444", "#ef4444", "#ef4444"],
+          data: [0.63],
+          backgroundColor: ["#ef4444"],
           borderRadius: 3
         }]
       },
@@ -352,13 +247,13 @@
         datasets: [
           {
             label: 'Pogberry',
-            data: [3.8, 17.4, 2.9, 4.0, 2.9, 2.9, 3.8, 2.6, 14.5, 2.8, 2.8, 4.5],
+            data: [6.0],
             backgroundColor: '#818cf8',
             borderRadius: 3
           },
           {
             label: 'Python',
-            data: [9.7, 12.2, 9.8, 9.5, 9.3, 9.2, 11.7, 9.5, 15.3, 9.9, 9.3, 9.2],
+            data: [10.5],
             backgroundColor: '#38bdf8',
             borderRadius: 3
           }
@@ -396,13 +291,13 @@
         datasets: [
           {
             label: 'Pogberry',
-            data: [88.6, 1143.2, 2925.3, 67.5, 18.1, 590.6, 21.1, 171.0, 132.7, 605.4, 1236.8, 1684.1],
+            data: [38.4],
             backgroundColor: '#818cf8',
             borderRadius: 3
           },
           {
             label: 'Python',
-            data: [61.7, 396.4, 1301.9, 80.1, 33.4, 395.6, 33.1, 128.0, 56.4, 392.3, 805.6, 35.8],
+            data: [24.2],
             backgroundColor: '#38bdf8',
             borderRadius: 3
           }

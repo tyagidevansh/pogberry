@@ -117,6 +117,14 @@ test: $(TARGET) $(RAYLIB_TEST_LIBRARY) $(HOST_API_TEST) $(BYTECODE_ENCODING_TEST
 	@$(TEST_RAYLIB_ENV) $(PYTHON) $(TEST_RUNNER) $(TEST_PATH) $(TEST_ARGS)
 
 BENCH_ARGS ?= --html bench/report.html --json
+FILTER ?= $(TEST)
+BENCH_FILTER_FLAG := $(if $(FILTER),--filter $(FILTER),)
+BENCH_GUI_FLAG := $(if $(findstring no,$(GUI))$(findstring 0,$(GUI))$(NO_GUI),--no-gui,)
+BENCH_RUNS_FLAG := $(if $(RUNS),--runs $(RUNS),)
+BENCH_WARMUP_FLAG := $(if $(WARMUP),--warmup $(WARMUP),)
+BENCH_PERF_FLAG := $(if $(NO_PERF),--no-perf,)
+
+BENCH_ARGS ?= --html bench/report.html --json $(BENCH_FILTER_FLAG) $(BENCH_GUI_FLAG) $(BENCH_RUNS_FLAG) $(BENCH_WARMUP_FLAG) $(BENCH_PERF_FLAG)
 
 bench: $(RELEASE_TARGET)
 	@$(PYTHON) $(BENCH_RUNNER) --binary $(RELEASE_TARGET) $(BENCH_ARGS)
