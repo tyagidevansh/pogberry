@@ -178,12 +178,117 @@
           </thead>
           <tbody>
             <tr>
+              <td>astar</td>
+              <td>78.5ms</td>
+              <td>38.6ms</td>
+              <td><span class="tag tag-slower">0.49x</span></td>
+              <td>4.5MB</td>
+              <td>9.7MB</td>
+            </tr>
+            <tr>
+              <td>binary_trees</td>
+              <td>562.9ms</td>
+              <td>294.9ms</td>
+              <td><span class="tag tag-slower">0.52x</span></td>
+              <td>18.4MB</td>
+              <td>12.7MB</td>
+            </tr>
+            <tr>
+              <td>bubble_sort</td>
+              <td>2.422s</td>
+              <td>978.7ms</td>
+              <td><span class="tag tag-slower">0.40x</span></td>
+              <td>3.0MB</td>
+              <td>9.7MB</td>
+            </tr>
+            <tr>
+              <td>class_hierarchy</td>
+              <td>46.4ms</td>
+              <td>51.6ms</td>
+              <td><span class="tag tag-faster">1.11x</span></td>
+              <td>4.0MB</td>
+              <td>9.7MB</td>
+            </tr>
+            <tr>
+              <td>closures</td>
+              <td>11.0ms</td>
+              <td>18.3ms</td>
+              <td><span class="tag tag-faster">1.67x</span></td>
+              <td>3.0MB</td>
+              <td>9.6MB</td>
+            </tr>
+            <tr>
+              <td>fib_recursive</td>
+              <td>440.0ms</td>
+              <td>269.8ms</td>
+              <td><span class="tag tag-slower">0.61x</span></td>
+              <td>2.9MB</td>
+              <td>9.5MB</td>
+            </tr>
+            <tr>
+              <td>list_operations</td>
+              <td>17.0ms</td>
+              <td>19.6ms</td>
+              <td><span class="tag tag-faster">1.15x</span></td>
+              <td>3.7MB</td>
+              <td>11.7MB</td>
+            </tr>
+            <tr>
+              <td>mandelbrot</td>
+              <td>132.5ms</td>
+              <td>98.2ms</td>
+              <td><span class="tag tag-slower">0.74x</span></td>
+              <td>3.0MB</td>
+              <td>9.7MB</td>
+            </tr>
+            <tr>
+              <td>map_operations</td>
+              <td>68.9ms</td>
+              <td>34.5ms</td>
+              <td><span class="tag tag-slower">0.50x</span></td>
+              <td>17.7MB</td>
+              <td>15.6MB</td>
+            </tr>
+            <tr>
+              <td>nbody</td>
+              <td>583.6ms</td>
+              <td>323.1ms</td>
+              <td><span class="tag tag-slower">0.55x</span></td>
+              <td>2.8MB</td>
+              <td>9.9MB</td>
+            </tr>
+            <tr>
+              <td>nested_loops</td>
+              <td>944.9ms</td>
+              <td>534.1ms</td>
+              <td><span class="tag tag-slower">0.57x</span></td>
+              <td>2.9MB</td>
+              <td>9.5MB</td>
+            </tr>
+            <tr>
               <td>string_operations</td>
-              <td>38.4ms</td>
-              <td>24.2ms</td>
+              <td>36.1ms</td>
+              <td>22.7ms</td>
               <td><span class="tag tag-slower">0.63x</span></td>
-              <td>6.0MB</td>
-              <td>10.5MB</td>
+              <td>5.9MB</td>
+              <td>10.6MB</td>
+            </tr>
+            <tr class="section-row"><td colspan="6">Headed GUI Benchmarks (pb_gui / Raylib vs Pygame)</td></tr>
+            <tr>
+              <td>gui_draw_stress</td>
+              <td>3.2ms/fr</td>
+              <td>4.0ms/fr</td>
+              <td><span class="tag tag-faster">1.26x</span></td>
+              <td>74.7MB</td>
+              <td>164.3MB</td>
+            </tr>
+            <tr>
+              <td>gui_particles</td>
+              <td>3.9ms/fr</td>
+              <td>2.0ms/fr</td>
+              <td><span class="tag tag-slower">0.51x</span></td>
+              <td>75.1MB</td>
+              <td>163.0MB</td>
             </tr>
           </tbody>
         </table>
@@ -191,12 +296,12 @@
     </div>
 
     <footer>
-      Pogberry Benchmark Suite · Generated on 2026-08-30 23:29:42
+      Pogberry Benchmark Suite · Generated on 2026-08-31 22:32:26
     </footer>
   </div>
 
   <script>
-    const labels = ["string_operations"];
+    const labels = ["astar", "binary_trees", "bubble_sort", "class_hierarchy", "closures", "fib_recursive", "list_operations", "mandelbrot", "map_operations", "nbody", "nested_loops", "string_operations"];
 
     // Chart.js default styling
     Chart.defaults.color = '#94a3b8';
@@ -210,8 +315,8 @@
         labels: labels,
         datasets: [{
           label: 'Speedup vs Python',
-          data: [0.63],
-          backgroundColor: ["#ef4444"],
+          data: [0.49, 0.52, 0.4, 1.11, 1.67, 0.61, 1.15, 0.74, 0.5, 0.55, 0.57, 0.63],
+          backgroundColor: ["#ef4444", "#ef4444", "#ef4444", "#10b981", "#10b981", "#ef4444", "#10b981", "#ef4444", "#ef4444", "#ef4444", "#ef4444", "#ef4444"],
           borderRadius: 3
         }]
       },
@@ -247,13 +352,13 @@
         datasets: [
           {
             label: 'Pogberry',
-            data: [6.0],
+            data: [4.5, 18.4, 3.0, 4.0, 3.0, 2.9, 3.7, 3.0, 17.7, 2.8, 2.9, 5.9],
             backgroundColor: '#818cf8',
             borderRadius: 3
           },
           {
             label: 'Python',
-            data: [10.5],
+            data: [9.7, 12.7, 9.7, 9.7, 9.6, 9.5, 11.7, 9.7, 15.6, 9.9, 9.5, 10.6],
             backgroundColor: '#38bdf8',
             borderRadius: 3
           }
@@ -291,13 +396,13 @@
         datasets: [
           {
             label: 'Pogberry',
-            data: [38.4],
+            data: [78.5, 562.9, 2422.2, 46.4, 11.0, 440.0, 17.0, 132.5, 68.9, 583.6, 944.9, 36.1],
             backgroundColor: '#818cf8',
             borderRadius: 3
           },
           {
             label: 'Python',
-            data: [24.2],
+            data: [38.6, 294.9, 978.7, 51.6, 18.3, 269.8, 19.6, 98.2, 34.5, 323.1, 534.1, 22.7],
             backgroundColor: '#38bdf8',
             borderRadius: 3
           }

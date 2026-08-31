@@ -92,9 +92,10 @@ typedef struct {
 struct ObjString {
   Obj obj;
   int length;
+  int capacity;
   char *chars;
-  uint32_t hash; // each string stores its own hash so we dont have to calculate it everytime we have to look something
-                 // up in the hashmap
+  uint32_t hash;
+  bool isInterned;
 };
 
 typedef struct {
@@ -141,6 +142,8 @@ ObjNative *newNative(NativeFn function);
 ObjNative *newHostNative(PbNativeFn function, void *userData);
 ObjString *takeString(char *chars, int length);
 ObjString *copyString(const char *chars, int length);
+ObjString *createUninternedString(char *chars, int length, int capacity);
+uint32_t stringGetHash(ObjString *string);
 ObjList *newList();
 ObjHashmap *newHashmap();
 ObjClass *newClass(ObjString *name);

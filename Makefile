@@ -116,7 +116,6 @@ test: $(TARGET) $(RAYLIB_TEST_LIBRARY) $(HOST_API_TEST) $(BYTECODE_ENCODING_TEST
 	@$(TEST_RAYLIB_ENV) $(PYTHON) $(CLI_MODULE_TEST) $(TARGET)
 	@$(TEST_RAYLIB_ENV) $(PYTHON) $(TEST_RUNNER) $(TEST_PATH) $(TEST_ARGS)
 
-BENCH_ARGS ?= --html bench/report.html --json
 FILTER ?= $(TEST)
 BENCH_FILTER_FLAG := $(if $(FILTER),--filter $(FILTER),)
 BENCH_GUI_FLAG := $(if $(findstring no,$(GUI))$(findstring 0,$(GUI))$(NO_GUI),--no-gui,)

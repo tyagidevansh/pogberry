@@ -38,6 +38,7 @@ struct PbVM {
                  // character
   Table modules;
   ObjString *initString;
+  ObjString *charStrings[256];
   ObjUpvalue *openUpvalues;
 
   size_t bytesAllocated;

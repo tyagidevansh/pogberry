@@ -469,6 +469,61 @@ Value strNative(int argCount, Value *args) {
   return OBJ_VAL(valueToString(args[0]));
 }
 
+Value joinNative(int argCount, Value *args) {
+  if (argCount < 1 || argCount > 2 || !IS_LIST(args[0])) {
+    runtimeError("join() expects a list and an optional delimiter string.");
+    return NIL_VAL;
+  }
+
+  ObjList *list = AS_LIST(args[0]);
+  ObjString *delim = NULL;
+  if (argCount == 2) {
+    if (!IS_STRING(args[1])) {
+      runtimeError("join() delimiter must be a string.");
+      return NIL_VAL;
+    }
+    delim = AS_STRING(args[1]);
+  }
+
+  int itemCount = list->items.count;
+  if (itemCount == 0) {
+    return OBJ_VAL(copyString("", 0));
+  }
+
+  int delimLen = delim != NULL ? delim->length : 0;
+  const char *delimChars = delim != NULL ? delim->chars : "";
+
+  ObjString **elementStrings = ALLOCATE(ObjString *, itemCount);
+  int totalLength = 0;
+
+  for (int i = 0; i < itemCount; i++) {
+    Value val = list->items.values[i];
+    ObjString *s = IS_STRING(val) ? AS_STRING(val) : valueToString(val);
+    elementStrings[i] = s;
+    totalLength += s->length;
+    if (i > 0) totalLength += delimLen;
+  }
+
+  char *chars = ALLOCATE(char, totalLength + 1);
+  int offset = 0;
+
+  for (int i = 0; i < itemCount; i++) {
+    if (i > 0 && delimLen > 0) {
+      memcpy(chars + offset, delimChars, (size_t)delimLen);
+      offset += delimLen;
+    }
+    ObjString *s = elementStrings[i];
+    if (s->length > 0) {
+      memcpy(chars + offset, s->chars, (size_t)s->length);
+      offset += s->length;
+    }
+  }
+  chars[totalLength] = '\0';
+  FREE_ARRAY(ObjString *, elementStrings, itemCount);
+
+  return OBJ_VAL(takeString(chars, totalLength));
+}
+
 Value getTime(int argCount, Value *args) {
   (void)args;
   if (argCount != 0) {

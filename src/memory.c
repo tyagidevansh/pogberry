@@ -181,7 +181,8 @@ static void freeObject(Obj *object) {
     break;
   case OBJ_STRING: {
     ObjString *string = (ObjString *)object;
-    FREE_ARRAY(char, string->chars, string->length + 1);
+    int cap = string->capacity > 0 ? string->capacity : (string->length + 1);
+    FREE_ARRAY(char, string->chars, cap);
     FREE(ObjString, object);
     break;
   }
@@ -252,6 +253,11 @@ static void markRoots() {
   markTable(&vm.modules);
   markCompilerRoots();
   markObject((Obj *)vm.initString);
+  for (int i = 0; i < 256; i++) {
+    if (vm.charStrings[i] != NULL) {
+      markObject((Obj *)vm.charStrings[i]);
+    }
+  }
   if (vm.hasLastReturnValue) markValue(vm.lastReturnValue);
 }
 

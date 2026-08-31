@@ -320,10 +320,35 @@ static void appendValue(StringBuilder *builder, Value value) {
 }
 
 ObjString *valueToString(Value value) {
+  if (IS_NUMBER(value)) {
+    char number[32];
+    int len = snprintf(number, sizeof(number), "%g", AS_NUMBER(value));
+    if (len < 0) len = 0;
+    char *chars = ALLOCATE(char, len + 1);
+    memcpy(chars, number, (size_t)len);
+    chars[len] = '\0';
+    return takeString(chars, len);
+  }
+  if (IS_BOOL(value)) {
+    const char *s = AS_BOOL(value) ? "true" : "false";
+    int len = AS_BOOL(value) ? 4 : 5;
+    return copyString(s, len);
+  }
+  if (IS_NIL(value)) {
+    return copyString("nil", 3);
+  }
+  if (IS_STRING(value)) {
+    return AS_STRING(value);
+  }
+
   StringBuilder builder = {0};
   appendValue(&builder, value);
-  ObjString *string = copyString(builder.chars, builder.count);
+  char *chars = ALLOCATE(char, builder.count + 1);
+  if (builder.count > 0) {
+    memcpy(chars, builder.chars, (size_t)builder.count);
+  }
+  chars[builder.count] = '\0';
   free(builder.chars);
   free(builder.active);
-  return string;
+  return takeString(chars, builder.count);
 }

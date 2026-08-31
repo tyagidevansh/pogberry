@@ -68,15 +68,19 @@ ObjNative *newHostNative(PbNativeFn function, void *userData) {
   return native;
 }
 
-static ObjString *allocateString(char *chars, int length, uint32_t hash) {
+static ObjString *allocateString(char *chars, int length, int capacity, uint32_t hash, bool intern) {
   ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length = length;
+  string->capacity = capacity;
   string->chars = chars;
   string->hash = hash;
+  string->isInterned = intern;
 
-  push(OBJ_VAL(string));
-  tableSet(&vm.strings, string, NIL_VAL); // val nil as we only care about the key (string)
-  pop();
+  if (intern) {
+    push(OBJ_VAL(string));
+    tableSet(&vm.strings, string, NIL_VAL);
+    pop();
+  }
   return string;
 }
 
@@ -86,19 +90,21 @@ static uint32_t hashString(const char *key, int length) {
     hash ^= (uint8_t)key[i];
     hash *= 16777619;
   }
+  if (hash == 0) hash = 1;
   return hash;
 }
 
-ObjString *takeString(char *chars, int length) {
-  uint32_t hash = hashString(chars, length);
-  ObjString *interned = tableFindString(&vm.strings, chars, length, hash);
-
-  if (interned != NULL) {
-    FREE_ARRAY(char, chars, length + 1);
-    return interned;
+uint32_t stringGetHash(ObjString *string) {
+  if (string->hash == 0) {
+    string->hash = hashString(string->chars, string->length);
   }
+  return string->hash;
+}
 
-  return allocateString(chars, length, hash);
+ObjString *takeString(char *chars, int length) { return allocateString(chars, length, length + 1, 0, false); }
+
+ObjString *createUninternedString(char *chars, int length, int capacity) {
+  return allocateString(chars, length, capacity, 0, false);
 }
 
 ObjString *copyString(const char *chars, int length) {
@@ -108,7 +114,7 @@ ObjString *copyString(const char *chars, int length) {
   char *heapChars = ALLOCATE(char, length + 1);
   memcpy(heapChars, chars, length);
   heapChars[length] = '\0';
-  return allocateString(heapChars, length, hash);
+  return allocateString(heapChars, length, length + 1, hash, true);
 }
 
 ObjList *newList() {

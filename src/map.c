@@ -29,7 +29,7 @@ static uint32_t mapKeyHash(Value key) {
   case VAL_NUMBER:
     return hashNumber(AS_NUMBER(key));
   case VAL_OBJ:
-    return AS_STRING(key)->hash;
+    return stringGetHash(AS_STRING(key));
   }
 
   return 0;

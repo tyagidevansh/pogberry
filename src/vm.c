@@ -99,6 +99,10 @@ static void initialiseActiveVM(const PbConfig *config) {
   initTable(&vm.modules);
 
   vm.initString = copyString("init", 4);
+  for (int i = 0; i < 256; i++) {
+    char c[2] = {(char)i, '\0'};
+    vm.charStrings[i] = copyString(c, 1);
+  }
 
   vm.randomState = (uint32_t)time(NULL) ^ (uint32_t)(uintptr_t)activeVM;
   if (vm.randomState == 0) vm.randomState = 0x9e3779b9u;
@@ -109,6 +113,7 @@ static void initialiseActiveVM(const PbConfig *config) {
   defineNative("len", lenNative);
   defineNative("type", typeNative);
   defineNative("str", strNative);
+  defineNative("join", joinNative);
   tableAddAll(&vm.globals, &vm.prelude);
 }
 
@@ -483,16 +488,17 @@ static void concatenate() {
   ObjString *strA = AS_STRING(a);
   ObjString *strB = AS_STRING(b);
 
-  int length = strA->length + strB->length;
-  char *chars = ALLOCATE(char, length + 1);
-  memcpy(chars, strA->chars, strA->length);
-  memcpy(chars + strA->length, strB->chars, strB->length);
-  chars[length] = '\0';
+  int newLength = strA->length + strB->length;
+  int newCapacity = GROW_CAPACITY(newLength + 1);
+  char *chars = ALLOCATE(char, newCapacity);
+  if (strA->length > 0) memcpy(chars, strA->chars, (size_t)strA->length);
+  if (strB->length > 0) memcpy(chars + strA->length, strB->chars, (size_t)strB->length);
+  chars[newLength] = '\0';
 
   pop();
   pop();
 
-  ObjString *result = takeString(chars, length);
+  ObjString *result = createUninternedString(chars, newLength, newCapacity);
   push(OBJ_VAL(result));
 }
 
@@ -894,9 +900,9 @@ static InterpretResult run(int stopFrameCount) {
           runtimeError("String index out of bounds.");
           return INTERPRET_RUNTIME_ERROR;
         }
-        char chars[2] = {string->chars[(int)stringIndex], '\0'};
 
-        ObjString *result = copyString(chars, 1);
+        unsigned char ch = (unsigned char)string->chars[(int)stringIndex];
+        ObjString *result = vm.charStrings[ch];
 
         pop();
         pop();

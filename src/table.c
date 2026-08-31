@@ -20,27 +20,24 @@ void freeTable(Table *table) {
 }
 
 static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
-  uint32_t index = key->hash & (capacity - 1); // replacing modulo with a bitwise operator makes it MUCH faster
+  uint32_t hash = stringGetHash(key);
+  uint32_t index = hash & (capacity - 1);
   Entry *tombstone = NULL;
 
   for (;;) {
     Entry *entry = &entries[index];
     if (entry->key == NULL) {
-      // return tombstone's bucket if we've passed one before, otherwise return the empty bucket when searching
       if (IS_NIL(entry->value)) {
-        // empty entry
-        return tombstone != NULL
-                   ? tombstone
-                   : entry; // here we end up reusing tombstones if they are at the end of a chunk of same hashes
+        return tombstone != NULL ? tombstone : entry;
       } else {
-        // found a tombstone
         if (tombstone == NULL) tombstone = entry;
       }
-    } else if (entry->key == key) {
+    } else if (entry->key == key || (entry->key->length == key->length && stringGetHash(entry->key) == hash &&
+                                     memcmp(entry->key->chars, key->chars, key->length) == 0)) {
       return entry;
     }
 
-    index = (index + 1) & (capacity - 1); // linear probing
+    index = (index + 1) & (capacity - 1);
   }
 }
 
@@ -128,7 +125,8 @@ ObjString *tableFindString(Table *table, const char *chars, int length, uint32_t
     if (entry->key == NULL) {
       // stop if we find an empty non-tombstone entry
       if (IS_NIL(entry->value)) return NULL;
-    } else if (entry->key->length == length && entry->key->hash && memcmp(entry->key->chars, chars, length) == 0) {
+    } else if (entry->key->length == length && stringGetHash(entry->key) == hash &&
+               memcmp(entry->key->chars, chars, length) == 0) {
       return entry->key;
     }
 
