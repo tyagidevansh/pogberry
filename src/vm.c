@@ -541,83 +541,100 @@ static Table *globalsForFrame(CallFrame *frame) {
 
 static InterpretResult run(int stopFrameCount) {
   CallFrame *frame = &vm.frames[vm.frameCount - 1];
+  register uint8_t *ip = frame->ip;
+  register Value *stackTop = vm.stackTop;
+  register Value *slots = frame->slots;
 
-#define READ_BYTE() (*frame->ip++)
+#define STORE_FRAME() \
+  do { \
+    frame->ip = ip; \
+    vm.stackTop = stackTop; \
+  } while (0)
+#define LOAD_FRAME() \
+  do { \
+    frame = &vm.frames[vm.frameCount - 1]; \
+    ip = frame->ip; \
+    stackTop = vm.stackTop; \
+    slots = frame->slots; \
+  } while (0)
 
-#define READ_SHORT() (frame->ip += 2, decodeU16BE(frame->ip - 2))
-
+#define READ_BYTE() (*ip++)
+#define READ_SHORT() (ip += 2, decodeU16BE(ip - 2))
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
-#define READ_CONSTANT_LONG() \
-  (frame->ip += 2, frame->closure->function->chunk.constants.values[decodeU16BE(frame->ip - 2)])
-
+#define READ_CONSTANT_LONG() (ip += 2, frame->closure->function->chunk.constants.values[decodeU16BE(ip - 2)])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
-// awkward do-while and then while(false) just to run it once so that this preprocessor can be defined at all. this faux
-// loop is a workaround allowing preprocessor to take multiple statements really pushing macros to the limit here
+
+#define PUSH(val) (*stackTop++ = (val))
+#define POP() (*(--stackTop))
+#define DROP() ((void)(--stackTop))
+#define PEEK(d) (stackTop[-1 - (d)])
+
 #define BINARY_OP(valueType, op) \
   do { \
-    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+    if (!IS_NUMBER(PEEK(0)) || !IS_NUMBER(PEEK(1))) { \
+      STORE_FRAME(); \
       runtimeError("Operands must be numbers."); \
       return INTERPRET_RUNTIME_ERROR; \
     } \
-    double b = AS_NUMBER(pop()); \
-    double a = AS_NUMBER(pop()); \
-    push(valueType(a op b)); \
+    double b = AS_NUMBER(POP()); \
+    double a = AS_NUMBER(POP()); \
+    PUSH(valueType(a op b)); \
   } while (false)
 
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
     printf("        ");
-    for (Value *slot = vm.stack; slot < vm.stackTop; slot++) {
+    for (Value *slot = vm.stack; slot < stackTop; slot++) {
       printf("[ ");
       printValue(*slot);
       printf(" ]");
     }
     printf("\n");
-    disassembleInstruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
+    disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
 #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
     case OP_CONSTANT: {
       Value constant = READ_CONSTANT();
-      push(constant); // load a value (push it onto the stack)
+      PUSH(constant);
       break;
     }
     case OP_CONSTANT_LONG: {
       Value constant = READ_CONSTANT_LONG();
-      push(constant);
+      PUSH(constant);
       break;
     }
     case OP_NIL:
-      push(NIL_VAL);
+      PUSH(NIL_VAL);
       break;
     case OP_TRUE:
-      push(BOOL_VAL(true));
+      PUSH(BOOL_VAL(true));
       break;
     case OP_FALSE:
-      push(BOOL_VAL(false));
+      PUSH(BOOL_VAL(false));
       break;
     case OP_POP:
-      pop();
+      DROP();
       break;
     case OP_GET_LOCAL: {
       uint8_t slot = READ_BYTE();
-      push(frame->slots[slot]);
+      PUSH(slots[slot]);
       break;
     }
     case OP_SET_LOCAL: {
       uint8_t slot = READ_BYTE();
-      frame->slots[slot] = peek(0);
+      slots[slot] = PEEK(0);
       break;
     }
     case OP_GET_UPVALUE: {
       uint8_t slot = READ_BYTE();
-      push(*frame->closure->upvalues[slot]->location);
+      PUSH(*frame->closure->upvalues[slot]->location);
       break;
     }
     case OP_SET_UPVALUE: {
       uint8_t slot = READ_BYTE();
-      *frame->closure->upvalues[slot]->location = peek(0);
+      *frame->closure->upvalues[slot]->location = PEEK(0);
       break;
     }
     case OP_GET_GLOBAL:
@@ -625,138 +642,147 @@ static InterpretResult run(int stopFrameCount) {
       ObjString *name = instruction == OP_GET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
       Value value;
       if (!tableGet(globalsForFrame(frame), name, &value)) {
+        STORE_FRAME();
         runtimeError("Undefined variable '%s'.", name->chars);
         return INTERPRET_RUNTIME_ERROR;
       }
-      push(value);
+      PUSH(value);
       break;
     }
     case OP_DEFINE_GLOBAL:
     case OP_DEFINE_GLOBAL_LONG: {
       ObjString *name = instruction == OP_DEFINE_GLOBAL ? READ_STRING() : READ_STRING_LONG();
-      tableSet(globalsForFrame(frame), name, peek(0));
-      pop();
+      tableSet(globalsForFrame(frame), name, PEEK(0));
+      DROP();
       break;
     }
     case OP_SET_GLOBAL:
     case OP_SET_GLOBAL_LONG: {
       ObjString *name = instruction == OP_SET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
       Table *globals = globalsForFrame(frame);
-      if (tableSet(globals, name, peek(0))) {
+      if (tableSet(globals, name, PEEK(0))) {
         tableDelete(globals, name);
+        STORE_FRAME();
         runtimeError("Undefined variable '%s'.", name->chars);
         return INTERPRET_RUNTIME_ERROR;
       }
       ObjModule *module = frame->closure->module;
       Value previousExport;
       if (module != NULL && tableGet(&module->exports, name, &previousExport))
-        tableSet(&module->exports, name, peek(0));
+        tableSet(&module->exports, name, PEEK(0));
       break;
     }
     case OP_GET_PROPERTY:
     case OP_GET_PROPERTY_LONG: {
       ObjString *name = instruction == OP_GET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
 
-      if (IS_MODULE(peek(0))) {
-        ObjModule *module = AS_MODULE(peek(0));
+      if (IS_MODULE(PEEK(0))) {
+        ObjModule *module = AS_MODULE(PEEK(0));
         Value exported;
         if (!tableGet(&module->exports, name, &exported)) {
+          STORE_FRAME();
           runtimeError("Module '%s' does not export '%s'.", module->name->chars, name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
-        pop();
-        push(exported);
+        stackTop[-1] = exported;
         break;
       }
 
-      if (IS_HASHMAP(peek(0))) {
+      if (IS_HASHMAP(PEEK(0))) {
         if (strcmp(name->chars, "length") != 0) {
+          STORE_FRAME();
           runtimeError("Maps do not have a property named '%s'.", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        ObjHashmap *map = AS_HASHMAP(pop());
-        push(NUMBER_VAL(mapCount(&map->items)));
+        ObjHashmap *map = AS_HASHMAP(POP());
+        PUSH(NUMBER_VAL(mapCount(&map->items)));
         break;
       }
 
-      if (!IS_INSTANCE(peek(0))) {
+      if (!IS_INSTANCE(PEEK(0))) {
+        STORE_FRAME();
         runtimeError("Only instances have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjInstance *instance = AS_INSTANCE(peek(0));
+      ObjInstance *instance = AS_INSTANCE(PEEK(0));
 
       Value value;
       if (tableGet(&instance->fields, name, &value)) {
-        pop();
-        push(value);
+        stackTop[-1] = value;
         break;
       }
 
+      STORE_FRAME();
       if (!bindMethod(instance->klass, name)) {
         return INTERPRET_RUNTIME_ERROR;
       }
+      LOAD_FRAME();
       break;
-      // need to define a way to check if a field exists, also delete
-      // push(NIL_VAL); // if the property doesnt exist dont crash the vm just return nil
     }
     case OP_SET_PROPERTY:
     case OP_SET_PROPERTY_LONG: {
-      if (IS_MODULE(peek(1))) {
+      if (IS_MODULE(PEEK(1))) {
+        STORE_FRAME();
         runtimeError("Module exports are read-only.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      if (!IS_INSTANCE(peek(1))) {
+      if (!IS_INSTANCE(PEEK(1))) {
+        STORE_FRAME();
         runtimeError("Only instances have fields.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjInstance *instance = AS_INSTANCE(peek(1));
+      ObjInstance *instance = AS_INSTANCE(PEEK(1));
       ObjString *name = instruction == OP_SET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
-      tableSet(&instance->fields, name, peek(0));
-      Value value = pop();
-      pop();
-      push(value);
+      tableSet(&instance->fields, name, PEEK(0));
+      Value value = POP();
+      stackTop[-1] = value;
       break;
     }
     case OP_INVOKE:
     case OP_INVOKE_LONG: {
       ObjString *method = instruction == OP_INVOKE ? READ_STRING() : READ_STRING_LONG();
       int argCount = READ_BYTE();
+      STORE_FRAME();
       if (!invoke(method, argCount)) {
         return INTERPRET_RUNTIME_ERROR;
       }
-      frame = &vm.frames[vm.frameCount - 1];
+      LOAD_FRAME();
       break;
     }
     case OP_SUPER_INVOKE:
     case OP_SUPER_INVOKE_LONG: {
       ObjString *method = instruction == OP_SUPER_INVOKE ? READ_STRING() : READ_STRING_LONG();
       int argCount = READ_BYTE();
-      ObjClass *superclass = AS_CLASS(pop());
+      ObjClass *superclass = AS_CLASS(POP());
+      STORE_FRAME();
       if (!invokeFromClass(superclass, method, argCount)) {
         return INTERPRET_RUNTIME_ERROR;
       }
-      frame = &vm.frames[vm.frameCount - 1];
+      LOAD_FRAME();
       break;
     }
     case OP_GET_SUPER:
     case OP_GET_SUPER_LONG: {
       ObjString *name = instruction == OP_GET_SUPER ? READ_STRING() : READ_STRING_LONG();
-      ObjClass *superclass = AS_CLASS(pop());
+      ObjClass *superclass = AS_CLASS(POP());
 
+      STORE_FRAME();
       if (!bindMethod(superclass, name)) {
         return INTERPRET_RUNTIME_ERROR;
       }
+      LOAD_FRAME();
       break;
     }
     case OP_EQUAL: {
-      Value a = pop();
-      Value b = pop();
+      Value a = POP();
+      Value b = POP();
+      STORE_FRAME();
       bool equal = valuesEqual(a, b);
       if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
-      push(BOOL_VAL(equal));
+      PUSH(BOOL_VAL(equal));
       break;
     }
     case OP_GREATER:
@@ -766,13 +792,16 @@ static InterpretResult run(int stopFrameCount) {
       BINARY_OP(BOOL_VAL, <);
       break;
     case OP_ADD: {
-      if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+      if (IS_STRING(PEEK(0)) && IS_STRING(PEEK(1))) {
+        STORE_FRAME();
         concatenate();
-      } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-        double b = AS_NUMBER(pop());
-        double a = AS_NUMBER(pop());
-        push(NUMBER_VAL(a + b));
+        LOAD_FRAME();
+      } else if (IS_NUMBER(PEEK(0)) && IS_NUMBER(PEEK(1))) {
+        double b = AS_NUMBER(POP());
+        double a = AS_NUMBER(POP());
+        PUSH(NUMBER_VAL(a + b));
       } else {
+        STORE_FRAME();
         runtimeError("Operands must be two numbers or two strings.");
         return INTERPRET_RUNTIME_ERROR;
       }
@@ -785,118 +814,128 @@ static InterpretResult run(int stopFrameCount) {
       BINARY_OP(NUMBER_VAL, *);
       break;
     case OP_DIVIDE: {
-      if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {
+      if (!IS_NUMBER(PEEK(0)) || !IS_NUMBER(PEEK(1))) {
+        STORE_FRAME();
         runtimeError("Operands must be numbers.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      double divisor = AS_NUMBER(pop());
-      double dividend = AS_NUMBER(pop());
+      double divisor = AS_NUMBER(POP());
+      double dividend = AS_NUMBER(POP());
       if (divisor == 0) {
+        STORE_FRAME();
         runtimeError("Division by zero.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      push(NUMBER_VAL(dividend / divisor));
+      PUSH(NUMBER_VAL(dividend / divisor));
       break;
     }
     case OP_MODULO:
-      if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {
+      if (!IS_NUMBER(PEEK(0)) || !IS_NUMBER(PEEK(1))) {
+        STORE_FRAME();
         runtimeError("Operands must be numbers.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      double b = AS_NUMBER(pop());
-      double a = AS_NUMBER(pop());
+      double b = AS_NUMBER(POP());
+      double a = AS_NUMBER(POP());
 
       if (b == 0) {
+        STORE_FRAME();
         runtimeError("Modulo by zero.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
       if (!isfinite(a) || !isfinite(b) || floor(b) != b || floor(a) != a) {
+        STORE_FRAME();
         runtimeError("Modulo only accepts finite integer operands.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      push(NUMBER_VAL(fmod(a, b)));
+      PUSH(NUMBER_VAL(fmod(a, b)));
       break;
     case OP_NOT:
-      push(BOOL_VAL(isFalsey(pop())));
+      stackTop[-1] = BOOL_VAL(isFalsey(stackTop[-1]));
       break;
     case OP_NEGATE:
-      if (!IS_NUMBER(peek(0))) {
+      if (!IS_NUMBER(PEEK(0))) {
+        STORE_FRAME();
         runtimeError("Operand must be a number.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      push(NUMBER_VAL(-AS_NUMBER(pop())));
+      stackTop[-1] = NUMBER_VAL(-AS_NUMBER(stackTop[-1]));
       break;
     case OP_PRINT: {
-      ObjString *rendered = valueToString(peek(0));
+      STORE_FRAME();
+      ObjString *rendered = valueToString(POP());
       writeVMOutput(rendered->chars, (size_t)rendered->length);
-      pop();
       writeVMOutput("\n", 1);
       break;
     }
     case OP_PRINT_NO_NEWLINE: {
-      ObjString *rendered = valueToString(peek(0));
+      STORE_FRAME();
+      ObjString *rendered = valueToString(POP());
       writeVMOutput(rendered->chars, (size_t)rendered->length);
-      pop();
       break;
     }
     case OP_JUMP: {
       uint16_t offset = READ_SHORT();
-      frame->ip += offset;
+      ip += offset;
       break;
     }
     case OP_JUMP_IF_FALSE: {
       uint16_t offset = READ_SHORT();
-      if (isFalsey(peek(0))) frame->ip += offset;
+      if (isFalsey(PEEK(0))) ip += offset;
       break;
     }
     case OP_LOOP: {
       uint16_t offset = READ_SHORT();
-      frame->ip -= offset;
+      ip -= offset;
       break;
     }
     case OP_CALL: {
       int argCount = READ_BYTE();
-      if (!callValue(peek(argCount), argCount)) {
+      STORE_FRAME();
+      if (!callValue(PEEK(argCount), argCount)) {
         return INTERPRET_RUNTIME_ERROR;
       }
-      frame = &vm.frames[vm.frameCount - 1];
+      LOAD_FRAME();
       break;
     }
     case OP_GET_INDEX: {
-      Value index = peek(0);
-      Value container = peek(1);
+      Value index = PEEK(0);
+      Value container = PEEK(1);
 
       if (IS_LIST(container)) {
         ObjList *list = AS_LIST(container);
         int listIndex;
 
+        STORE_FRAME();
         if (!normalizeListIndex(index, list->items.count, &listIndex)) {
           return INTERPRET_RUNTIME_ERROR;
         }
 
         Value result = list->items.values[listIndex];
-        pop();
-        pop();
-        push(result);
+        stackTop[-2] = result;
+        stackTop--;
       } else if (IS_STRING(container)) {
         if (!IS_NUMBER(index)) {
+          STORE_FRAME();
           runtimeError("String index must be a number.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
         double stringIndex = AS_NUMBER(index);
         if (!isfinite(stringIndex) || floor(stringIndex) != stringIndex) {
+          STORE_FRAME();
           runtimeError("String index must be a finite integer.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
         ObjString *string = AS_STRING(container);
         if (stringIndex < 0 || stringIndex >= string->length) {
+          STORE_FRAME();
           runtimeError("String index out of bounds.");
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -904,11 +943,11 @@ static InterpretResult run(int stopFrameCount) {
         unsigned char ch = (unsigned char)string->chars[(int)stringIndex];
         ObjString *result = vm.charStrings[ch];
 
-        pop();
-        pop();
-        push(OBJ_VAL(result));
+        stackTop[-2] = OBJ_VAL(result);
+        stackTop--;
       } else if (IS_HASHMAP(container)) {
         if (!mapKeyIsValid(index)) {
+          STORE_FRAME();
           runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -916,10 +955,10 @@ static InterpretResult run(int stopFrameCount) {
         Value result = NIL_VAL;
         mapGet(&AS_HASHMAP(container)->items, index, &result);
 
-        pop();
-        pop();
-        push(result);
+        stackTop[-2] = result;
+        stackTop--;
       } else {
+        STORE_FRAME();
         runtimeError("Can only index into lists, strings, and hashmaps.");
         return INTERPRET_RUNTIME_ERROR;
       }
@@ -928,40 +967,40 @@ static InterpretResult run(int stopFrameCount) {
     }
 
     case OP_SET_INDEX: {
-      Value value = peek(0);
-      Value key = peek(1);
-      Value container = peek(2);
+      Value value = PEEK(0);
+      Value key = PEEK(1);
+      Value container = PEEK(2);
 
       if (IS_LIST(container)) {
         ObjList *list = AS_LIST(container);
         int index;
 
+        STORE_FRAME();
         if (!normalizeListIndex(key, list->items.count, &index)) {
           return INTERPRET_RUNTIME_ERROR;
         }
 
         list->items.values[index] = value;
 
-        pop();
-        pop();
-        pop();
-        push(value);
+        stackTop -= 2;
+        stackTop[-1] = value;
       } else if (IS_HASHMAP(container)) {
         if (!mapKeyIsValid(key)) {
+          STORE_FRAME();
           runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
+        STORE_FRAME();
         if (!mapSet(&AS_HASHMAP(container)->items, key, value, NULL)) {
           runtimeError("Map key is invalid.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        pop();
-        pop();
-        pop();
-        push(value);
+        stackTop -= 2;
+        stackTop[-1] = value;
       } else {
+        STORE_FRAME();
         runtimeError("Can only assign through a list or hashmap index.");
         return INTERPRET_RUNTIME_ERROR;
       }
@@ -970,35 +1009,39 @@ static InterpretResult run(int stopFrameCount) {
     }
 
     case OP_NEW_LIST: {
-      push(OBJ_VAL(newList()));
+      STORE_FRAME();
+      PUSH(OBJ_VAL(newList()));
       break;
     }
     case OP_LIST_LITERAL_APPEND: {
-      Value item = pop();
-      Value listVal = pop();
+      Value item = POP();
+      Value listVal = PEEK(0);
 
       if (!IS_LIST(listVal)) {
+        STORE_FRAME();
         runtimeError("Can only append to a list.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
       ObjList *list = AS_LIST(listVal);
-      push(OBJ_VAL(list));
+      PUSH(item);
+      STORE_FRAME();
       writeValueArray(&list->items, item);
-      pop();
-      push(OBJ_VAL(list));
+      DROP();
       break;
     }
     case OP_NEW_HASHMAP: {
-      push(OBJ_VAL(newHashmap()));
+      STORE_FRAME();
+      PUSH(OBJ_VAL(newHashmap()));
       break;
     }
     case OP_HASHMAP_LITERAL_INSERT: {
-      Value value = peek(0);
-      Value keyVal = peek(1);
-      Value hashmapVal = peek(2);
+      Value value = PEEK(0);
+      Value keyVal = PEEK(1);
+      Value hashmapVal = PEEK(2);
 
       if (!IS_HASHMAP(hashmapVal)) {
+        STORE_FRAME();
         runtimeError("Expect a hashmap.");
         return INTERPRET_RUNTIME_ERROR;
       }
@@ -1006,76 +1049,87 @@ static InterpretResult run(int stopFrameCount) {
       ObjHashmap *hashmap = AS_HASHMAP(hashmapVal);
 
       if (!mapKeyIsValid(keyVal)) {
+        STORE_FRAME();
         runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
+      STORE_FRAME();
       if (!mapSet(&hashmap->items, keyVal, value, NULL)) {
         runtimeError("Map key is invalid.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      pop();
-      pop();
-      pop();
-      push(OBJ_VAL(hashmap));
+      stackTop -= 2;
       break;
     }
     case OP_CLOSURE:
     case OP_CLOSURE_LONG: {
       ObjFunction *function = AS_FUNCTION(instruction == OP_CLOSURE ? READ_CONSTANT() : READ_CONSTANT_LONG());
+      STORE_FRAME();
       ObjClosure *closure = newClosure(function);
       closure->module = frame->closure->module;
-      if (!push(OBJ_VAL(closure))) return INTERPRET_RUNTIME_ERROR;
+      PUSH(OBJ_VAL(closure));
       for (int i = 0; i < closure->upvalueCount; i++) {
         uint8_t isLocal = READ_BYTE();
         uint8_t index = READ_BYTE();
-        closure->upvalues[i] = isLocal ? captureUpvalue(frame->slots + index) : frame->closure->upvalues[index];
+        STORE_FRAME();
+        closure->upvalues[i] = isLocal ? captureUpvalue(slots + index) : frame->closure->upvalues[index];
       }
       break;
     }
     case OP_CLOSE_UPVALUE:
-      closeUpvalues(vm.stackTop - 1);
-      pop();
+      STORE_FRAME();
+      closeUpvalues(stackTop - 1);
+      DROP();
       break;
     case OP_RETURN: {
-      Value result = pop();
+      Value result = POP();
+      STORE_FRAME();
       closeUpvalues(frame->slots);
+      Value *calleeSlots = frame->slots;
       vm.frameCount--;
       if (vm.frameCount == 0) {
         vm.lastReturnValue = result;
         vm.hasLastReturnValue = true;
-        vm.stackTop = frame->slots;
+        vm.stackTop = calleeSlots;
         return INTERPRET_OK;
       }
 
-      vm.stackTop = frame->slots;
-      push(result);
-      frame = &vm.frames[vm.frameCount - 1];
-      if (vm.frameCount == stopFrameCount) return INTERPRET_OK;
+      vm.stackTop = calleeSlots;
+      *vm.stackTop++ = result;
+      LOAD_FRAME();
+      if (vm.frameCount == stopFrameCount) {
+        STORE_FRAME();
+        return INTERPRET_OK;
+      }
       break;
     }
     case OP_CLASS:
     case OP_CLASS_LONG: {
       ObjString *name = instruction == OP_CLASS ? READ_STRING() : READ_STRING_LONG();
-      push(OBJ_VAL(newClass(name)));
+      STORE_FRAME();
+      PUSH(OBJ_VAL(newClass(name)));
       break;
     }
     case OP_INHERIT: {
-      Value superclass = peek(1);
+      Value superclass = PEEK(1);
       if (!IS_CLASS(superclass)) {
+        STORE_FRAME();
         runtimeError("Superclass must be a class.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      ObjClass *subclass = AS_CLASS(peek(0));
+      ObjClass *subclass = AS_CLASS(PEEK(0));
       tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
-      pop();
+      DROP();
       break;
     }
     case OP_METHOD:
     case OP_METHOD_LONG: {
       ObjString *name = instruction == OP_METHOD ? READ_STRING() : READ_STRING_LONG();
+      STORE_FRAME();
       defineMethod(name);
+      LOAD_FRAME();
       break;
     }
     case OP_IMPORT:
@@ -1085,14 +1139,17 @@ static InterpretResult run(int stopFrameCount) {
       Table *globals = globalsForFrame(frame);
       Value existing;
       if (tableGet(globals, alias, &existing)) {
+        STORE_FRAME();
         runtimeError("Import alias '%s' is already defined.", alias->chars);
         return INTERPRET_RUNTIME_ERROR;
       }
 
       Value module;
+      STORE_FRAME();
       InterpretResult importResult = resolveModule(moduleName->chars, &module);
       if (importResult != INTERPRET_OK) return importResult;
-      tableSet(globals, alias, module);
+      LOAD_FRAME();
+      tableSet(globalsForFrame(frame), alias, module);
       break;
     }
     case OP_EXPORT:
@@ -1101,15 +1158,26 @@ static InterpretResult run(int stopFrameCount) {
       ObjModule *module = frame->closure->module;
       Value exported;
       if (module == NULL || !tableGet(&module->globals, name, &exported)) {
+        STORE_FRAME();
         runtimeError("Could not export '%s'.", name->chars);
         return INTERPRET_RUNTIME_ERROR;
       }
       tableSet(&module->exports, name, exported);
       break;
     }
+    default:
+      STORE_FRAME();
+      runtimeError("Unknown opcode %d.", instruction);
+      return INTERPRET_RUNTIME_ERROR;
     }
     if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
   }
+#undef PUSH
+#undef POP
+#undef DROP
+#undef PEEK
+#undef STORE_FRAME
+#undef LOAD_FRAME
 #undef BINARY_OP
 #undef READ_STRING_LONG
 #undef READ_CONSTANT
