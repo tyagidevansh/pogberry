@@ -5,7 +5,7 @@ def fib(n):
 
 
 def main():
-    print(f"{float(fib(32)):g}")
+    print(fib(32))
 
 
 if __name__ == "__main__":

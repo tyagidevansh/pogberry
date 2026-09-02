@@ -9,7 +9,6 @@ PKG_CONFIG ?= pkg-config
 
 SRC_DIR := src
 BUILD_DIR := build
-RELEASE_BUILD_DIR := build/release
 
 ifeq ($(OS),Windows_NT)
 EXEEXT := .exe
@@ -38,8 +37,9 @@ HOST_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(HOST_SOURCES))
 OBJECTS := $(CORE_OBJECTS) $(HOST_OBJECTS)
 DEPS := $(OBJECTS:.o=.d)
 
+OPTFLAGS ?= -O3 -DNDEBUG
 CPPFLAGS := -I$(SRC_DIR)
-CFLAGS := -std=c11 -Wall -Wextra -Wpedantic -MMD -MP $(PLATFORM_CFLAGS)
+CFLAGS := $(OPTFLAGS) -std=c11 -Wall -Wextra -Wpedantic -MMD -MP $(PLATFORM_CFLAGS)
 PYTHON ?= python
 TEST_PATH ?=
 TEST_ARGS ?=
@@ -62,27 +62,11 @@ RAYLIB_TEST_FLAGS := -fPIC
 TEST_RAYLIB_ENV := PB_RAYLIB_LIBRARY="$(abspath $(RAYLIB_TEST_LIBRARY))"
 endif
 
-RELEASE_CORE_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(RELEASE_BUILD_DIR)/%.o,$(CORE_SOURCES))
-RELEASE_HOST_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(RELEASE_BUILD_DIR)/%.o,$(HOST_SOURCES))
-RELEASE_OBJECTS := $(RELEASE_CORE_OBJECTS) $(RELEASE_HOST_OBJECTS)
-RELEASE_TARGET := $(RELEASE_BUILD_DIR)/pb$(EXEEXT)
-
 .PHONY: all release shared raylib-backend test bench install clean
 
-release: $(RELEASE_TARGET)
-	strip $(RELEASE_TARGET)
-
-$(RELEASE_BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	@$(call MAKE_DIR,$(@D))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -O3 -DNDEBUG -c $< -o $@
-
-$(RELEASE_TARGET): $(RELEASE_OBJECTS) | $(RELEASE_BUILD_DIR)
-	$(CC) $(RELEASE_OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@
-
-$(RELEASE_BUILD_DIR):
-	@$(call MAKE_DIR,$@)
-
 all: $(TARGET)
+
+release: all
 
 shared: $(SHARED_LIBRARY)
 
@@ -125,8 +109,8 @@ BENCH_PERF_FLAG := $(if $(NO_PERF),--no-perf,)
 
 BENCH_ARGS ?= --html bench/report.html --json $(BENCH_FILTER_FLAG) $(BENCH_GUI_FLAG) $(BENCH_RUNS_FLAG) $(BENCH_WARMUP_FLAG) $(BENCH_PERF_FLAG)
 
-bench: $(RELEASE_TARGET)
-	@$(PYTHON) $(BENCH_RUNNER) --binary $(RELEASE_TARGET) $(BENCH_ARGS)
+bench: $(TARGET)
+	@$(PYTHON) $(BENCH_RUNNER) --binary $(TARGET) $(BENCH_ARGS)
 
 ifeq ($(OS),Windows_NT)
 install:
