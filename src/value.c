@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "headers/object.h"
 #include "headers/memory.h"
@@ -36,6 +37,13 @@ void printValue(Value value) {
 
 static bool stringsEqual(ObjString *left, ObjString *right) {
   return left->length == right->length && memcmp(left->chars, right->chars, (size_t)left->length) == 0;
+}
+
+static int formatNumberString(char *buffer, size_t size, double value) {
+  if (isfinite(value) && floor(value) == value && fabs(value) < 1e16) {
+    return snprintf(buffer, size, "%.0f", value);
+  }
+  return snprintf(buffer, size, "%g", value);
 }
 
 #define EQUALITY_MAX_DEPTH 256
@@ -206,7 +214,7 @@ static void appendValue(StringBuilder *builder, Value value) {
     appendCString(builder, "nil");
     return;
   case VAL_NUMBER:
-    snprintf(number, sizeof(number), "%g", AS_NUMBER(value));
+    formatNumberString(number, sizeof(number), AS_NUMBER(value));
     appendCString(builder, number);
     return;
   case VAL_OBJ:
@@ -322,7 +330,7 @@ static void appendValue(StringBuilder *builder, Value value) {
 ObjString *valueToString(Value value) {
   if (IS_NUMBER(value)) {
     char number[32];
-    int len = snprintf(number, sizeof(number), "%g", AS_NUMBER(value));
+    int len = formatNumberString(number, sizeof(number), AS_NUMBER(value));
     if (len < 0) len = 0;
     char *chars = ALLOCATE(char, len + 1);
     memcpy(chars, number, (size_t)len);
