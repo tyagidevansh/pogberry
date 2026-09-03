@@ -11,6 +11,7 @@
 void initTable(Table *table) {
   table->count = 0;
   table->capacity = 0;
+  table->version = 1;
   table->entries = NULL;
 }
 
@@ -80,6 +81,7 @@ bool tableGet(Table *table, ObjString *key, Value *value) {
 }
 
 bool tableSet(Table *table, ObjString *key, Value value) {
+  table->version++;
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(table->capacity);
     adjustCapacity(table, capacity);
@@ -96,6 +98,7 @@ bool tableSet(Table *table, ObjString *key, Value value) {
 }
 
 bool tableDelete(Table *table, ObjString *key) {
+  table->version--;
   if (table->count == 0) return false;
 
   Entry *entry = findEntry(table->entries, table->capacity, key);
@@ -150,3 +153,10 @@ void markTable(Table *table) {
     markValue(entry->value);
   }
 }
+
+Entry* tableFindEntry(Table *table, ObjString *key) {
+  if (table->count == 0) return NULL;
+  Entry *entry = findEntry(table->entries, table->capacity, key);
+  if (entry->key == NULL) return NULL;
+  return entry;
+} 

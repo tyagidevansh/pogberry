@@ -84,6 +84,11 @@ typedef enum {
   OP_EXPORT_LONG,
 } OpCode;
 
+typedef struct {
+  Value *valuePtr;
+  uint32_t version;
+} GlobalCache;
+
 // unit of bytecode, essentially the entire AST class from JLOX
 typedef struct {
   int count;     // number of places taken up in block
@@ -92,6 +97,7 @@ typedef struct {
   int *lines; // separate array to store line numbers so we can retreieve when errors occurs, inefficient for memory but
               // atleast keeps operations and line info separate - fewer cache misses when error DOESNT occur
   ValueArray constants; // chunk data
+  GlobalCache *globalCache;
 } Chunk;
 
 void initChunk(Chunk *chunk);

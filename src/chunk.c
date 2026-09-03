@@ -8,6 +8,7 @@ void initChunk(Chunk *chunk) {
   chunk->capacity = 0;
   chunk->code = NULL;
   chunk->lines = NULL;
+  chunk->globalCache = NULL;
   initValueArray(&chunk->constants);
 }
 
@@ -15,6 +16,7 @@ void initChunk(Chunk *chunk) {
 void freeChunk(Chunk *chunk) {
   FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
   FREE_ARRAY(int, chunk->lines, chunk->capacity);
+  FREE_ARRAY(GlobalCache, chunk->globalCache, chunk->constants.capacity);
   freeValueArray(&chunk->constants);
   initChunk(chunk); // init to zero out the fields, leaving chunk in a well defined empty state
 }
@@ -42,7 +44,16 @@ void writeChunkU16BE(Chunk *chunk, uint16_t value, int line) {
 
 int addConstant(Chunk *chunk, Value value) {
   push(value); // GC schenanigans
+  int oldCapacity = chunk->constants.capacity;
   writeValueArray(&chunk->constants, value);
+  int newCapacity = chunk->constants.capacity;
+  if (newCapacity > oldCapacity) {
+    chunk->globalCache = GROW_ARRAY(GlobalCache, chunk->globalCache, oldCapacity, newCapacity);
+    for (int i = oldCapacity; i < newCapacity; i++) {
+      chunk->globalCache[i].valuePtr = NULL;
+      chunk->globalCache[i].version = 0;
+    }
+  }
   pop();
   return chunk->constants.count - 1;
 }

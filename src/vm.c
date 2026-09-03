@@ -637,16 +637,44 @@ static InterpretResult run(int stopFrameCount) {
       *frame->closure->upvalues[slot]->location = PEEK(0);
       break;
     }
-    case OP_GET_GLOBAL:
-    case OP_GET_GLOBAL_LONG: {
-      ObjString *name = instruction == OP_GET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
-      Value value;
-      if (!tableGet(globalsForFrame(frame), name, &value)) {
+    case OP_GET_GLOBAL: {
+      uint8_t slot = READ_BYTE();
+      GlobalCache *cache = &frame->closure->function->chunk.globalCache[slot];
+      Table *globals = globalsForFrame(frame);
+      if (cache->version == globals->version && cache->valuePtr != NULL) {
+        PUSH(*cache->valuePtr);
+        break;
+      }
+      ObjString* name = AS_STRING(frame->closure->function->chunk.constants.values[slot]);
+      Entry *entry = tableFindEntry(globals, name);
+      if (entry == NULL) {
         STORE_FRAME();
         runtimeError("Undefined variable '%s'.", name->chars);
         return INTERPRET_RUNTIME_ERROR;
       }
-      PUSH(value);
+      cache->valuePtr = &entry->value;
+      cache->version = globals->version;
+      PUSH(entry->value);
+      break;
+    }
+    case OP_GET_GLOBAL_LONG: {
+      uint16_t slot = READ_SHORT();
+      GlobalCache *cache = &frame->closure->function->chunk.globalCache[slot];
+      Table *globals = globalsForFrame(frame);
+      if (cache->version == globals->version && cache->valuePtr != NULL) {
+        PUSH(*cache->valuePtr);
+        break;
+      }
+      ObjString *name = AS_STRING(frame->closure->function->chunk.constants.values[slot]);
+      Entry *entry = tableFindEntry(globals, name);
+      if (entry == NULL) {
+        STORE_FRAME();
+        runtimeError("Undefined variable '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      cache->valuePtr = &entry->value;
+      cache->version = globals->version;
+      PUSH(entry->value);
       break;
     }
     case OP_DEFINE_GLOBAL:
