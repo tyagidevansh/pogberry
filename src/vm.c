@@ -10,6 +10,7 @@
 #include "headers/debug.h"
 #include "headers/object.h"
 #include "headers/memory.h"
+#include "headers/value.h"
 #include "headers/vm.h"
 #include "headers/native.h"
 #include "headers/pb.h"
@@ -645,7 +646,7 @@ static InterpretResult run(int stopFrameCount) {
         PUSH(*cache->valuePtr);
         break;
       }
-      ObjString* name = AS_STRING(frame->closure->function->chunk.constants.values[slot]);
+      ObjString *name = AS_STRING(frame->closure->function->chunk.constants.values[slot]);
       Entry *entry = tableFindEntry(globals, name);
       if (entry == NULL) {
         STORE_FRAME();
@@ -805,12 +806,26 @@ static InterpretResult run(int stopFrameCount) {
       break;
     }
     case OP_EQUAL: {
-      Value a = POP();
       Value b = POP();
-      STORE_FRAME();
-      bool equal = valuesEqual(a, b);
-      if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
-      PUSH(BOOL_VAL(equal));
+      Value a = stackTop[-1];
+      bool equal = false;
+      if (a.type == b.type) {
+        if (a.type == VAL_NUMBER) {
+          equal = (a.as.number == b.as.number);
+        } else if (a.type == VAL_BOOL) {
+          equal = (a.as.boolean == b.as.boolean);
+        } else if (a.type == VAL_NIL) {
+          equal = true;
+        } else if (a.type == VAL_OBJ && a.as.obj == b.as.obj) {
+          equal = true;
+        } else {
+          STORE_FRAME();
+          equal = valuesEqual(a, b);
+          LOAD_FRAME();
+          if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+        }
+      }
+      stackTop[-1] = BOOL_VAL(equal);
       break;
     }
     case OP_GREATER:
@@ -915,6 +930,30 @@ static InterpretResult run(int stopFrameCount) {
     case OP_JUMP_IF_FALSE: {
       uint16_t offset = READ_SHORT();
       if (isFalsey(PEEK(0))) ip += offset;
+      break;
+    }
+    case OP_POP_JUMP_IF_FALSE: {
+      uint16_t offset = READ_SHORT();
+      Value val = POP();
+      if (isFalsey(val)) ip += offset;
+      break;
+    }
+    case OP_JUMP_IF_TRUE_OR_POP: {
+      uint16_t offset = READ_SHORT();
+      if (!isFalsey(PEEK(0))) {
+        ip += offset;
+      } else {
+        DROP();
+      }
+      break;
+    }
+    case OP_JUMP_IF_FALSE_OR_POP: {
+      uint16_t offset = READ_SHORT();
+      if (isFalsey(PEEK(0))) {
+        ip += offset;
+      } else {
+        DROP();
+      }
       break;
     }
     case OP_LOOP: {

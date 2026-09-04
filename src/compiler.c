@@ -484,11 +484,8 @@ static uint8_t argumentList() {
 
 static void and_(bool canAssign) {
   (void)canAssign;
-  int endJump = emitJump(OP_JUMP_IF_FALSE);
-
-  emitByte(OP_POP);
+  int endJump = emitJump(OP_JUMP_IF_FALSE_OR_POP);
   parsePrecedence(PREC_AND);
-
   patchJump(endJump);
 }
 
@@ -814,14 +811,12 @@ static void ifStatement() {
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
-  int thenJump = emitJump(OP_JUMP_IF_FALSE);
-  emitByte(OP_POP);
+  int thenJump = emitJump(OP_POP_JUMP_IF_FALSE);
   statement();
 
   int elseJump = emitJump(OP_JUMP);
 
   patchJump(thenJump);
-  emitByte(OP_POP);
 
   if (match(TOKEN_ELSE)) statement();
   patchJump(elseJump);
@@ -915,13 +910,11 @@ static void whileStatement() {
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
-  int exitJump = emitJump(OP_JUMP_IF_FALSE);
-  emitByte(OP_POP);
+  int exitJump = emitJump(OP_POP_JUMP_IF_FALSE);
   statement();
   emitLoop(loopStart);
 
   patchJump(exitJump);
-  emitByte(OP_POP);
 
   for (int i = 0; i < currentLoop->breakCount; i++) {
     patchJump(currentLoop->breakJumpOffsets[i]);
@@ -1118,13 +1111,8 @@ static void number(bool canAssign) {
 }
 
 static void or_(bool canAssign) {
-  (void)canAssign;
-  int elseJump = emitJump(OP_JUMP_IF_FALSE);
-  int endJump = emitJump(OP_JUMP);
-
-  patchJump(elseJump);
-  emitByte(OP_POP);
-
+  (void) canAssign;
+  int endJump = emitJump(OP_JUMP_IF_TRUE_OR_POP);
   parsePrecedence(PREC_OR);
   patchJump(endJump);
 }

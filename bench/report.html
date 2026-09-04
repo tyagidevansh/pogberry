@@ -178,100 +178,20 @@
           </thead>
           <tbody>
             <tr>
-              <td>astar</td>
-              <td>64.0ms</td>
-              <td>43.4ms</td>
-              <td><span class="tag tag-slower">0.68x</span></td>
-              <td>4.5MB</td>
-              <td>9.7MB</td>
-            </tr>
-            <tr>
-              <td>binary_trees</td>
-              <td>716.0ms</td>
-              <td>373.0ms</td>
-              <td><span class="tag tag-slower">0.52x</span></td>
-              <td>18.4MB</td>
-              <td>12.6MB</td>
-            </tr>
-            <tr>
-              <td>bubble_sort</td>
-              <td>1.694s</td>
-              <td>1.095s</td>
-              <td><span class="tag tag-slower">0.65x</span></td>
+              <td>fib_or</td>
+              <td>308.0ms</td>
+              <td>366.2ms</td>
+              <td><span class="tag tag-faster">1.19x</span></td>
               <td>3.0MB</td>
-              <td>9.7MB</td>
-            </tr>
-            <tr>
-              <td>class_hierarchy</td>
-              <td>39.9ms</td>
-              <td>65.8ms</td>
-              <td><span class="tag tag-faster">1.65x</span></td>
-              <td>4.2MB</td>
-              <td>9.5MB</td>
-            </tr>
-            <tr>
-              <td>closures</td>
-              <td>9.5ms</td>
-              <td>25.6ms</td>
-              <td><span class="tag tag-faster">2.70x</span></td>
-              <td>3.1MB</td>
-              <td>9.5MB</td>
-            </tr>
-            <tr>
-              <td>fib_recursive</td>
-              <td>294.7ms</td>
-              <td>318.6ms</td>
-              <td><span class="tag tag-faster">1.08x</span></td>
-              <td>2.7MB</td>
               <td>9.3MB</td>
             </tr>
             <tr>
-              <td>list_operations</td>
-              <td>15.8ms</td>
-              <td>30.1ms</td>
-              <td><span class="tag tag-faster">1.90x</span></td>
-              <td>3.7MB</td>
-              <td>11.7MB</td>
-            </tr>
-            <tr>
-              <td>mandelbrot</td>
-              <td>78.2ms</td>
-              <td>127.2ms</td>
-              <td><span class="tag tag-faster">1.63x</span></td>
+              <td>fib_recursive</td>
+              <td>238.7ms</td>
+              <td>300.5ms</td>
+              <td><span class="tag tag-faster">1.26x</span></td>
               <td>3.0MB</td>
-              <td>9.6MB</td>
-            </tr>
-            <tr>
-              <td>map_operations</td>
-              <td>91.3ms</td>
-              <td>54.0ms</td>
-              <td><span class="tag tag-slower">0.59x</span></td>
-              <td>17.6MB</td>
-              <td>15.8MB</td>
-            </tr>
-            <tr>
-              <td>nbody</td>
-              <td>343.7ms</td>
-              <td>374.3ms</td>
-              <td><span class="tag tag-faster">1.09x</span></td>
-              <td>2.9MB</td>
-              <td>9.9MB</td>
-            </tr>
-            <tr>
-              <td>nested_loops</td>
-              <td>626.5ms</td>
-              <td>576.5ms</td>
-              <td><span class="tag tag-slower">0.92x</span></td>
-              <td>3.0MB</td>
-              <td>9.5MB</td>
-            </tr>
-            <tr>
-              <td>string_operations</td>
-              <td>51.1ms</td>
-              <td>30.7ms</td>
-              <td><span class="tag tag-slower">0.60x</span></td>
-              <td>6.0MB</td>
-              <td>10.5MB</td>
+              <td>9.4MB</td>
             </tr>
           </tbody>
         </table>
@@ -279,12 +199,12 @@
     </div>
 
     <footer>
-      Pogberry Benchmark Suite · Generated on 2026-09-02 23:16:50
+      Pogberry Benchmark Suite · Generated on 2026-09-04 15:34:41
     </footer>
   </div>
 
   <script>
-    const labels = ["astar", "binary_trees", "bubble_sort", "class_hierarchy", "closures", "fib_recursive", "list_operations", "mandelbrot", "map_operations", "nbody", "nested_loops", "string_operations"];
+    const labels = ["fib_or", "fib_recursive"];
 
     // Chart.js default styling
     Chart.defaults.color = '#94a3b8';
@@ -298,8 +218,8 @@
         labels: labels,
         datasets: [{
           label: 'Speedup vs Python',
-          data: [0.68, 0.52, 0.65, 1.65, 2.7, 1.08, 1.9, 1.63, 0.59, 1.09, 0.92, 0.6],
-          backgroundColor: ["#ef4444", "#ef4444", "#ef4444", "#10b981", "#10b981", "#10b981", "#10b981", "#10b981", "#ef4444", "#10b981", "#ef4444", "#ef4444"],
+          data: [1.19, 1.26],
+          backgroundColor: ["#10b981", "#10b981"],
           borderRadius: 3
         }]
       },
@@ -335,13 +255,13 @@
         datasets: [
           {
             label: 'Pogberry',
-            data: [4.5, 18.4, 3.0, 4.2, 3.1, 2.7, 3.7, 3.0, 17.6, 2.9, 3.0, 6.0],
+            data: [3.0, 3.0],
             backgroundColor: '#818cf8',
             borderRadius: 3
           },
           {
             label: 'Python',
-            data: [9.7, 12.6, 9.7, 9.5, 9.5, 9.3, 11.7, 9.6, 15.8, 9.9, 9.5, 10.5],
+            data: [9.3, 9.4],
             backgroundColor: '#38bdf8',
             borderRadius: 3
           }
@@ -379,13 +299,13 @@
         datasets: [
           {
             label: 'Pogberry',
-            data: [64.0, 716.0, 1693.8, 39.9, 9.5, 294.7, 15.8, 78.2, 91.3, 343.7, 626.5, 51.1],
+            data: [308.0, 238.7],
             backgroundColor: '#818cf8',
             borderRadius: 3
           },
           {
             label: 'Python',
-            data: [43.4, 373.0, 1095.3, 65.8, 25.6, 318.6, 30.1, 127.2, 54.0, 374.3, 576.5, 30.7],
+            data: [366.2, 300.5],
             backgroundColor: '#38bdf8',
             borderRadius: 3
           }

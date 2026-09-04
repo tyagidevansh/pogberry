@@ -144,6 +144,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return constantInstruction("OP_GET_GLOBAL", chunk, offset);
   case OP_GET_GLOBAL_LONG:
     return constantLongInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
+  case OP_POP_JUMP_IF_FALSE:
+    return jumpInstruction("OP_POP_JUMP_IF_FALSE", 1, chunk, offset);
+  case OP_JUMP_IF_TRUE_OR_POP:
+    return jumpInstruction("OP_JUMP_IF_TRUE_OR_POP", 1, chunk, offset);
+  case OP_JUMP_IF_FALSE_OR_POP:
+    return jumpInstruction("OP_JUMP_IF_FALSE_OR_POP", 1, chunk, offset);
   case OP_DEFINE_GLOBAL:
     return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
   case OP_DEFINE_GLOBAL_LONG:
