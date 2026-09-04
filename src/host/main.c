@@ -10,12 +10,17 @@
 
 #include "host/module_loader.h"
 #include "headers/pb.h"
+#include "headers/debug.h"
+
+#ifdef DEBUG_OPCODE_STATS
+void printOpcodeStats(void);
+#endif
 
 static void printUsage(FILE *stream) {
   fprintf(stream, "Usage:\n"
-                  "  pb run [path]\n"
+                  "  pb run [path] [--opcodes]\n"
                   "  pb repl\n"
-                  "  pb <path>\n");
+                  "  pb <path> [--opcodes]\n");
 }
 
 static bool isDirectory(const char *path) {
@@ -121,28 +126,40 @@ static int runFile(PbVM *vm, const char *path) {
 }
 
 int main(int argc, const char *argv[]) {
-  bool startRepl = argc == 1;
+  bool startRepl = false;
   const char *target = NULL;
+  bool showOpcodes = false;
 
-  if (argc == 2 && (strcmp(argv[1], "help") == 0 || strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
-    printUsage(stdout);
-    return 0;
+  int nonFlagCount = 0;
+  const char *nonFlags[4];
+
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--opcodes") == 0 || strcmp(argv[i], "-O") == 0) {
+      showOpcodes = true;
+    } else if (strcmp(argv[i], "help") == 0 || strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+      printUsage(stdout);
+      return 0;
+    } else {
+      if (nonFlagCount < 4) {
+        nonFlags[nonFlagCount++] = argv[i];
+      } else {
+        printUsage(stderr);
+        return 64;
+      }
+    }
   }
-  if (argc >= 2 && strcmp(argv[1], "repl") == 0) {
-    if (argc != 2) {
-      printUsage(stderr);
-      return 64;
-    }
+
+  if (nonFlagCount == 0) {
     startRepl = true;
-  } else if (argc >= 2 && strcmp(argv[1], "run") == 0) {
-    if (argc > 3) {
-      printUsage(stderr);
-      return 64;
-    }
-    target = argc == 3 ? argv[2] : ".";
-  } else if (argc == 2) {
-    target = argv[1];
-  } else if (argc > 2) {
+  } else if (nonFlagCount == 1 && strcmp(nonFlags[0], "repl") == 0) {
+    startRepl = true;
+  } else if (nonFlagCount == 1 && strcmp(nonFlags[0], "run") == 0) {
+    target = ".";
+  } else if (nonFlagCount == 1) {
+    target = nonFlags[0];
+  } else if (nonFlagCount == 2 && strcmp(nonFlags[0], "run") == 0) {
+    target = nonFlags[1];
+  } else {
     printUsage(stderr);
     return 64;
   }
@@ -178,6 +195,16 @@ int main(int argc, const char *argv[]) {
   } else {
     status = runFile(vm, entryPath);
   }
+
+#ifdef DEBUG_OPCODE_STATS
+  if (showOpcodes || getenv("PB_OPCODE_STATS") != NULL) {
+    printOpcodeStats();
+  }
+#else
+  if (showOpcodes) {
+    fprintf(stderr, "Note: rebuild with 'make opcodes' or 'make OPCODES=1' to collect opcode statistics.\n");
+  }
+#endif
 
   pbDestroyVM(vm);
   freeModuleLoader(&loader);

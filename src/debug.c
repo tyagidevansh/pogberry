@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "headers/debug.h"
 #include "headers/object.h"
 #include "headers/value.h"
@@ -249,3 +251,124 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return offset + 1;
   }
 }
+
+#ifdef DEBUG_OPCODE_STATS
+uint64_t opcodeCounts[256] = {0};
+
+static const char *opcodeNames[256] = {
+    [OP_CONSTANT] = "OP_CONSTANT",
+    [OP_NIL] = "OP_NIL",
+    [OP_TRUE] = "OP_TRUE",
+    [OP_FALSE] = "OP_FALSE",
+    [OP_POP] = "OP_POP",
+    [OP_GET_LOCAL] = "OP_GET_LOCAL",
+    [OP_SET_LOCAL] = "OP_SET_LOCAL",
+    [OP_GET_GLOBAL] = "OP_GET_GLOBAL",
+    [OP_DEFINE_GLOBAL] = "OP_DEFINE_GLOBAL",
+    [OP_SET_GLOBAL] = "OP_SET_GLOBAL",
+    [OP_GET_UPVALUE] = "OP_GET_UPVALUE",
+    [OP_SET_UPVALUE] = "OP_SET_UPVALUE",
+    [OP_GET_PROPERTY] = "OP_GET_PROPERTY",
+    [OP_SET_PROPERTY] = "OP_SET_PROPERTY",
+    [OP_EQUAL] = "OP_EQUAL",
+    [OP_GREATER] = "OP_GREATER",
+    [OP_LESS] = "OP_LESS",
+    [OP_ADD] = "OP_ADD",
+    [OP_SUBTRACT] = "OP_SUBTRACT",
+    [OP_MULTIPLY] = "OP_MULTIPLY",
+    [OP_DIVIDE] = "OP_DIVIDE",
+    [OP_MODULO] = "OP_MODULO",
+    [OP_NOT] = "OP_NOT",
+    [OP_NEGATE] = "OP_NEGATE",
+    [OP_PRINT] = "OP_PRINT",
+    [OP_PRINT_NO_NEWLINE] = "OP_PRINT_NO_NEWLINE",
+    [OP_JUMP] = "OP_JUMP",
+    [OP_JUMP_IF_FALSE] = "OP_JUMP_IF_FALSE",
+    [OP_POP_JUMP_IF_FALSE] = "OP_POP_JUMP_IF_FALSE",
+    [OP_JUMP_IF_TRUE_OR_POP] = "OP_JUMP_IF_TRUE_OR_POP",
+    [OP_JUMP_IF_FALSE_OR_POP] = "OP_JUMP_IF_FALSE_OR_POP",
+    [OP_LOOP] = "OP_LOOP",
+    [OP_CALL] = "OP_CALL",
+    [OP_GET_INDEX] = "OP_GET_INDEX",
+    [OP_SET_INDEX] = "OP_SET_INDEX",
+    [OP_NEW_LIST] = "OP_NEW_LIST",
+    [OP_LIST_LITERAL_APPEND] = "OP_LIST_LITERAL_APPEND",
+    [OP_NEW_HASHMAP] = "OP_NEW_HASHMAP",
+    [OP_HASHMAP_LITERAL_INSERT] = "OP_HASHMAP_LITERAL_INSERT",
+    [OP_CLOSURE] = "OP_CLOSURE",
+    [OP_CLOSE_UPVALUE] = "OP_CLOSE_UPVALUE",
+    [OP_RETURN] = "OP_RETURN",
+    [OP_BREAK] = "OP_BREAK",
+    [OP_CLASS] = "OP_CLASS",
+    [OP_INHERIT] = "OP_INHERIT",
+    [OP_METHOD] = "OP_METHOD",
+    [OP_IMPORT] = "OP_IMPORT",
+    [OP_EXPORT] = "OP_EXPORT",
+    [OP_GET_GLOBAL_LONG] = "OP_GET_GLOBAL_LONG",
+    [OP_DEFINE_GLOBAL_LONG] = "OP_DEFINE_GLOBAL_LONG",
+    [OP_SET_GLOBAL_LONG] = "OP_SET_GLOBAL_LONG",
+    [OP_SET_PROPERTY_LONG] = "OP_SET_PROPERTY_LONG",
+    [OP_GET_PROPERTY_LONG] = "OP_GET_PROPERTY_LONG",
+    [OP_GET_SUPER_LONG] = "OP_GET_SUPER_LONG",
+    [OP_SUPER_INVOKE_LONG] = "OP_SUPER_INVOKE_LONG",
+    [OP_INVOKE_LONG] = "OP_INVOKE_LONG",
+    [OP_CLOSURE_LONG] = "OP_CLOSURE_LONG",
+    [OP_CLASS_LONG] = "OP_CLASS_LONG",
+    [OP_METHOD_LONG] = "OP_METHOD_LONG",
+    [OP_IMPORT_LONG] = "OP_IMPORT_LONG",
+    [OP_EXPORT_LONG] = "OP_EXPORT_LONG",
+};
+
+typedef struct {
+  uint8_t opcode;
+  uint64_t count;
+} OpcodeStat;
+
+static int compareOpcodeStats(const void *a, const void *b) {
+  uint64_t countA = ((const OpcodeStat *)a)->count;
+  uint64_t countB = ((const OpcodeStat *)b)->count;
+  if (countB > countA) return 1;
+  if (countB < countA) return -1;
+  return 0;
+}
+
+void printOpcodeStats(void) {
+  uint64_t total = 0;
+  OpcodeStat stats[256];
+  int activeCount = 0;
+
+  for (int i = 0; i < 256; i++) {
+    if (opcodeCounts[i] > 0) {
+      total += opcodeCounts[i];
+      stats[activeCount].opcode = (uint8_t)i;
+      stats[activeCount].count = opcodeCounts[i];
+      activeCount++;
+    }
+  }
+
+  if (total == 0) return;
+
+  qsort(stats, activeCount, sizeof(OpcodeStat), compareOpcodeStats);
+
+  fprintf(stderr, "\n┌──────────────────────────────────────────────────────────┐\n");
+  fprintf(stderr, "│                   Opcode Frequency                       │\n");
+  fprintf(stderr, "├──────────────────────────┬───────────────┬───────────────┤\n");
+  fprintf(stderr, "│ Opcode                   │         Count │    Percentage │\n");
+  fprintf(stderr, "├──────────────────────────┼───────────────┼───────────────┤\n");
+  for (int i = 0; i < activeCount; i++) {
+    const char *name = opcodeNames[stats[i].opcode];
+    char fallback[32];
+    if (name == NULL) {
+      snprintf(fallback, sizeof(fallback), "UNKNOWN_%d", stats[i].opcode);
+      name = fallback;
+    }
+    double pct = ((double)stats[i].count / (double)total) * 100.0;
+    fprintf(stderr, "│ %-24s │ %13llu │ %12.2f%% │\n", name, (unsigned long long)stats[i].count, pct);
+  }
+  fprintf(stderr, "├──────────────────────────┼───────────────┼───────────────┤\n");
+  fprintf(stderr, "│ Total Dispatches         │ %13llu │       100.00%% │\n", (unsigned long long)total);
+  fprintf(stderr, "└──────────────────────────┴───────────────┴───────────────┘\n\n");
+}
+
+void resetOpcodeStats(void) { memset(opcodeCounts, 0, sizeof(opcodeCounts)); }
+#endif

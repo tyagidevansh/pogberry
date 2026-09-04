@@ -38,6 +38,14 @@ OBJECTS := $(CORE_OBJECTS) $(HOST_OBJECTS)
 DEPS := $(OBJECTS:.o=.d)
 
 OPTFLAGS ?= -O3 -DNDEBUG
+
+ifeq ($(DEBUG),1)
+OPTFLAGS := -O0 -g3 -DDEBUG_PRINT_CODE -DDEBUG_TRACE_EXECUTION
+endif
+
+ifeq ($(OPCODES),1)
+OPTFLAGS += -DDEBUG_OPCODE_STATS
+endif
 CPPFLAGS := -I$(SRC_DIR)
 CFLAGS := $(OPTFLAGS) -std=c11 -Wall -Wextra -Wpedantic -MMD -MP $(PLATFORM_CFLAGS)
 PYTHON ?= python
@@ -62,11 +70,21 @@ RAYLIB_TEST_FLAGS := -fPIC
 TEST_RAYLIB_ENV := PB_RAYLIB_LIBRARY="$(abspath $(RAYLIB_TEST_LIBRARY))"
 endif
 
-.PHONY: all release shared raylib-backend test bench install clean
+.PHONY: all release shared raylib-backend test bench install clean debug opcodes
 
 all: $(TARGET)
 
-release: all
+debug:
+	@$(MAKE) clean
+	@$(MAKE) DEBUG=1
+
+opcodes:
+	@$(MAKE) clean
+	@$(MAKE) OPCODES=1
+
+release:
+	@$(MAKE) clean
+	@$(MAKE)
 
 shared: $(SHARED_LIBRARY)
 

@@ -15,6 +15,10 @@
 #include "headers/native.h"
 #include "headers/pb.h"
 
+#ifdef DEBUG_OPCODE_STATS
+extern uint64_t opcodeCounts[256];
+#endif
+
 VM *activeVM = NULL;
 static VM defaultVM;
 static bool defaultVMInitialised = false;
@@ -594,8 +598,11 @@ static InterpretResult run(int stopFrameCount) {
     printf("\n");
     disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
 #endif
-    uint8_t instruction;
-    switch (instruction = READ_BYTE()) {
+    uint8_t instruction = READ_BYTE();
+#ifdef DEBUG_OPCODE_STATS
+    opcodeCounts[instruction]++;
+#endif
+    switch (instruction) {
     case OP_CONSTANT: {
       Value constant = READ_CONSTANT();
       PUSH(constant);

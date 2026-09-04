@@ -8,7 +8,7 @@
 #include "headers/scanner.h"
 
 #ifdef DEBUG_PRINT_CODE
-#include "debug.h"
+#include "headers/debug.h"
 #endif
 
 typedef struct {
@@ -263,9 +263,7 @@ static void emitConstantInstruction(uint8_t shortInstruction, uint8_t longInstru
   emitU16BE(constant);
 }
 
-static void emitConstant(Value value) {
-  emitConstantInstruction(OP_CONSTANT, OP_CONSTANT_LONG, makeConstant(value));
-}
+static void emitConstant(Value value) { emitConstantInstruction(OP_CONSTANT, OP_CONSTANT_LONG, makeConstant(value)); }
 
 static void emitInvokeInstruction(uint8_t shortInstruction, uint8_t longInstruction, ConstantIndex method,
                                   uint8_t argCount) {
@@ -358,7 +356,9 @@ static ParseRule *getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 static ObjString *decodeStringToken(Token token);
 
-static ConstantIndex identifierConstant(Token *name) { return makeConstant(OBJ_VAL(copyString(name->start, name->length))); }
+static ConstantIndex identifierConstant(Token *name) {
+  return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+}
 
 static bool identifiersEqual(Token *a, Token *b) {
   if (a->length != b->length) return false;
@@ -1111,7 +1111,7 @@ static void number(bool canAssign) {
 }
 
 static void or_(bool canAssign) {
-  (void) canAssign;
+  (void)canAssign;
   int endJump = emitJump(OP_JUMP_IF_TRUE_OR_POP);
   parsePrecedence(PREC_OR);
   patchJump(endJump);
