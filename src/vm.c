@@ -577,14 +577,15 @@ static InterpretResult run(int stopFrameCount) {
 
 #define BINARY_OP(valueType, op) \
   do { \
-    if (!IS_NUMBER(PEEK(0)) || !IS_NUMBER(PEEK(1))) { \
+    if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) { \
       STORE_FRAME(); \
       runtimeError("Operands must be numbers."); \
       return INTERPRET_RUNTIME_ERROR; \
     } \
-    double b = AS_NUMBER(POP()); \
-    double a = AS_NUMBER(POP()); \
-    PUSH(valueType(a op b)); \
+    double b = AS_NUMBER(stackTop[-1]); \
+    double a = AS_NUMBER(stackTop[-2]); \
+    stackTop[-2] = valueType(a op b); \
+    stackTop--; \
   } while (false)
 
   for (;;) {
@@ -842,14 +843,15 @@ static InterpretResult run(int stopFrameCount) {
       BINARY_OP(BOOL_VAL, <);
       break;
     case OP_ADD: {
-      if (IS_STRING(PEEK(0)) && IS_STRING(PEEK(1))) {
+      if (IS_NUMBER(stackTop[-1]) && IS_NUMBER(stackTop[-2])) {
+        double b = AS_NUMBER(stackTop[-1]);
+        double a = AS_NUMBER(stackTop[-2]);
+        stackTop[-2] = NUMBER_VAL(a + b);
+        stackTop--;
+      } else if (IS_STRING(stackTop[-1]) && IS_STRING(stackTop[-2])) {
         STORE_FRAME();
         concatenate();
         LOAD_FRAME();
-      } else if (IS_NUMBER(PEEK(0)) && IS_NUMBER(PEEK(1))) {
-        double b = AS_NUMBER(POP());
-        double a = AS_NUMBER(POP());
-        PUSH(NUMBER_VAL(a + b));
       } else {
         STORE_FRAME();
         runtimeError("Operands must be two numbers or two strings.");
@@ -864,32 +866,33 @@ static InterpretResult run(int stopFrameCount) {
       BINARY_OP(NUMBER_VAL, *);
       break;
     case OP_DIVIDE: {
-      if (!IS_NUMBER(PEEK(0)) || !IS_NUMBER(PEEK(1))) {
+      if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      double divisor = AS_NUMBER(POP());
-      double dividend = AS_NUMBER(POP());
+      double divisor = AS_NUMBER(stackTop[-1]);
+      double dividend = AS_NUMBER(stackTop[-2]);
       if (divisor == 0) {
         STORE_FRAME();
         runtimeError("Division by zero.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      PUSH(NUMBER_VAL(dividend / divisor));
+      stackTop[-2] = NUMBER_VAL(dividend / divisor);
+      stackTop--;
       break;
     }
     case OP_MODULO:
-      if (!IS_NUMBER(PEEK(0)) || !IS_NUMBER(PEEK(1))) {
+      if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      double b = AS_NUMBER(POP());
-      double a = AS_NUMBER(POP());
+      double b = AS_NUMBER(stackTop[-1]);
+      double a = AS_NUMBER(stackTop[-2]);
 
       if (b == 0) {
         STORE_FRAME();
@@ -903,7 +906,8 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      PUSH(NUMBER_VAL(fmod(a, b)));
+      stackTop[-2] = NUMBER_VAL(fmod(a, b));
+      stackTop--;
       break;
     case OP_NOT:
       stackTop[-1] = BOOL_VAL(isFalsey(stackTop[-1]));
