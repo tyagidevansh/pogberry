@@ -14,8 +14,8 @@ def main():
     for i in range(len(a)):
         sum2 += a[i]
 
-    print(f"{sum1:g}")
-    print(f"{sum2:g}")
+    print(int(sum1))
+    print(int(sum2))
 
 
 if __name__ == "__main__":

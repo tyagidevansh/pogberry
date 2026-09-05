@@ -5,7 +5,7 @@ def main():
             for k in range(250):
                 total += i * j + k
 
-    print(f"{total:g}")
+    print(int(total))
 
 
 if __name__ == "__main__":

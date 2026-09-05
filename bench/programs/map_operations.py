@@ -14,7 +14,7 @@ def main():
         total += m[str(i)]
 
     checksum = total + len(m)
-    print(f"{checksum:g}")
+    print(int(checksum))
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ def main():
         obj = Leaf(i)
         total += obj.compute(i)
 
-    print(f"{total:g}")
+    print(int(total))
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ def main():
     for x in arr:
         total += x
 
-    print(f"{total:g}")
+    print(int(total))
 
 
 if __name__ == "__main__":
