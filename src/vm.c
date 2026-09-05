@@ -1186,8 +1186,9 @@ static InterpretResult run(int stopFrameCount) {
       break;
     case OP_RETURN: {
       Value result = POP();
-      STORE_FRAME();
-      closeUpvalues(frame->slots);
+      if (vm.openUpvalues != NULL) {
+        closeUpvalues(frame->slots);
+      }
       Value *calleeSlots = frame->slots;
       vm.frameCount--;
       if (vm.frameCount == 0) {
@@ -1197,9 +1198,11 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_OK;
       }
 
-      vm.stackTop = calleeSlots;
-      *vm.stackTop++ = result;
-      LOAD_FRAME();
+      stackTop = calleeSlots;
+      *stackTop++ = result;
+      frame = &vm.frames[vm.frameCount - 1];
+      ip = frame->ip;
+      slots = frame->slots;
       if (vm.frameCount == stopFrameCount) {
         STORE_FRAME();
         return INTERPRET_OK;
