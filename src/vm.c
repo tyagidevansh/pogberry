@@ -974,8 +974,31 @@ static InterpretResult run(int stopFrameCount) {
     }
     case OP_CALL: {
       int argCount = READ_BYTE();
+      Value callee = PEEK(argCount);
+      if (IS_OBJ(callee) && OBJ_TYPE(callee) == OBJ_CLOSURE) {
+        ObjClosure *closure = AS_CLOSURE(callee);
+        ObjFunction *function = closure->function;
+        if (argCount != function->arity) {
+          STORE_FRAME();
+          runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        if (vm.frameCount == FRAMES_MAX) {
+          STORE_FRAME();
+          runtimeError("Stack overflow.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        frame->ip = ip;
+        frame = &vm.frames[vm.frameCount++];
+        frame->closure = closure;
+        frame->ip = function->chunk.code;
+        frame->slots = stackTop - argCount - 1;
+        ip = frame->ip;
+        slots = frame->slots;
+        break;
+      }
       STORE_FRAME();
-      if (!callValue(PEEK(argCount), argCount)) {
+      if (!callValue(callee, argCount)) {
         return INTERPRET_RUNTIME_ERROR;
       }
       LOAD_FRAME();
