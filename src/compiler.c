@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "headers/common.h"
 #include "headers/memory.h"
@@ -1107,7 +1108,15 @@ static void statement() {
 static void number(bool canAssign) {
   (void)canAssign;
   double value = strtod(parser.previous.start, NULL);
-  emitConstant(NUMBER_VAL(value));
+  if (value == 0.0 && !signbit(value)) {
+    emitByte(OP_INT_0);
+  } else if (value == 1.0) {
+    emitByte(OP_INT_1);
+  } else if (value == 2.0) {
+    emitByte(OP_INT_2);
+  } else {
+    emitConstant(NUMBER_VAL(value));
+  }
 }
 
 static void or_(bool canAssign) {

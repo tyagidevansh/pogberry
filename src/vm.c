@@ -623,6 +623,15 @@ static InterpretResult run(int stopFrameCount) {
     case OP_FALSE:
       PUSH(BOOL_VAL(false));
       break;
+    case OP_INT_0:
+      PUSH(NUMBER_VAL(0.0));
+      break;
+    case OP_INT_1:
+      PUSH(NUMBER_VAL(1.0));
+      break;
+    case OP_INT_2:
+      PUSH(NUMBER_VAL(2.0));
+      break;
     case OP_POP:
       DROP();
       break;

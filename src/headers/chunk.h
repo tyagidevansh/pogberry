@@ -93,6 +93,9 @@ typedef enum {
   OP_SET_LOCAL_1,
   OP_SET_LOCAL_2,
   OP_SET_LOCAL_3,
+  OP_INT_0,
+  OP_INT_1,
+  OP_INT_2,
 } OpCode;
 
 typedef struct {

@@ -262,6 +262,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("OP_SET_LOCAL_2", offset);
   case OP_SET_LOCAL_3:
     return simpleInstruction("OP_SET_LOCAL_3", offset);
+  case OP_INT_0:
+    return simpleInstruction("OP_INT_0", offset);
+  case OP_INT_1:
+    return simpleInstruction("OP_INT_1", offset);
+  case OP_INT_2:
+    return simpleInstruction("OP_INT_2", offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;
@@ -341,6 +347,9 @@ static const char *opcodeNames[256] = {
     [OP_SET_LOCAL_1] = "OP_SET_LOCAL_1",
     [OP_SET_LOCAL_2] = "OP_SET_LOCAL_2",
     [OP_SET_LOCAL_3] = "OP_SET_LOCAL_3",
+    [OP_INT_0] = "OP_INT_0",
+    [OP_INT_1] = "OP_INT_1",
+    [OP_INT_2] = "OP_INT_2",
 };
 
 typedef struct {
