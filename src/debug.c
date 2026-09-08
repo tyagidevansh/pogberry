@@ -246,6 +246,22 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return constantInstruction("OP_EXPORT", chunk, offset);
   case OP_EXPORT_LONG:
     return constantLongInstruction("OP_EXPORT_LONG", chunk, offset);
+  case OP_GET_LOCAL_0:
+    return simpleInstruction("OP_GET_LOCAL_0", offset);
+  case OP_GET_LOCAL_1:
+    return simpleInstruction("OP_GET_LOCAL_1", offset);
+  case OP_GET_LOCAL_2:
+    return simpleInstruction("OP_GET_LOCAL_2", offset);
+  case OP_GET_LOCAL_3:
+    return simpleInstruction("OP_GET_LOCAL_3", offset);
+  case OP_SET_LOCAL_0:
+    return simpleInstruction("OP_SET_LOCAL_0", offset);
+  case OP_SET_LOCAL_1:
+    return simpleInstruction("OP_SET_LOCAL_1", offset);
+  case OP_SET_LOCAL_2:
+    return simpleInstruction("OP_SET_LOCAL_2", offset);
+  case OP_SET_LOCAL_3:
+    return simpleInstruction("OP_SET_LOCAL_3", offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;
@@ -317,6 +333,14 @@ static const char *opcodeNames[256] = {
     [OP_METHOD_LONG] = "OP_METHOD_LONG",
     [OP_IMPORT_LONG] = "OP_IMPORT_LONG",
     [OP_EXPORT_LONG] = "OP_EXPORT_LONG",
+    [OP_GET_LOCAL_0] = "OP_GET_LOCAL_0",
+    [OP_GET_LOCAL_1] = "OP_GET_LOCAL_1",
+    [OP_GET_LOCAL_2] = "OP_GET_LOCAL_2",
+    [OP_GET_LOCAL_3] = "OP_GET_LOCAL_3",
+    [OP_SET_LOCAL_0] = "OP_SET_LOCAL_0",
+    [OP_SET_LOCAL_1] = "OP_SET_LOCAL_1",
+    [OP_SET_LOCAL_2] = "OP_SET_LOCAL_2",
+    [OP_SET_LOCAL_3] = "OP_SET_LOCAL_3",
 };
 
 typedef struct {

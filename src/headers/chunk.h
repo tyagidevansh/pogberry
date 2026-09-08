@@ -85,6 +85,14 @@ typedef enum {
   OP_METHOD_LONG,
   OP_IMPORT_LONG,
   OP_EXPORT_LONG,
+  OP_GET_LOCAL_0,
+  OP_GET_LOCAL_1,
+  OP_GET_LOCAL_2,
+  OP_GET_LOCAL_3,
+  OP_SET_LOCAL_0,
+  OP_SET_LOCAL_1,
+  OP_SET_LOCAL_2,
+  OP_SET_LOCAL_3,
 } OpCode;
 
 typedef struct {

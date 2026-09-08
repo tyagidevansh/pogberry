@@ -631,11 +631,35 @@ static InterpretResult run(int stopFrameCount) {
       PUSH(slots[slot]);
       break;
     }
+    case OP_GET_LOCAL_0:
+      PUSH(slots[0]);
+      break;
+    case OP_GET_LOCAL_1:
+      PUSH(slots[1]);
+      break;
+    case OP_GET_LOCAL_2:
+      PUSH(slots[2]);
+      break;
+    case OP_GET_LOCAL_3:
+      PUSH(slots[3]);
+      break;
     case OP_SET_LOCAL: {
       uint8_t slot = READ_BYTE();
       slots[slot] = PEEK(0);
       break;
     }
+    case OP_SET_LOCAL_0:
+      slots[0] = PEEK(0);
+      break;
+    case OP_SET_LOCAL_1:
+      slots[1] = PEEK(0);
+      break;
+    case OP_SET_LOCAL_2:
+      slots[2] = PEEK(0);
+      break;
+    case OP_SET_LOCAL_3:
+      slots[3] = PEEK(0);
+      break;
     case OP_GET_UPVALUE: {
       uint8_t slot = READ_BYTE();
       PUSH(*frame->closure->upvalues[slot]->location);

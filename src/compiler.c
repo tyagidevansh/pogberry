@@ -236,7 +236,7 @@ static int emitJump(uint8_t instruction) {
 
 static void emitReturn() {
   if (current->type == TYPE_INITIALIZER) {
-    emitBytes(OP_GET_LOCAL, 0);
+    emitByte(OP_GET_LOCAL_0);
   } else {
     emitByte(OP_NIL);
   }
@@ -1191,12 +1191,16 @@ static void namedVariable(Token name, bool canAssign) {
     expression();
     if (isGlobal) {
       emitConstantInstruction(OP_SET_GLOBAL, OP_SET_GLOBAL_LONG, global);
+    } else if (setOp == OP_SET_LOCAL && arg >= 0 && arg <= 3) {
+      emitByte((uint8_t)(OP_SET_LOCAL_0 + arg));
     } else {
       emitBytes(setOp, (uint8_t)arg);
     }
   } else {
     if (isGlobal) {
       emitConstantInstruction(OP_GET_GLOBAL, OP_GET_GLOBAL_LONG, global);
+    } else if (getOp == OP_GET_LOCAL && arg >= 0 && arg <= 3) {
+      emitByte((uint8_t)(OP_GET_LOCAL_0 + arg));
     } else {
       emitBytes(getOp, (uint8_t)arg);
     }
