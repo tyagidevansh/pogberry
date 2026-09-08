@@ -268,6 +268,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("OP_INT_1", offset);
   case OP_INT_2:
     return simpleInstruction("OP_INT_2", offset);
+  case OP_JUMP_IF_NOT_LESS:
+    return jumpInstruction("OP_JUMP_IF_NOT_LESS", 1, chunk, offset);
+  case OP_JUMP_IF_NOT_GREATER:
+    return jumpInstruction("OP_JUMP_IF_NOT_GREATER", 1, chunk, offset);
+  case OP_JUMP_IF_NOT_EQUAL:
+    return jumpInstruction("OP_JUMP_IF_NOT_EQUAL", 1, chunk, offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;
@@ -350,6 +356,9 @@ static const char *opcodeNames[256] = {
     [OP_INT_0] = "OP_INT_0",
     [OP_INT_1] = "OP_INT_1",
     [OP_INT_2] = "OP_INT_2",
+    [OP_JUMP_IF_NOT_LESS] = "OP_JUMP_IF_NOT_LESS",
+    [OP_JUMP_IF_NOT_GREATER] = "OP_JUMP_IF_NOT_GREATER",
+    [OP_JUMP_IF_NOT_EQUAL] = "OP_JUMP_IF_NOT_EQUAL",
 };
 
 typedef struct {

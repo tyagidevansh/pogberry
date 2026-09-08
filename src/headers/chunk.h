@@ -96,6 +96,9 @@ typedef enum {
   OP_INT_0,
   OP_INT_1,
   OP_INT_2,
+  OP_JUMP_IF_NOT_LESS,
+  OP_JUMP_IF_NOT_GREATER,
+  OP_JUMP_IF_NOT_EQUAL,
 } OpCode;
 
 typedef struct {

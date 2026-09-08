@@ -728,6 +728,9 @@ static InterpretResult run(int stopFrameCount) {
     [OP_JUMP] = &&target_OP_JUMP,
     [OP_JUMP_IF_FALSE] = &&target_OP_JUMP_IF_FALSE,
     [OP_POP_JUMP_IF_FALSE] = &&target_OP_POP_JUMP_IF_FALSE,
+    [OP_JUMP_IF_NOT_LESS] = &&target_OP_JUMP_IF_NOT_LESS,
+    [OP_JUMP_IF_NOT_GREATER] = &&target_OP_JUMP_IF_NOT_GREATER,
+    [OP_JUMP_IF_NOT_EQUAL] = &&target_OP_JUMP_IF_NOT_EQUAL,
     [OP_JUMP_IF_TRUE_OR_POP] = &&target_OP_JUMP_IF_TRUE_OR_POP,
     [OP_JUMP_IF_FALSE_OR_POP] = &&target_OP_JUMP_IF_FALSE_OR_POP,
     [OP_LOOP] = &&target_OP_LOOP,
@@ -1147,6 +1150,63 @@ static InterpretResult run(int stopFrameCount) {
       uint16_t offset = READ_SHORT();
       Value val = POP();
       if (isFalsey(val)) ip += offset;
+      DISPATCH();
+    }
+    TARGET(OP_JUMP_IF_NOT_LESS) {
+      uint16_t offset = READ_SHORT();
+      if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
+        STORE_FRAME();
+        runtimeError("Operands must be numbers.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      double b = AS_NUMBER(stackTop[-1]);
+      double a = AS_NUMBER(stackTop[-2]);
+      stackTop -= 2;
+      if (!(a < b)) {
+        ip += offset;
+      }
+      DISPATCH();
+    }
+    TARGET(OP_JUMP_IF_NOT_GREATER) {
+      uint16_t offset = READ_SHORT();
+      if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
+        STORE_FRAME();
+        runtimeError("Operands must be numbers.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      double b = AS_NUMBER(stackTop[-1]);
+      double a = AS_NUMBER(stackTop[-2]);
+      stackTop -= 2;
+      if (!(a > b)) {
+        ip += offset;
+      }
+      DISPATCH();
+    }
+    TARGET(OP_JUMP_IF_NOT_EQUAL) {
+      uint16_t offset = READ_SHORT();
+      Value b = stackTop[-1];
+      Value a = stackTop[-2];
+      stackTop -= 2;
+      bool equal = false;
+      if (a.type == b.type) {
+        if (a.type == VAL_NUMBER) {
+          equal = (a.as.number == b.as.number);
+        } else if (a.type == VAL_BOOL) {
+          equal = (a.as.boolean == b.as.boolean);
+        } else if (a.type == VAL_NIL) {
+          equal = true;
+        } else if (a.type == VAL_OBJ && a.as.obj == b.as.obj) {
+          equal = true;
+        } else {
+          STORE_FRAME();
+          equal = valuesEqual(a, b);
+          LOAD_FRAME();
+          if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+        }
+      }
+      if (!equal) {
+        ip += offset;
+      }
       DISPATCH();
     }
     TARGET(OP_JUMP_IF_TRUE_OR_POP) {

@@ -229,10 +229,36 @@ static void emitLoop(int loopStart) {
   emitU16BE((uint16_t)offset);
 }
 
+static int jumpEmitCount = 0;
+
 static int emitJump(uint8_t instruction) {
+  jumpEmitCount++;
   emitByte(instruction);
   emitU16BE(UINT16_MAX);
   return currentChunk()->count - 2;
+}
+
+static int emitConditionJump(int jumpsBefore) {
+  Chunk *chunk = currentChunk();
+  if (jumpEmitCount == jumpsBefore && chunk->count > 0) {
+    uint8_t lastOp = chunk->code[chunk->count - 1];
+    if (lastOp == OP_LESS) {
+      chunk->code[chunk->count - 1] = OP_JUMP_IF_NOT_LESS;
+      emitU16BE(UINT16_MAX);
+      return chunk->count - 2;
+    }
+    if (lastOp == OP_GREATER) {
+      chunk->code[chunk->count - 1] = OP_JUMP_IF_NOT_GREATER;
+      emitU16BE(UINT16_MAX);
+      return chunk->count - 2;
+    }
+    if (lastOp == OP_EQUAL) {
+      chunk->code[chunk->count - 1] = OP_JUMP_IF_NOT_EQUAL;
+      emitU16BE(UINT16_MAX);
+      return chunk->count - 2;
+    }
+  }
+  return emitJump(OP_POP_JUMP_IF_FALSE);
 }
 
 static void emitReturn() {
@@ -768,12 +794,12 @@ static void forStatement() {
   int loopStart = currentChunk()->count;
   int exitJump = -1;
   if (!match(TOKEN_SEMICOLON)) {
+    int jumpsBefore = jumpEmitCount;
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
 
     // jump out of the loop if the condition is false.
-    exitJump = emitJump(OP_JUMP_IF_FALSE);
-    emitByte(OP_POP); // condition.
+    exitJump = emitConditionJump(jumpsBefore);
   }
 
   if (!match(TOKEN_RIGHT_PAREN)) {
@@ -793,7 +819,6 @@ static void forStatement() {
 
   if (exitJump != -1) {
     patchJump(exitJump);
-    emitByte(OP_POP);
   }
 
   endScope();
@@ -809,10 +834,11 @@ static void forStatement() {
 
 static void ifStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+  int jumpsBefore = jumpEmitCount;
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
-  int thenJump = emitJump(OP_POP_JUMP_IF_FALSE);
+  int thenJump = emitConditionJump(jumpsBefore);
   statement();
 
   int elseJump = emitJump(OP_JUMP);
@@ -908,10 +934,11 @@ static void whileStatement() {
 
   int loopStart = currentChunk()->count;
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+  int jumpsBefore = jumpEmitCount;
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
-  int exitJump = emitJump(OP_POP_JUMP_IF_FALSE);
+  int exitJump = emitConditionJump(jumpsBefore);
   statement();
   emitLoop(loopStart);
 
