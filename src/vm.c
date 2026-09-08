@@ -544,6 +544,41 @@ static Table *globalsForFrame(CallFrame *frame) {
   return &vm.globals;
 }
 
+#ifdef DEBUG_OPCODE_STATS
+#define RECORD_OPCODE(op) (opcodeCounts[op]++)
+#else
+#define RECORD_OPCODE(op) ((void)0)
+#endif
+
+#if !defined(DEBUG_TRACE_EXECUTION) && (defined(__GNUC__) || defined(__clang__))
+#define USE_COMPUTED_GOTO 1
+#else
+#define USE_COMPUTED_GOTO 0
+#endif
+
+#if USE_COMPUTED_GOTO
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpedantic"
+#pragma clang diagnostic ignored "-Winitializer-overrides"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverride-init"
+#endif
+
+#define TARGET(op) target_##op:
+#define DISPATCH() \
+  do { \
+    instruction = READ_BYTE(); \
+    RECORD_OPCODE(instruction); \
+    goto *dispatchTable[instruction]; \
+  } while (0)
+#else
+#define TARGET(op) case op:
+#define DISPATCH() break
+#endif
+
 static InterpretResult run(int stopFrameCount) {
   CallFrame *frame = &vm.frames[vm.frameCount - 1];
   register uint8_t *ip = frame->ip;
@@ -588,6 +623,89 @@ static InterpretResult run(int stopFrameCount) {
     stackTop--; \
   } while (false)
 
+#if USE_COMPUTED_GOTO
+  static const void *const dispatchTable[256] = {
+    [0 ... 255] = &&target_OP_UNKNOWN,
+    [OP_CONSTANT] = &&target_OP_CONSTANT,
+    [OP_CONSTANT_LONG] = &&target_OP_CONSTANT_LONG,
+    [OP_NIL] = &&target_OP_NIL,
+    [OP_TRUE] = &&target_OP_TRUE,
+    [OP_FALSE] = &&target_OP_FALSE,
+    [OP_POP] = &&target_OP_POP,
+    [OP_GET_LOCAL] = &&target_OP_GET_LOCAL,
+    [OP_SET_LOCAL] = &&target_OP_SET_LOCAL,
+    [OP_GET_LOCAL_0] = &&target_OP_GET_LOCAL_0,
+    [OP_GET_LOCAL_1] = &&target_OP_GET_LOCAL_1,
+    [OP_GET_LOCAL_2] = &&target_OP_GET_LOCAL_2,
+    [OP_GET_LOCAL_3] = &&target_OP_GET_LOCAL_3,
+    [OP_SET_LOCAL_0] = &&target_OP_SET_LOCAL_0,
+    [OP_SET_LOCAL_1] = &&target_OP_SET_LOCAL_1,
+    [OP_SET_LOCAL_2] = &&target_OP_SET_LOCAL_2,
+    [OP_SET_LOCAL_3] = &&target_OP_SET_LOCAL_3,
+    [OP_INT_0] = &&target_OP_INT_0,
+    [OP_INT_1] = &&target_OP_INT_1,
+    [OP_INT_2] = &&target_OP_INT_2,
+    [OP_GET_UPVALUE] = &&target_OP_GET_UPVALUE,
+    [OP_SET_UPVALUE] = &&target_OP_SET_UPVALUE,
+    [OP_GET_GLOBAL] = &&target_OP_GET_GLOBAL,
+    [OP_GET_GLOBAL_LONG] = &&target_OP_GET_GLOBAL_LONG,
+    [OP_DEFINE_GLOBAL] = &&target_OP_DEFINE_GLOBAL,
+    [OP_DEFINE_GLOBAL_LONG] = &&target_OP_DEFINE_GLOBAL_LONG,
+    [OP_SET_GLOBAL] = &&target_OP_SET_GLOBAL,
+    [OP_SET_GLOBAL_LONG] = &&target_OP_SET_GLOBAL_LONG,
+    [OP_GET_PROPERTY] = &&target_OP_GET_PROPERTY,
+    [OP_GET_PROPERTY_LONG] = &&target_OP_GET_PROPERTY_LONG,
+    [OP_SET_PROPERTY] = &&target_OP_SET_PROPERTY,
+    [OP_SET_PROPERTY_LONG] = &&target_OP_SET_PROPERTY_LONG,
+    [OP_INVOKE] = &&target_OP_INVOKE,
+    [OP_INVOKE_LONG] = &&target_OP_INVOKE_LONG,
+    [OP_SUPER_INVOKE] = &&target_OP_SUPER_INVOKE,
+    [OP_SUPER_INVOKE_LONG] = &&target_OP_SUPER_INVOKE_LONG,
+    [OP_GET_SUPER] = &&target_OP_GET_SUPER,
+    [OP_GET_SUPER_LONG] = &&target_OP_GET_SUPER_LONG,
+    [OP_EQUAL] = &&target_OP_EQUAL,
+    [OP_GREATER] = &&target_OP_GREATER,
+    [OP_LESS] = &&target_OP_LESS,
+    [OP_ADD] = &&target_OP_ADD,
+    [OP_SUBTRACT] = &&target_OP_SUBTRACT,
+    [OP_MULTIPLY] = &&target_OP_MULTIPLY,
+    [OP_DIVIDE] = &&target_OP_DIVIDE,
+    [OP_MODULO] = &&target_OP_MODULO,
+    [OP_NOT] = &&target_OP_NOT,
+    [OP_NEGATE] = &&target_OP_NEGATE,
+    [OP_PRINT] = &&target_OP_PRINT,
+    [OP_PRINT_NO_NEWLINE] = &&target_OP_PRINT_NO_NEWLINE,
+    [OP_JUMP] = &&target_OP_JUMP,
+    [OP_JUMP_IF_FALSE] = &&target_OP_JUMP_IF_FALSE,
+    [OP_POP_JUMP_IF_FALSE] = &&target_OP_POP_JUMP_IF_FALSE,
+    [OP_JUMP_IF_TRUE_OR_POP] = &&target_OP_JUMP_IF_TRUE_OR_POP,
+    [OP_JUMP_IF_FALSE_OR_POP] = &&target_OP_JUMP_IF_FALSE_OR_POP,
+    [OP_LOOP] = &&target_OP_LOOP,
+    [OP_CALL] = &&target_OP_CALL,
+    [OP_GET_INDEX] = &&target_OP_GET_INDEX,
+    [OP_SET_INDEX] = &&target_OP_SET_INDEX,
+    [OP_NEW_LIST] = &&target_OP_NEW_LIST,
+    [OP_LIST_LITERAL_APPEND] = &&target_OP_LIST_LITERAL_APPEND,
+    [OP_NEW_HASHMAP] = &&target_OP_NEW_HASHMAP,
+    [OP_HASHMAP_LITERAL_INSERT] = &&target_OP_HASHMAP_LITERAL_INSERT,
+    [OP_CLOSURE] = &&target_OP_CLOSURE,
+    [OP_CLOSURE_LONG] = &&target_OP_CLOSURE_LONG,
+    [OP_CLOSE_UPVALUE] = &&target_OP_CLOSE_UPVALUE,
+    [OP_RETURN] = &&target_OP_RETURN,
+    [OP_CLASS] = &&target_OP_CLASS,
+    [OP_CLASS_LONG] = &&target_OP_CLASS_LONG,
+    [OP_INHERIT] = &&target_OP_INHERIT,
+    [OP_METHOD] = &&target_OP_METHOD,
+    [OP_METHOD_LONG] = &&target_OP_METHOD_LONG,
+    [OP_IMPORT] = &&target_OP_IMPORT,
+    [OP_IMPORT_LONG] = &&target_OP_IMPORT_LONG,
+    [OP_EXPORT] = &&target_OP_EXPORT,
+    [OP_EXPORT_LONG] = &&target_OP_EXPORT_LONG,
+  };
+
+  uint8_t instruction;
+  DISPATCH();
+#else
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
     printf("        ");
@@ -600,92 +718,91 @@ static InterpretResult run(int stopFrameCount) {
     disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
 #endif
     uint8_t instruction = READ_BYTE();
-#ifdef DEBUG_OPCODE_STATS
-    opcodeCounts[instruction]++;
-#endif
+    RECORD_OPCODE(instruction);
     switch (instruction) {
-    case OP_CONSTANT: {
+#endif
+    TARGET(OP_CONSTANT) {
       Value constant = READ_CONSTANT();
       PUSH(constant);
-      break;
+      DISPATCH();
     }
-    case OP_CONSTANT_LONG: {
+    TARGET(OP_CONSTANT_LONG) {
       Value constant = READ_CONSTANT_LONG();
       PUSH(constant);
-      break;
+      DISPATCH();
     }
-    case OP_NIL:
+    TARGET(OP_NIL)
       PUSH(NIL_VAL);
-      break;
-    case OP_TRUE:
+      DISPATCH();
+    TARGET(OP_TRUE)
       PUSH(BOOL_VAL(true));
-      break;
-    case OP_FALSE:
+      DISPATCH();
+    TARGET(OP_FALSE)
       PUSH(BOOL_VAL(false));
-      break;
-    case OP_INT_0:
+      DISPATCH();
+    TARGET(OP_INT_0)
       PUSH(NUMBER_VAL(0.0));
-      break;
-    case OP_INT_1:
+      DISPATCH();
+    TARGET(OP_INT_1)
       PUSH(NUMBER_VAL(1.0));
-      break;
-    case OP_INT_2:
+      DISPATCH();
+    TARGET(OP_INT_2)
       PUSH(NUMBER_VAL(2.0));
-      break;
-    case OP_POP:
+      DISPATCH();
+    TARGET(OP_POP)
       DROP();
-      break;
-    case OP_GET_LOCAL: {
+      DISPATCH();
+    TARGET(OP_GET_LOCAL) {
       uint8_t slot = READ_BYTE();
       PUSH(slots[slot]);
-      break;
+      DISPATCH();
     }
-    case OP_GET_LOCAL_0:
+    TARGET(OP_GET_LOCAL_0)
       PUSH(slots[0]);
-      break;
-    case OP_GET_LOCAL_1:
+      DISPATCH();
+    TARGET(OP_GET_LOCAL_1)
       PUSH(slots[1]);
-      break;
-    case OP_GET_LOCAL_2:
+      DISPATCH();
+    TARGET(OP_GET_LOCAL_2)
       PUSH(slots[2]);
-      break;
-    case OP_GET_LOCAL_3:
+      DISPATCH();
+    TARGET(OP_GET_LOCAL_3)
       PUSH(slots[3]);
-      break;
-    case OP_SET_LOCAL: {
+      DISPATCH();
+    TARGET(OP_SET_LOCAL) {
       uint8_t slot = READ_BYTE();
       slots[slot] = PEEK(0);
-      break;
+      DISPATCH();
     }
-    case OP_SET_LOCAL_0:
+    TARGET(OP_SET_LOCAL_0)
       slots[0] = PEEK(0);
-      break;
-    case OP_SET_LOCAL_1:
+      DISPATCH();
+    TARGET(OP_SET_LOCAL_1)
       slots[1] = PEEK(0);
-      break;
-    case OP_SET_LOCAL_2:
+      DISPATCH();
+    TARGET(OP_SET_LOCAL_2)
       slots[2] = PEEK(0);
-      break;
-    case OP_SET_LOCAL_3:
+      DISPATCH();
+    TARGET(OP_SET_LOCAL_3)
       slots[3] = PEEK(0);
-      break;
-    case OP_GET_UPVALUE: {
+      DISPATCH();
+    TARGET(OP_GET_UPVALUE) {
       uint8_t slot = READ_BYTE();
       PUSH(*frame->closure->upvalues[slot]->location);
-      break;
+      DISPATCH();
     }
-    case OP_SET_UPVALUE: {
+    TARGET(OP_SET_UPVALUE) {
       uint8_t slot = READ_BYTE();
       *frame->closure->upvalues[slot]->location = PEEK(0);
-      break;
+      DISPATCH();
     }
-    case OP_GET_GLOBAL: {
+    TARGET(OP_GET_GLOBAL) {
       uint8_t slot = READ_BYTE();
       GlobalCache *cache = &frame->closure->function->chunk.globalCache[slot];
       Table *globals = globalsForFrame(frame);
       if (cache->version == globals->version && cache->valuePtr != NULL) {
         PUSH(*cache->valuePtr);
-        break;
+        DISPATCH();
       }
       ObjString *name = AS_STRING(frame->closure->function->chunk.constants.values[slot]);
       Entry *entry = tableFindEntry(globals, name);
@@ -697,15 +814,15 @@ static InterpretResult run(int stopFrameCount) {
       cache->valuePtr = &entry->value;
       cache->version = globals->version;
       PUSH(entry->value);
-      break;
+      DISPATCH();
     }
-    case OP_GET_GLOBAL_LONG: {
+    TARGET(OP_GET_GLOBAL_LONG) {
       uint16_t slot = READ_SHORT();
       GlobalCache *cache = &frame->closure->function->chunk.globalCache[slot];
       Table *globals = globalsForFrame(frame);
       if (cache->version == globals->version && cache->valuePtr != NULL) {
         PUSH(*cache->valuePtr);
-        break;
+        DISPATCH();
       }
       ObjString *name = AS_STRING(frame->closure->function->chunk.constants.values[slot]);
       Entry *entry = tableFindEntry(globals, name);
@@ -717,17 +834,17 @@ static InterpretResult run(int stopFrameCount) {
       cache->valuePtr = &entry->value;
       cache->version = globals->version;
       PUSH(entry->value);
-      break;
+      DISPATCH();
     }
-    case OP_DEFINE_GLOBAL:
-    case OP_DEFINE_GLOBAL_LONG: {
+    TARGET(OP_DEFINE_GLOBAL)
+    TARGET(OP_DEFINE_GLOBAL_LONG) {
       ObjString *name = instruction == OP_DEFINE_GLOBAL ? READ_STRING() : READ_STRING_LONG();
       tableSet(globalsForFrame(frame), name, PEEK(0));
       DROP();
-      break;
+      DISPATCH();
     }
-    case OP_SET_GLOBAL:
-    case OP_SET_GLOBAL_LONG: {
+    TARGET(OP_SET_GLOBAL)
+    TARGET(OP_SET_GLOBAL_LONG) {
       ObjString *name = instruction == OP_SET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
       Table *globals = globalsForFrame(frame);
       if (tableSet(globals, name, PEEK(0))) {
@@ -740,10 +857,10 @@ static InterpretResult run(int stopFrameCount) {
       Value previousExport;
       if (module != NULL && tableGet(&module->exports, name, &previousExport))
         tableSet(&module->exports, name, PEEK(0));
-      break;
+      DISPATCH();
     }
-    case OP_GET_PROPERTY:
-    case OP_GET_PROPERTY_LONG: {
+    TARGET(OP_GET_PROPERTY)
+    TARGET(OP_GET_PROPERTY_LONG) {
       ObjString *name = instruction == OP_GET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
 
       if (IS_MODULE(PEEK(0))) {
@@ -755,7 +872,7 @@ static InterpretResult run(int stopFrameCount) {
           return INTERPRET_RUNTIME_ERROR;
         }
         stackTop[-1] = exported;
-        break;
+        DISPATCH();
       }
 
       if (IS_HASHMAP(PEEK(0))) {
@@ -767,7 +884,7 @@ static InterpretResult run(int stopFrameCount) {
 
         ObjHashmap *map = AS_HASHMAP(POP());
         PUSH(NUMBER_VAL(mapCount(&map->items)));
-        break;
+        DISPATCH();
       }
 
       if (!IS_INSTANCE(PEEK(0))) {
@@ -781,7 +898,7 @@ static InterpretResult run(int stopFrameCount) {
       Value value;
       if (tableGet(&instance->fields, name, &value)) {
         stackTop[-1] = value;
-        break;
+        DISPATCH();
       }
 
       STORE_FRAME();
@@ -789,10 +906,10 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_RUNTIME_ERROR;
       }
       LOAD_FRAME();
-      break;
+      DISPATCH();
     }
-    case OP_SET_PROPERTY:
-    case OP_SET_PROPERTY_LONG: {
+    TARGET(OP_SET_PROPERTY)
+    TARGET(OP_SET_PROPERTY_LONG) {
       if (IS_MODULE(PEEK(1))) {
         STORE_FRAME();
         runtimeError("Module exports are read-only.");
@@ -809,10 +926,10 @@ static InterpretResult run(int stopFrameCount) {
       tableSet(&instance->fields, name, PEEK(0));
       Value value = POP();
       stackTop[-1] = value;
-      break;
+      DISPATCH();
     }
-    case OP_INVOKE:
-    case OP_INVOKE_LONG: {
+    TARGET(OP_INVOKE)
+    TARGET(OP_INVOKE_LONG) {
       ObjString *method = instruction == OP_INVOKE ? READ_STRING() : READ_STRING_LONG();
       int argCount = READ_BYTE();
       STORE_FRAME();
@@ -820,10 +937,10 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_RUNTIME_ERROR;
       }
       LOAD_FRAME();
-      break;
+      DISPATCH();
     }
-    case OP_SUPER_INVOKE:
-    case OP_SUPER_INVOKE_LONG: {
+    TARGET(OP_SUPER_INVOKE)
+    TARGET(OP_SUPER_INVOKE_LONG) {
       ObjString *method = instruction == OP_SUPER_INVOKE ? READ_STRING() : READ_STRING_LONG();
       int argCount = READ_BYTE();
       ObjClass *superclass = AS_CLASS(POP());
@@ -832,10 +949,10 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_RUNTIME_ERROR;
       }
       LOAD_FRAME();
-      break;
+      DISPATCH();
     }
-    case OP_GET_SUPER:
-    case OP_GET_SUPER_LONG: {
+    TARGET(OP_GET_SUPER)
+    TARGET(OP_GET_SUPER_LONG) {
       ObjString *name = instruction == OP_GET_SUPER ? READ_STRING() : READ_STRING_LONG();
       ObjClass *superclass = AS_CLASS(POP());
 
@@ -844,9 +961,9 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_RUNTIME_ERROR;
       }
       LOAD_FRAME();
-      break;
+      DISPATCH();
     }
-    case OP_EQUAL: {
+    TARGET(OP_EQUAL) {
       Value b = POP();
       Value a = stackTop[-1];
       bool equal = false;
@@ -867,15 +984,15 @@ static InterpretResult run(int stopFrameCount) {
         }
       }
       stackTop[-1] = BOOL_VAL(equal);
-      break;
+      DISPATCH();
     }
-    case OP_GREATER:
+    TARGET(OP_GREATER)
       BINARY_OP(BOOL_VAL, >);
-      break;
-    case OP_LESS:
+      DISPATCH();
+    TARGET(OP_LESS)
       BINARY_OP(BOOL_VAL, <);
-      break;
-    case OP_ADD: {
+      DISPATCH();
+    TARGET(OP_ADD) {
       if (IS_NUMBER(stackTop[-1]) && IS_NUMBER(stackTop[-2])) {
         double b = AS_NUMBER(stackTop[-1]);
         double a = AS_NUMBER(stackTop[-2]);
@@ -890,15 +1007,15 @@ static InterpretResult run(int stopFrameCount) {
         runtimeError("Operands must be two numbers or two strings.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      break;
+      DISPATCH();
     }
-    case OP_SUBTRACT:
+    TARGET(OP_SUBTRACT)
       BINARY_OP(NUMBER_VAL, -);
-      break;
-    case OP_MULTIPLY:
+      DISPATCH();
+    TARGET(OP_MULTIPLY)
       BINARY_OP(NUMBER_VAL, *);
-      break;
-    case OP_DIVIDE: {
+      DISPATCH();
+    TARGET(OP_DIVIDE) {
       if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
@@ -915,9 +1032,9 @@ static InterpretResult run(int stopFrameCount) {
 
       stackTop[-2] = NUMBER_VAL(dividend / divisor);
       stackTop--;
-      break;
+      DISPATCH();
     }
-    case OP_MODULO:
+    TARGET(OP_MODULO)
       if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
@@ -941,71 +1058,71 @@ static InterpretResult run(int stopFrameCount) {
 
       stackTop[-2] = NUMBER_VAL(fmod(a, b));
       stackTop--;
-      break;
-    case OP_NOT:
+      DISPATCH();
+    TARGET(OP_NOT)
       stackTop[-1] = BOOL_VAL(isFalsey(stackTop[-1]));
-      break;
-    case OP_NEGATE:
+      DISPATCH();
+    TARGET(OP_NEGATE)
       if (!IS_NUMBER(PEEK(0))) {
         STORE_FRAME();
         runtimeError("Operand must be a number.");
         return INTERPRET_RUNTIME_ERROR;
       }
       stackTop[-1] = NUMBER_VAL(-AS_NUMBER(stackTop[-1]));
-      break;
-    case OP_PRINT: {
+      DISPATCH();
+    TARGET(OP_PRINT) {
       STORE_FRAME();
       ObjString *rendered = valueToString(POP());
       writeVMOutput(rendered->chars, (size_t)rendered->length);
       writeVMOutput("\n", 1);
-      break;
+      DISPATCH();
     }
-    case OP_PRINT_NO_NEWLINE: {
+    TARGET(OP_PRINT_NO_NEWLINE) {
       STORE_FRAME();
       ObjString *rendered = valueToString(POP());
       writeVMOutput(rendered->chars, (size_t)rendered->length);
-      break;
+      DISPATCH();
     }
-    case OP_JUMP: {
+    TARGET(OP_JUMP) {
       uint16_t offset = READ_SHORT();
       ip += offset;
-      break;
+      DISPATCH();
     }
-    case OP_JUMP_IF_FALSE: {
+    TARGET(OP_JUMP_IF_FALSE) {
       uint16_t offset = READ_SHORT();
       if (isFalsey(PEEK(0))) ip += offset;
-      break;
+      DISPATCH();
     }
-    case OP_POP_JUMP_IF_FALSE: {
+    TARGET(OP_POP_JUMP_IF_FALSE) {
       uint16_t offset = READ_SHORT();
       Value val = POP();
       if (isFalsey(val)) ip += offset;
-      break;
+      DISPATCH();
     }
-    case OP_JUMP_IF_TRUE_OR_POP: {
+    TARGET(OP_JUMP_IF_TRUE_OR_POP) {
       uint16_t offset = READ_SHORT();
       if (!isFalsey(PEEK(0))) {
         ip += offset;
       } else {
         DROP();
       }
-      break;
+      DISPATCH();
     }
-    case OP_JUMP_IF_FALSE_OR_POP: {
+    TARGET(OP_JUMP_IF_FALSE_OR_POP) {
       uint16_t offset = READ_SHORT();
       if (isFalsey(PEEK(0))) {
         ip += offset;
       } else {
         DROP();
       }
-      break;
+      DISPATCH();
     }
-    case OP_LOOP: {
+    TARGET(OP_LOOP) {
       uint16_t offset = READ_SHORT();
       ip -= offset;
-      break;
+      DISPATCH();
     }
-    case OP_CALL: {
+    TARGET(OP_CALL) {
       int argCount = READ_BYTE();
       Value callee = PEEK(argCount);
       if (IS_OBJ(callee) && OBJ_TYPE(callee) == OBJ_CLOSURE) {
@@ -1028,16 +1145,16 @@ static InterpretResult run(int stopFrameCount) {
         frame->slots = stackTop - argCount - 1;
         ip = frame->ip;
         slots = frame->slots;
-        break;
+        DISPATCH();
       }
       STORE_FRAME();
       if (!callValue(callee, argCount)) {
         return INTERPRET_RUNTIME_ERROR;
       }
       LOAD_FRAME();
-      break;
+      DISPATCH();
     }
-    case OP_GET_INDEX: {
+    TARGET(OP_GET_INDEX) {
       Value index = PEEK(0);
       Value container = PEEK(1);
 
@@ -1097,10 +1214,10 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      break;
+      DISPATCH();
     }
 
-    case OP_SET_INDEX: {
+    TARGET(OP_SET_INDEX) {
       Value value = PEEK(0);
       Value key = PEEK(1);
       Value container = PEEK(2);
@@ -1139,15 +1256,15 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      break;
+      DISPATCH();
     }
 
-    case OP_NEW_LIST: {
+    TARGET(OP_NEW_LIST) {
       STORE_FRAME();
       PUSH(OBJ_VAL(newList()));
-      break;
+      DISPATCH();
     }
-    case OP_LIST_LITERAL_APPEND: {
+    TARGET(OP_LIST_LITERAL_APPEND) {
       Value item = POP();
       Value listVal = PEEK(0);
 
@@ -1162,14 +1279,14 @@ static InterpretResult run(int stopFrameCount) {
       STORE_FRAME();
       writeValueArray(&list->items, item);
       DROP();
-      break;
+      DISPATCH();
     }
-    case OP_NEW_HASHMAP: {
+    TARGET(OP_NEW_HASHMAP) {
       STORE_FRAME();
       PUSH(OBJ_VAL(newHashmap()));
-      break;
+      DISPATCH();
     }
-    case OP_HASHMAP_LITERAL_INSERT: {
+    TARGET(OP_HASHMAP_LITERAL_INSERT) {
       Value value = PEEK(0);
       Value keyVal = PEEK(1);
       Value hashmapVal = PEEK(2);
@@ -1195,10 +1312,10 @@ static InterpretResult run(int stopFrameCount) {
       }
 
       stackTop -= 2;
-      break;
+      DISPATCH();
     }
-    case OP_CLOSURE:
-    case OP_CLOSURE_LONG: {
+    TARGET(OP_CLOSURE)
+    TARGET(OP_CLOSURE_LONG) {
       ObjFunction *function = AS_FUNCTION(instruction == OP_CLOSURE ? READ_CONSTANT() : READ_CONSTANT_LONG());
       STORE_FRAME();
       ObjClosure *closure = newClosure(function);
@@ -1210,14 +1327,14 @@ static InterpretResult run(int stopFrameCount) {
         STORE_FRAME();
         closure->upvalues[i] = isLocal ? captureUpvalue(slots + index) : frame->closure->upvalues[index];
       }
-      break;
+      DISPATCH();
     }
-    case OP_CLOSE_UPVALUE:
+    TARGET(OP_CLOSE_UPVALUE)
       STORE_FRAME();
       closeUpvalues(stackTop - 1);
       DROP();
-      break;
-    case OP_RETURN: {
+      DISPATCH();
+    TARGET(OP_RETURN) {
       Value result = POP();
       if (vm.openUpvalues != NULL) {
         closeUpvalues(frame->slots);
@@ -1240,16 +1357,16 @@ static InterpretResult run(int stopFrameCount) {
         STORE_FRAME();
         return INTERPRET_OK;
       }
-      break;
+      DISPATCH();
     }
-    case OP_CLASS:
-    case OP_CLASS_LONG: {
+    TARGET(OP_CLASS)
+    TARGET(OP_CLASS_LONG) {
       ObjString *name = instruction == OP_CLASS ? READ_STRING() : READ_STRING_LONG();
       STORE_FRAME();
       PUSH(OBJ_VAL(newClass(name)));
-      break;
+      DISPATCH();
     }
-    case OP_INHERIT: {
+    TARGET(OP_INHERIT) {
       Value superclass = PEEK(1);
       if (!IS_CLASS(superclass)) {
         STORE_FRAME();
@@ -1259,18 +1376,18 @@ static InterpretResult run(int stopFrameCount) {
       ObjClass *subclass = AS_CLASS(PEEK(0));
       tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
       DROP();
-      break;
+      DISPATCH();
     }
-    case OP_METHOD:
-    case OP_METHOD_LONG: {
+    TARGET(OP_METHOD)
+    TARGET(OP_METHOD_LONG) {
       ObjString *name = instruction == OP_METHOD ? READ_STRING() : READ_STRING_LONG();
       STORE_FRAME();
       defineMethod(name);
       LOAD_FRAME();
-      break;
+      DISPATCH();
     }
-    case OP_IMPORT:
-    case OP_IMPORT_LONG: {
+    TARGET(OP_IMPORT)
+    TARGET(OP_IMPORT_LONG) {
       ObjString *moduleName = instruction == OP_IMPORT ? READ_STRING() : READ_STRING_LONG();
       ObjString *alias = instruction == OP_IMPORT ? READ_STRING() : READ_STRING_LONG();
       Table *globals = globalsForFrame(frame);
@@ -1287,10 +1404,10 @@ static InterpretResult run(int stopFrameCount) {
       if (importResult != INTERPRET_OK) return importResult;
       LOAD_FRAME();
       tableSet(globalsForFrame(frame), alias, module);
-      break;
+      DISPATCH();
     }
-    case OP_EXPORT:
-    case OP_EXPORT_LONG: {
+    TARGET(OP_EXPORT)
+    TARGET(OP_EXPORT_LONG) {
       ObjString *name = instruction == OP_EXPORT ? READ_STRING() : READ_STRING_LONG();
       ObjModule *module = frame->closure->module;
       Value exported;
@@ -1300,15 +1417,21 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_RUNTIME_ERROR;
       }
       tableSet(&module->exports, name, exported);
-      break;
+      DISPATCH();
     }
+#if USE_COMPUTED_GOTO
+    TARGET(OP_UNKNOWN)
+#else
     default:
+#endif
       STORE_FRAME();
       runtimeError("Unknown opcode %d.", instruction);
       return INTERPRET_RUNTIME_ERROR;
+#if !USE_COMPUTED_GOTO
     }
     if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
   }
+#endif
 #undef PUSH
 #undef POP
 #undef DROP
@@ -1322,6 +1445,17 @@ static InterpretResult run(int stopFrameCount) {
 #undef READ_STRING
 #undef READ_SHORT
 #undef READ_BYTE
+#undef TARGET
+#undef DISPATCH
+#undef RECORD_OPCODE
+#if USE_COMPUTED_GOTO
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+#endif
+#undef USE_COMPUTED_GOTO
 }
 
 static InterpretResult interpretActive(const char *source) {
