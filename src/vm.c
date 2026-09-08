@@ -340,37 +340,39 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount) {
 static bool invokeListMethod(ObjString *name, int argCount) {
   NativeFn method = NULL;
 
-  if (strcmp(name->chars, "push") == 0) {
-    method = listPushNative;
-  } else if (strcmp(name->chars, "extend") == 0) {
-    method = listExtendNative;
-  } else if (strcmp(name->chars, "pop") == 0) {
-    method = listPopNative;
-  } else if (strcmp(name->chars, "insert") == 0) {
-    method = listInsertNative;
-  } else if (strcmp(name->chars, "remove") == 0) {
-    method = listRemoveNative;
-  } else if (strcmp(name->chars, "removeAt") == 0) {
-    method = listRemoveAtNative;
-  } else if (strcmp(name->chars, "clear") == 0) {
-    method = listClearNative;
-  } else if (strcmp(name->chars, "copy") == 0) {
-    method = listCopyNative;
-  } else if (strcmp(name->chars, "index") == 0) {
-    method = listIndexNative;
-  } else if (strcmp(name->chars, "count") == 0) {
-    method = listCountNative;
-  } else if (strcmp(name->chars, "reverse") == 0) {
-    method = listReverseNative;
-  } else if (strcmp(name->chars, "sort") == 0) {
-    method = listSortNative;
-  } else {
+  switch (name->length) {
+  case 3:
+    if (memcmp(name->chars, "pop", 3) == 0) method = listPopNative;
+    break;
+  case 4:
+    if (memcmp(name->chars, "push", 4) == 0) method = listPushNative;
+    else if (memcmp(name->chars, "copy", 4) == 0) method = listCopyNative;
+    else if (memcmp(name->chars, "sort", 4) == 0) method = listSortNative;
+    break;
+  case 5:
+    if (memcmp(name->chars, "clear", 5) == 0) method = listClearNative;
+    else if (memcmp(name->chars, "index", 5) == 0) method = listIndexNative;
+    else if (memcmp(name->chars, "count", 5) == 0) method = listCountNative;
+    break;
+  case 6:
+    if (memcmp(name->chars, "extend", 6) == 0) method = listExtendNative;
+    else if (memcmp(name->chars, "insert", 6) == 0) method = listInsertNative;
+    else if (memcmp(name->chars, "remove", 6) == 0) method = listRemoveNative;
+    break;
+  case 7:
+    if (memcmp(name->chars, "reverse", 7) == 0) method = listReverseNative;
+    break;
+  case 8:
+    if (memcmp(name->chars, "removeAt", 8) == 0) method = listRemoveAtNative;
+    break;
+  }
+
+  if (method == NULL) {
     runtimeError("Lists do not have a method named '%s'.", name->chars);
     return false;
   }
 
   Value result = method(argCount + 1, vm.stackTop - argCount - 1);
-
   if (vm.hadRuntimeError) return false;
 
   vm.stackTop -= argCount + 1;
@@ -379,27 +381,75 @@ static bool invokeListMethod(ObjString *name, int argCount) {
 }
 
 static bool invokeMapMethod(ObjString *name, int argCount) {
-  NativeFn method = NULL;
-
-  if (strcmp(name->chars, "has") == 0) {
-    method = mapHasNative;
-  } else if (strcmp(name->chars, "get") == 0) {
-    method = mapGetNative;
-  } else if (strcmp(name->chars, "delete") == 0) {
-    method = mapDeleteNative;
-  } else if (strcmp(name->chars, "clear") == 0) {
-    method = mapClearNative;
-  } else {
-    runtimeError("Maps do not have a method named '%s'.", name->chars);
-    return false;
+  if (name->length == 3 && memcmp(name->chars, "has", 3) == 0) {
+    if (argCount != 1) {
+      runtimeError("has() expects 1 argument but got %d.", argCount);
+      return false;
+    }
+    Value key = vm.stackTop[-1];
+    if (!mapKeyIsValid(key)) {
+      runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+      return false;
+    }
+    ObjHashmap *map = AS_HASHMAP(vm.stackTop[-2]);
+    Value val;
+    bool found = mapGet(&map->items, key, &val);
+    vm.stackTop[-2] = BOOL_VAL(found);
+    vm.stackTop--;
+    return true;
   }
 
-  Value result = method(argCount + 1, vm.stackTop - argCount - 1);
-  if (vm.hadRuntimeError) return false;
+  if (name->length == 3 && memcmp(name->chars, "get", 3) == 0) {
+    if (argCount != 2) {
+      runtimeError("get() expects 2 arguments but got %d.", argCount);
+      return false;
+    }
+    Value defVal = vm.stackTop[-1];
+    Value key = vm.stackTop[-2];
+    if (!mapKeyIsValid(key)) {
+      runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+      return false;
+    }
+    ObjHashmap *map = AS_HASHMAP(vm.stackTop[-3]);
+    Value val;
+    if (!mapGet(&map->items, key, &val)) {
+      val = defVal;
+    }
+    vm.stackTop[-3] = val;
+    vm.stackTop -= 2;
+    return true;
+  }
 
-  vm.stackTop -= argCount + 1;
-  push(result);
-  return true;
+  if (name->length == 6 && memcmp(name->chars, "delete", 6) == 0) {
+    if (argCount != 1) {
+      runtimeError("delete() expects 1 argument but got %d.", argCount);
+      return false;
+    }
+    Value key = vm.stackTop[-1];
+    if (!mapKeyIsValid(key)) {
+      runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+      return false;
+    }
+    ObjHashmap *map = AS_HASHMAP(vm.stackTop[-2]);
+    bool deleted = mapDelete(&map->items, key);
+    vm.stackTop[-2] = BOOL_VAL(deleted);
+    vm.stackTop--;
+    return true;
+  }
+
+  if (name->length == 5 && memcmp(name->chars, "clear", 5) == 0) {
+    if (argCount != 0) {
+      runtimeError("clear() expects 0 arguments but got %d.", argCount);
+      return false;
+    }
+    ObjHashmap *map = AS_HASHMAP(vm.stackTop[-1]);
+    mapClear(&map->items);
+    vm.stackTop[-1] = NIL_VAL;
+    return true;
+  }
+
+  runtimeError("Maps do not have a method named '%s'.", name->chars);
+  return false;
 }
 
 static bool invoke(ObjString *name, int argCount) {

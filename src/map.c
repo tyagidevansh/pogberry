@@ -35,6 +35,26 @@ static uint32_t mapKeyHash(Value key) {
   return 0;
 }
 
+static inline bool mapKeysEqual(Value a, Value b) {
+  if (a.type != b.type) return false;
+  switch (a.type) {
+  case VAL_NIL:
+    return true;
+  case VAL_BOOL:
+    return AS_BOOL(a) == AS_BOOL(b);
+  case VAL_NUMBER:
+    return AS_NUMBER(a) == AS_NUMBER(b);
+  case VAL_OBJ: {
+    ObjString *aStr = AS_STRING(a);
+    ObjString *bStr = AS_STRING(b);
+    if (aStr == bStr) return true;
+    return aStr->length == bStr->length &&
+           memcmp(aStr->chars, bStr->chars, (size_t)aStr->length) == 0;
+  }
+  }
+  return false;
+}
+
 static int findEntry(Map *map, Value key, uint32_t hash, int *previous) {
   if (map->bucketCapacity == 0) return -1;
 
@@ -44,7 +64,7 @@ static int findEntry(Map *map, Value key, uint32_t hash, int *previous) {
 
   while (current != -1) {
     MapEntry *entry = &map->entries[current];
-    if (entry->hash == hash && valuesEqual(entry->key, key)) {
+    if (entry->hash == hash && mapKeysEqual(entry->key, key)) {
       if (previous != NULL) *previous = prior;
       return current;
     }

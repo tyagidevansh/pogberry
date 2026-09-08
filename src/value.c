@@ -188,8 +188,27 @@ static bool isActive(StringBuilder *builder, Obj *object) {
 }
 
 bool valuesEqual(Value left, Value right) {
-  EqualityContext context = {0};
-  return valuesEqualInternal(left, right, &context);
+  if (left.type != right.type) return false;
+  switch (left.type) {
+  case VAL_BOOL:
+    return AS_BOOL(left) == AS_BOOL(right);
+  case VAL_NUMBER:
+    return AS_NUMBER(left) == AS_NUMBER(right);
+  case VAL_NIL:
+    return true;
+  case VAL_OBJ: {
+    Obj *leftObject = AS_OBJ(left);
+    Obj *rightObject = AS_OBJ(right);
+    if (leftObject == rightObject) return true;
+    if (leftObject->type != rightObject->type) return false;
+    if (leftObject->type == OBJ_STRING) {
+      return stringsEqual((ObjString *)leftObject, (ObjString *)rightObject);
+    }
+    EqualityContext context = {0};
+    return objectsEqual(left, right, &context);
+  }
+  }
+  return false;
 }
 
 static void pushActive(StringBuilder *builder, Obj *object) {
