@@ -69,6 +69,7 @@ typedef struct Compiler {
   Upvalue upvalues[UINT8_COUNT];
   int localCount;
   int scopeDepth;
+  int lastAssignmentOpOffset;
 } Compiler;
 
 typedef struct ClassCompiler {
@@ -261,6 +262,57 @@ static int emitConditionJump(int jumpsBefore) {
   return emitJump(OP_POP_JUMP_IF_FALSE);
 }
 
+static void emitStatementPop(int jumpsBefore) {
+  Chunk *chunk = currentChunk();
+  if (jumpEmitCount == jumpsBefore && current != NULL && current->lastAssignmentOpOffset != -1) {
+    int assignOffset = current->lastAssignmentOpOffset;
+    current->lastAssignmentOpOffset = -1;
+
+    if (chunk->count == assignOffset + 1) {
+      uint8_t op = chunk->code[assignOffset];
+      switch (op) {
+      case OP_SET_LOCAL_0:
+        chunk->code[assignOffset] = OP_SET_LOCAL_POP_0;
+        return;
+      case OP_SET_LOCAL_1:
+        chunk->code[assignOffset] = OP_SET_LOCAL_POP_1;
+        return;
+      case OP_SET_LOCAL_2:
+        chunk->code[assignOffset] = OP_SET_LOCAL_POP_2;
+        return;
+      case OP_SET_LOCAL_3:
+        chunk->code[assignOffset] = OP_SET_LOCAL_POP_3;
+        return;
+      case OP_SET_INDEX:
+        chunk->code[assignOffset] = OP_SET_INDEX_POP;
+        return;
+      default:
+        break;
+      }
+    } else if (chunk->count == assignOffset + 2) {
+      uint8_t op = chunk->code[assignOffset];
+      switch (op) {
+      case OP_SET_LOCAL:
+        chunk->code[assignOffset] = OP_SET_LOCAL_POP;
+        return;
+      case OP_SET_GLOBAL:
+        chunk->code[assignOffset] = OP_SET_GLOBAL_POP;
+        return;
+      case OP_SET_UPVALUE:
+        chunk->code[assignOffset] = OP_SET_UPVALUE_POP;
+        return;
+      default:
+        break;
+      }
+    }
+  }
+
+  if (current != NULL) {
+    current->lastAssignmentOpOffset = -1;
+  }
+  emitByte(OP_POP);
+}
+
 static void emitReturn() {
   if (current->type == TYPE_INITIALIZER) {
     emitByte(OP_GET_LOCAL_0);
@@ -331,6 +383,7 @@ static void initCompiler(Compiler *compiler, FunctionType type) {
   compiler->type = type;
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+  compiler->lastAssignmentOpOffset = -1;
   compiler->function = newFunction();
   current = compiler;
   if (sourceName != NULL) current->function->sourceName = copyString(sourceName, (int)strlen(sourceName));
@@ -767,9 +820,10 @@ static void classDeclaration() {
 }
 
 static void expressionStatement() {
+  int jumpsBefore = jumpEmitCount;
   expression();
   consume(TOKEN_SEMICOLON, "Expect ';' after an expression.");
-  emitByte(OP_POP);
+  emitStatementPop(jumpsBefore);
 }
 
 static void forStatement() {
@@ -805,8 +859,9 @@ static void forStatement() {
   if (!match(TOKEN_RIGHT_PAREN)) {
     int bodyJump = emitJump(OP_JUMP);
     int incrementStart = currentChunk()->count;
+    int jumpsBefore = jumpEmitCount;
     expression();
-    emitByte(OP_POP);
+    emitStatementPop(jumpsBefore);
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 
     emitLoop(loopStart);
@@ -1058,6 +1113,9 @@ static void containerIndex(bool canAssign) {
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
+    if (current != NULL) {
+      current->lastAssignmentOpOffset = currentChunk()->count;
+    }
     emitByte(OP_SET_INDEX);
   } else {
     emitByte(OP_GET_INDEX);
@@ -1226,10 +1284,19 @@ static void namedVariable(Token name, bool canAssign) {
     }
     expression();
     if (isGlobal) {
+      if (global <= UINT8_MAX && current != NULL) {
+        current->lastAssignmentOpOffset = currentChunk()->count;
+      }
       emitConstantInstruction(OP_SET_GLOBAL, OP_SET_GLOBAL_LONG, global);
     } else if (setOp == OP_SET_LOCAL && arg >= 0 && arg <= 3) {
+      if (current != NULL) {
+        current->lastAssignmentOpOffset = currentChunk()->count;
+      }
       emitByte((uint8_t)(OP_SET_LOCAL_0 + arg));
     } else {
+      if (current != NULL) {
+        current->lastAssignmentOpOffset = currentChunk()->count;
+      }
       emitBytes(setOp, (uint8_t)arg);
     }
   } else {

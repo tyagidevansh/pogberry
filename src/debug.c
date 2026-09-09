@@ -274,6 +274,22 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return jumpInstruction("OP_JUMP_IF_NOT_GREATER", 1, chunk, offset);
   case OP_JUMP_IF_NOT_EQUAL:
     return jumpInstruction("OP_JUMP_IF_NOT_EQUAL", 1, chunk, offset);
+  case OP_SET_LOCAL_POP:
+    return byteInstruction("OP_SET_LOCAL_POP", chunk, offset);
+  case OP_SET_LOCAL_POP_0:
+    return simpleInstruction("OP_SET_LOCAL_POP_0", offset);
+  case OP_SET_LOCAL_POP_1:
+    return simpleInstruction("OP_SET_LOCAL_POP_1", offset);
+  case OP_SET_LOCAL_POP_2:
+    return simpleInstruction("OP_SET_LOCAL_POP_2", offset);
+  case OP_SET_LOCAL_POP_3:
+    return simpleInstruction("OP_SET_LOCAL_POP_3", offset);
+  case OP_SET_GLOBAL_POP:
+    return constantInstruction("OP_SET_GLOBAL_POP", chunk, offset);
+  case OP_SET_UPVALUE_POP:
+    return byteInstruction("OP_SET_UPVALUE_POP", chunk, offset);
+  case OP_SET_INDEX_POP:
+    return simpleInstruction("OP_SET_INDEX_POP", offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;
@@ -298,6 +314,9 @@ static const char *opcodeNames[256] = {
     [OP_SET_UPVALUE] = "OP_SET_UPVALUE",
     [OP_GET_PROPERTY] = "OP_GET_PROPERTY",
     [OP_SET_PROPERTY] = "OP_SET_PROPERTY",
+    [OP_GET_SUPER] = "OP_GET_SUPER",
+    [OP_SUPER_INVOKE] = "OP_SUPER_INVOKE",
+    [OP_INVOKE] = "OP_INVOKE",
     [OP_EQUAL] = "OP_EQUAL",
     [OP_GREATER] = "OP_GREATER",
     [OP_LESS] = "OP_LESS",
@@ -359,6 +378,14 @@ static const char *opcodeNames[256] = {
     [OP_JUMP_IF_NOT_LESS] = "OP_JUMP_IF_NOT_LESS",
     [OP_JUMP_IF_NOT_GREATER] = "OP_JUMP_IF_NOT_GREATER",
     [OP_JUMP_IF_NOT_EQUAL] = "OP_JUMP_IF_NOT_EQUAL",
+    [OP_SET_LOCAL_POP] = "OP_SET_LOCAL_POP",
+    [OP_SET_LOCAL_POP_0] = "OP_SET_LOCAL_POP_0",
+    [OP_SET_LOCAL_POP_1] = "OP_SET_LOCAL_POP_1",
+    [OP_SET_LOCAL_POP_2] = "OP_SET_LOCAL_POP_2",
+    [OP_SET_LOCAL_POP_3] = "OP_SET_LOCAL_POP_3",
+    [OP_SET_GLOBAL_POP] = "OP_SET_GLOBAL_POP",
+    [OP_SET_UPVALUE_POP] = "OP_SET_UPVALUE_POP",
+    [OP_SET_INDEX_POP] = "OP_SET_INDEX_POP",
 };
 
 typedef struct {

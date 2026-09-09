@@ -754,6 +754,14 @@ static InterpretResult run(int stopFrameCount) {
     [OP_IMPORT_LONG] = &&target_OP_IMPORT_LONG,
     [OP_EXPORT] = &&target_OP_EXPORT,
     [OP_EXPORT_LONG] = &&target_OP_EXPORT_LONG,
+    [OP_SET_LOCAL_POP] = &&target_OP_SET_LOCAL_POP,
+    [OP_SET_LOCAL_POP_0] = &&target_OP_SET_LOCAL_POP_0,
+    [OP_SET_LOCAL_POP_1] = &&target_OP_SET_LOCAL_POP_1,
+    [OP_SET_LOCAL_POP_2] = &&target_OP_SET_LOCAL_POP_2,
+    [OP_SET_LOCAL_POP_3] = &&target_OP_SET_LOCAL_POP_3,
+    [OP_SET_GLOBAL_POP] = &&target_OP_SET_GLOBAL_POP,
+    [OP_SET_UPVALUE_POP] = &&target_OP_SET_UPVALUE_POP,
+    [OP_SET_INDEX_POP] = &&target_OP_SET_INDEX_POP,
   };
 
   uint8_t instruction;
@@ -839,6 +847,23 @@ static InterpretResult run(int stopFrameCount) {
     TARGET(OP_SET_LOCAL_3)
       slots[3] = PEEK(0);
       DISPATCH();
+    TARGET(OP_SET_LOCAL_POP) {
+      uint8_t slot = READ_BYTE();
+      slots[slot] = POP();
+      DISPATCH();
+    }
+    TARGET(OP_SET_LOCAL_POP_0)
+      slots[0] = POP();
+      DISPATCH();
+    TARGET(OP_SET_LOCAL_POP_1)
+      slots[1] = POP();
+      DISPATCH();
+    TARGET(OP_SET_LOCAL_POP_2)
+      slots[2] = POP();
+      DISPATCH();
+    TARGET(OP_SET_LOCAL_POP_3)
+      slots[3] = POP();
+      DISPATCH();
     TARGET(OP_GET_UPVALUE) {
       uint8_t slot = READ_BYTE();
       PUSH(*frame->closure->upvalues[slot]->location);
@@ -847,6 +872,11 @@ static InterpretResult run(int stopFrameCount) {
     TARGET(OP_SET_UPVALUE) {
       uint8_t slot = READ_BYTE();
       *frame->closure->upvalues[slot]->location = PEEK(0);
+      DISPATCH();
+    }
+    TARGET(OP_SET_UPVALUE_POP) {
+      uint8_t slot = READ_BYTE();
+      *frame->closure->upvalues[slot]->location = POP();
       DISPATCH();
     }
     TARGET(OP_GET_GLOBAL) {
@@ -910,6 +940,22 @@ static InterpretResult run(int stopFrameCount) {
       Value previousExport;
       if (module != NULL && tableGet(&module->exports, name, &previousExport))
         tableSet(&module->exports, name, PEEK(0));
+      DISPATCH();
+    }
+    TARGET(OP_SET_GLOBAL_POP) {
+      ObjString *name = READ_STRING();
+      Table *globals = globalsForFrame(frame);
+      if (tableSet(globals, name, PEEK(0))) {
+        tableDelete(globals, name);
+        STORE_FRAME();
+        runtimeError("Undefined variable '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjModule *module = frame->closure->module;
+      Value previousExport;
+      if (module != NULL && tableGet(&module->exports, name, &previousExport))
+        tableSet(&module->exports, name, PEEK(0));
+      DROP();
       DISPATCH();
     }
     TARGET(OP_GET_PROPERTY)
@@ -1360,6 +1406,45 @@ static InterpretResult run(int stopFrameCount) {
 
         stackTop -= 2;
         stackTop[-1] = value;
+      } else {
+        STORE_FRAME();
+        runtimeError("Can only assign through a list or hashmap index.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      DISPATCH();
+    }
+
+    TARGET(OP_SET_INDEX_POP) {
+      Value value = PEEK(0);
+      Value key = PEEK(1);
+      Value container = PEEK(2);
+
+      if (IS_LIST(container)) {
+        ObjList *list = AS_LIST(container);
+        int index;
+
+        STORE_FRAME();
+        if (!normalizeListIndex(key, list->items.count, &index)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        list->items.values[index] = value;
+        stackTop -= 3;
+      } else if (IS_HASHMAP(container)) {
+        if (!mapKeyIsValid(key)) {
+          STORE_FRAME();
+          runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        STORE_FRAME();
+        if (!mapSet(&AS_HASHMAP(container)->items, key, value, NULL)) {
+          runtimeError("Map key is invalid.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        stackTop -= 3;
       } else {
         STORE_FRAME();
         runtimeError("Can only assign through a list or hashmap index.");
