@@ -36,11 +36,24 @@ typedef void (*DrawPixelFn)(int, int, int, int, int);
 typedef void (*DrawLineFn)(int, int, int, int, int, int, int);
 typedef void (*DrawCircleFn)(int, int, float, int, int, int);
 typedef void (*DrawCircleLinesFn)(int, int, float, int, int, int);
+typedef void (*DrawCircleAlphaFn)(int, int, float, int, int, int, int);
 typedef void (*DrawEllipseFn)(int, int, float, float, int, int, int);
 typedef void (*DrawRectangleFn)(int, int, int, int, int, int, int);
 typedef void (*DrawRectangleLinesFn)(int, int, int, int, int, int, int);
+typedef void (*DrawRectangleAlphaFn)(int, int, int, int, int, int, int, int);
+typedef void (*DrawRectangleRoundedFn)(float, float, float, float, float, int, int, int, int);
 typedef void (*DrawTextFn)(const char *, int, int, int, int, int, int);
 typedef int (*MeasureTextFn)(const char *, int);
+typedef void (*DrawFPSFn)(int, int);
+typedef double (*GetTimeFn)(void);
+typedef void (*SetWindowSizeFn)(int, int);
+typedef void (*SetWindowPositionFn)(int, int);
+typedef bool (*IsWindowFullscreenFn)(void);
+typedef bool (*IsWindowMaximizedFn)(void);
+typedef void (*MaximizeWindowFn)(void);
+typedef void (*RestoreWindowFn)(void);
+typedef void (*HideCursorFn)(void);
+typedef void (*ShowCursorFn)(void);
 typedef bool (*IsKeyPressedFn)(int);
 typedef bool (*IsKeyDownFn)(int);
 typedef bool (*IsKeyReleasedFn)(int);
@@ -55,37 +68,45 @@ typedef bool (*IsMouseButtonUpFn)(int);
 typedef int (*GetMouseXFn)(void);
 typedef int (*GetMouseYFn)(void);
 typedef float (*GetMouseWheelMoveFn)(void);
-typedef void (*DrawTriangleFn)(float, float, float, float, float, float, int, int, int);
-typedef void (*DrawTriangleLinesFn)(float, float, float, float, float, float, int, int, int);
-typedef void (*DrawRectangleRoundedFn)(float, float, float, float, float, int, int, int, int);
-typedef void (*DrawRectangleRoundedLinesFn)(float, float, float, float, float, int, int, int, int);
-typedef void (*DrawPolyFn)(float, float, int, float, float, int, int, int);
-typedef void (*DrawPolyLinesFn)(float, float, int, float, float, int, int, int);
-typedef void (*DrawRingFn)(float, float, float, float, float, float, int, int, int, int);
-typedef void (*DrawRingLinesFn)(float, float, float, float, float, float, int, int, int, int);
-typedef void (*DrawCircleSectorFn)(float, float, float, float, float, int, int, int, int);
-typedef void (*DrawCircleSectorLinesFn)(float, float, float, float, float, int, int, int, int);
-typedef void (*DrawCircleGradientFn)(int, int, float, int, int, int, int, int, int);
-typedef void (*DrawRectangleGradientVFn)(int, int, int, int, int, int, int, int, int, int);
-typedef void (*DrawRectangleGradientHFn)(int, int, int, int, int, int, int, int, int, int);
-typedef void (*DrawFPSFn)(int, int);
-typedef double (*GetTimeFn)(void);
-typedef void (*SetWindowSizeFn)(int, int);
-typedef void (*SetWindowPositionFn)(int, int);
-typedef bool (*IsWindowFullscreenFn)(void);
 typedef bool (*CheckCollisionRecsFn)(float, float, float, float, float, float, float, float);
 typedef bool (*CheckCollisionCirclesFn)(float, float, float, float, float, float);
 typedef bool (*CheckCollisionCircleRecFn)(float, float, float, float, float, float, float);
 typedef bool (*CheckCollisionPointRecFn)(float, float, float, float, float, float);
 typedef bool (*CheckCollisionPointCircleFn)(float, float, float, float, float);
-typedef bool (*CheckCollisionPointTriangleFn)(float, float, float, float, float, float, float, float);
-typedef int (*GetCurrentMonitorFn)(void);
-typedef int (*GetMonitorCountFn)(void);
-typedef int (*GetMonitorWidthFn)(int);
-typedef int (*GetMonitorHeightFn)(int);
-typedef bool (*IsWindowMaximizedFn)(void);
-typedef void (*MaximizeWindowFn)(void);
-typedef void (*RestoreWindowFn)(void);
+
+/* Sprites & Textures */
+typedef int (*LoadTextureFn)(const char *);
+typedef void (*UnloadTextureFn)(int);
+typedef void (*DrawTextureFn)(int, int, int);
+typedef void (*DrawTextureTintFn)(int, int, int, int, int, int);
+typedef void (*DrawTextureRecFn)(int, float, float, float, float, float, float);
+typedef void (*DrawTextureProFn)(int, float, float, float, float, float, float, float, float, float, float, float);
+typedef int (*GetTextureWidthFn)(int);
+typedef int (*GetTextureHeightFn)(int);
+
+/* Audio */
+typedef void (*InitAudioFn)(void);
+typedef void (*CloseAudioFn)(void);
+typedef int (*LoadSoundFn)(const char *);
+typedef void (*UnloadSoundFn)(int);
+typedef void (*PlaySoundFn)(int);
+typedef void (*StopSoundFn)(int);
+typedef void (*SetSoundVolumeFn)(int, float);
+typedef void (*SetSoundPitchFn)(int, float);
+typedef bool (*IsSoundPlayingFn)(int);
+typedef void (*SetMasterVolumeFn)(float);
+typedef int (*LoadMusicFn)(const char *);
+typedef void (*UnloadMusicFn)(int);
+typedef void (*PlayMusicFn)(int);
+typedef void (*PauseMusicFn)(int);
+typedef void (*ResumeMusicFn)(int);
+typedef void (*StopMusicFn)(int);
+typedef void (*UpdateMusicFn)(int);
+typedef void (*SetMusicVolumeFn)(int, float);
+typedef bool (*IsMusicStreamPlayingFn)(int);
+typedef void (*SetVirtualResolutionFn)(int, int);
+typedef int (*GetRenderWidthFn)(void);
+typedef int (*GetRenderHeightFn)(void);
 
 #define RAYLIB_BASE_FUNCTIONS(X) \
   X(initWindow, InitWindowFn, "initWindow", guiInitWindow) \
@@ -127,41 +148,57 @@ typedef void (*RestoreWindowFn)(void);
   X(setWindowTitle, SetWindowTitleFn, "setWindowTitle", guiSetWindowTitle) \
   X(getFrameTime, GetFrameTimeFn, "getFrameTime", guiGetFrameTime) \
   X(drawCircleLines, DrawCircleLinesFn, "drawCircleLines", guiDrawCircleLines) \
+  X(drawCircleAlpha, DrawCircleAlphaFn, "drawCircleAlpha", guiDrawCircleAlpha) \
   X(drawRectangleLines, DrawRectangleLinesFn, "drawRectangleLines", guiDrawRectangleLines) \
+  X(drawRectangleAlpha, DrawRectangleAlphaFn, "drawRectangleAlpha", guiDrawRectangleAlpha) \
+  X(drawRectangleRounded, DrawRectangleRoundedFn, "drawRectangleRounded", guiDrawRectangleRounded) \
   X(measureText, MeasureTextFn, "measureText", guiMeasureText) \
   X(getMouseWheelMove, GetMouseWheelMoveFn, "getMouseWheelMove", guiGetMouseWheelMove) \
-  X(drawTriangle, DrawTriangleFn, "drawTriangle", guiDrawTriangle) \
-  X(drawTriangleLines, DrawTriangleLinesFn, "drawTriangleLines", guiDrawTriangleLines) \
-  X(drawRectangleRounded, DrawRectangleRoundedFn, "drawRectangleRounded", guiDrawRectangleRounded) \
-  X(drawRectangleRoundedLines, DrawRectangleRoundedLinesFn, "drawRectangleRoundedLines", guiDrawRectangleRoundedLines) \
-  X(drawPoly, DrawPolyFn, "drawPoly", guiDrawPoly) \
-  X(drawPolyLines, DrawPolyLinesFn, "drawPolyLines", guiDrawPolyLines) \
-  X(drawRing, DrawRingFn, "drawRing", guiDrawRing) \
-  X(drawRingLines, DrawRingLinesFn, "drawRingLines", guiDrawRingLines) \
-  X(drawCircleSector, DrawCircleSectorFn, "drawCircleSector", guiDrawCircleSector) \
-  X(drawCircleSectorLines, DrawCircleSectorLinesFn, "drawCircleSectorLines", guiDrawCircleSectorLines) \
-  X(drawCircleGradient, DrawCircleGradientFn, "drawCircleGradient", guiDrawCircleGradient) \
-  X(drawRectangleGradientV, DrawRectangleGradientVFn, "drawRectangleGradientV", guiDrawRectangleGradientV) \
-  X(drawRectangleGradientH, DrawRectangleGradientHFn, "drawRectangleGradientH", guiDrawRectangleGradientH) \
   X(drawFPS, DrawFPSFn, "drawFPS", guiDrawFPS) \
   X(getTime, GetTimeFn, "getTime", guiGetTime) \
   X(setWindowSize, SetWindowSizeFn, "setWindowSize", guiSetWindowSize) \
   X(setWindowPosition, SetWindowPositionFn, "setWindowPosition", guiSetWindowPosition) \
   X(isWindowFullscreen, IsWindowFullscreenFn, "isWindowFullscreen", guiIsWindowFullscreen) \
+  X(isWindowMaximized, IsWindowMaximizedFn, "isWindowMaximized", guiIsWindowMaximized) \
+  X(maximizeWindow, MaximizeWindowFn, "maximizeWindow", guiMaximizeWindow) \
+  X(restoreWindow, RestoreWindowFn, "restoreWindow", guiRestoreWindow) \
+  X(hideCursor, HideCursorFn, "hideCursor", guiHideCursor) \
+  X(showCursor, ShowCursorFn, "showCursor", guiShowCursor) \
   X(checkCollisionRecs, CheckCollisionRecsFn, "checkCollisionRecs", guiCheckCollisionRecs) \
   X(checkCollisionCircles, CheckCollisionCirclesFn, "checkCollisionCircles", guiCheckCollisionCircles) \
   X(checkCollisionCircleRec, CheckCollisionCircleRecFn, "checkCollisionCircleRec", guiCheckCollisionCircleRec) \
   X(checkCollisionPointRec, CheckCollisionPointRecFn, "checkCollisionPointRec", guiCheckCollisionPointRec) \
   X(checkCollisionPointCircle, CheckCollisionPointCircleFn, "checkCollisionPointCircle", guiCheckCollisionPointCircle) \
-  X(checkCollisionPointTriangle, CheckCollisionPointTriangleFn, "checkCollisionPointTriangle", \
-    guiCheckCollisionPointTriangle) \
-  X(getCurrentMonitor, GetCurrentMonitorFn, "getCurrentMonitor", guiGetCurrentMonitor) \
-  X(getMonitorCount, GetMonitorCountFn, "getMonitorCount", guiGetMonitorCount) \
-  X(getMonitorWidth, GetMonitorWidthFn, "getMonitorWidth", guiGetMonitorWidth) \
-  X(getMonitorHeight, GetMonitorHeightFn, "getMonitorHeight", guiGetMonitorHeight) \
-  X(isWindowMaximized, IsWindowMaximizedFn, "isWindowMaximized", guiIsWindowMaximized) \
-  X(maximizeWindow, MaximizeWindowFn, "maximizeWindow", guiMaximizeWindow) \
-  X(restoreWindow, RestoreWindowFn, "restoreWindow", guiRestoreWindow)
+  X(loadTexture, LoadTextureFn, "loadTexture", guiLoadTexture) \
+  X(unloadTexture, UnloadTextureFn, "unloadTexture", guiUnloadTexture) \
+  X(drawTexture, DrawTextureFn, "drawTexture", guiDrawTexture) \
+  X(drawTextureTint, DrawTextureTintFn, "drawTextureTint", guiDrawTextureTint) \
+  X(drawTextureRec, DrawTextureRecFn, "drawTextureRec", guiDrawTextureRec) \
+  X(drawTexturePro, DrawTextureProFn, "drawTexturePro", guiDrawTexturePro) \
+  X(getTextureWidth, GetTextureWidthFn, "getTextureWidth", guiGetTextureWidth) \
+  X(getTextureHeight, GetTextureHeightFn, "getTextureHeight", guiGetTextureHeight) \
+  X(initAudio, InitAudioFn, "initAudio", guiInitAudio) \
+  X(closeAudio, CloseAudioFn, "closeAudio", guiCloseAudio) \
+  X(loadSound, LoadSoundFn, "loadSound", guiLoadSound) \
+  X(unloadSound, UnloadSoundFn, "unloadSound", guiUnloadSound) \
+  X(playSound, PlaySoundFn, "playSound", guiPlaySound) \
+  X(stopSound, StopSoundFn, "stopSound", guiStopSound) \
+  X(setSoundVolume, SetSoundVolumeFn, "setSoundVolume", guiSetSoundVolume) \
+  X(setSoundPitch, SetSoundPitchFn, "setSoundPitch", guiSetSoundPitch) \
+  X(isSoundPlaying, IsSoundPlayingFn, "isSoundPlaying", guiIsSoundPlaying) \
+  X(setMasterVolume, SetMasterVolumeFn, "setMasterVolume", guiSetMasterVolume) \
+  X(loadMusic, LoadMusicFn, "loadMusic", guiLoadMusic) \
+  X(unloadMusic, UnloadMusicFn, "unloadMusic", guiUnloadMusic) \
+  X(playMusic, PlayMusicFn, "playMusic", guiPlayMusic) \
+  X(pauseMusic, PauseMusicFn, "pauseMusic", guiPauseMusic) \
+  X(resumeMusic, ResumeMusicFn, "resumeMusic", guiResumeMusic) \
+  X(stopMusic, StopMusicFn, "stopMusic", guiStopMusic) \
+  X(updateMusic, UpdateMusicFn, "updateMusic", guiUpdateMusic) \
+  X(setMusicVolume, SetMusicVolumeFn, "setMusicVolume", guiSetMusicVolume) \
+  X(isMusicStreamPlaying, IsMusicStreamPlayingFn, "isMusicStreamPlaying", guiIsMusicStreamPlaying) \
+  X(setVirtualResolution, SetVirtualResolutionFn, "setVirtualResolution", guiSetVirtualResolution) \
+  X(getRenderWidth, GetRenderWidthFn, "getRenderWidth", guiGetRenderWidth) \
+  X(getRenderHeight, GetRenderHeightFn, "getRenderHeight", guiGetRenderHeight)
 
 #define RAYLIB_FUNCTIONS(X) \
   RAYLIB_BASE_FUNCTIONS(X) \
@@ -270,6 +307,15 @@ static const NameCode keyCodes[] = {
     {"KEY_F10", 299},
     {"KEY_F11", 300},
     {"KEY_F12", 301},
+    {"KEY_LEFT_SHIFT", 340},
+    {"KEY_LEFT_CONTROL", 341},
+    {"KEY_LEFT_ALT", 342},
+    {"KEY_LEFT_SUPER", 343},
+    {"KEY_RIGHT_SHIFT", 344},
+    {"KEY_RIGHT_CONTROL", 345},
+    {"KEY_RIGHT_ALT", 346},
+    {"KEY_RIGHT_SUPER", 347},
+    {"KEY_KB_MENU", 348},
     {"KEY_KP_0", 320},
     {"KEY_KP_1", 321},
     {"KEY_KP_2", 322},
@@ -287,16 +333,75 @@ static const NameCode keyCodes[] = {
     {"KEY_KP_ADD", 334},
     {"KEY_KP_ENTER", 335},
     {"KEY_KP_EQUAL", 336},
-    {"KEY_LEFT_SHIFT", 340},
-    {"KEY_LEFT_CONTROL", 341},
-    {"KEY_LEFT_ALT", 342},
-    {"KEY_LEFT_SUPER", 343},
-    {"KEY_RIGHT_SHIFT", 344},
-    {"KEY_RIGHT_CONTROL", 345},
-    {"KEY_RIGHT_ALT", 346},
-    {"KEY_RIGHT_SUPER", 347},
-    {"KEY_KB_MENU", 348},
 };
+
+static const NameCode mouseButtonCodes[] = {
+    {"LEFT", 0}, {"RIGHT", 1}, {"MIDDLE", 2}, {"SIDE", 3}, {"EXTRA", 4}, {"FORWARD", 5}, {"BACK", 6},
+};
+
+static int findCode(const NameCode *table, size_t count, const char *name) {
+  for (size_t i = 0; i < count; i++) {
+    if (strcmp(table[i].name, name) == 0) return table[i].code;
+  }
+  return -1;
+}
+
+static int getKeyCode(const char *name) { return findCode(keyCodes, sizeof(keyCodes) / sizeof(keyCodes[0]), name); }
+
+static int getMouseButtonCode(const char *name) {
+  return findCode(mouseButtonCodes, sizeof(mouseButtonCodes) / sizeof(mouseButtonCodes[0]), name);
+}
+
+static bool isFiniteNumber(double value) { return !isnan(value) && !isinf(value); }
+
+static bool fitsInt(double value) {
+  return isFiniteNumber(value) && floor(value) == value && value >= INT_MIN && value <= INT_MAX;
+}
+
+static bool fitsFloat(double value) { return isFiniteNumber(value) && value >= -FLT_MAX && value <= FLT_MAX; }
+
+static bool numbersFitInt(const PbValue *values, int count) {
+  for (int i = 0; i < count; i++) {
+    if (values[i].type != PB_VALUE_NUMBER || !fitsInt(values[i].as.number)) return false;
+  }
+  return true;
+}
+
+static bool numberFitsFloat(PbValue value) { return value.type == PB_VALUE_NUMBER && fitsFloat(value.as.number); }
+
+static bool numbersFitFloat(const PbValue *values, int count) {
+  for (int i = 0; i < count; i++) {
+    if (!numberFitsFloat(values[i])) return false;
+  }
+  return true;
+}
+
+static bool fitsCoord(double value) { return isFiniteNumber(value) && value >= -1e8 && value <= 1e8; }
+
+static bool numbersFitCoord(const PbValue *values, int count) {
+  for (int i = 0; i < count; i++) {
+    if (values[i].type != PB_VALUE_NUMBER || !fitsCoord(values[i].as.number)) return false;
+  }
+  return true;
+}
+
+static bool validColor(const PbValue *values) {
+  for (int i = 0; i < 3; i++) {
+    if (values[i].type != PB_VALUE_NUMBER || !isFiniteNumber(values[i].as.number) || values[i].as.number < 0 ||
+        values[i].as.number > 255)
+      return false;
+  }
+  return true;
+}
+
+static bool validColorAlpha(const PbValue *values) {
+  for (int i = 0; i < 4; i++) {
+    if (values[i].type != PB_VALUE_NUMBER || !isFiniteNumber(values[i].as.number) || values[i].as.number < 0 ||
+        values[i].as.number > 255)
+      return false;
+  }
+  return true;
+}
 
 static PbValue guiError(PbVM *vm, const char *message) {
   pbRuntimeError(vm, message);
@@ -307,51 +412,6 @@ static PbValue missingRaylibFunction(PbVM *vm, const char *name) {
   char message[256];
   snprintf(message, sizeof(message), "The installed Raylib backend does not provide %s().", name);
   return guiError(vm, message);
-}
-
-static bool numbersFitInt(const PbValue *values, int count) {
-  for (int i = 0; i < count; i++) {
-    if (values[i].type != PB_VALUE_NUMBER || !isfinite(values[i].as.number) || values[i].as.number < INT_MIN ||
-        values[i].as.number > INT_MAX)
-      return false;
-  }
-  return true;
-}
-
-static bool numberFitsFloat(PbValue value) {
-  return value.type == PB_VALUE_NUMBER && isfinite(value.as.number) && value.as.number >= -FLT_MAX &&
-         value.as.number <= FLT_MAX;
-}
-
-static bool numbersFitFloat(const PbValue *values, int count) {
-  for (int i = 0; i < count; i++) {
-    if (!numberFitsFloat(values[i])) return false;
-  }
-  return true;
-}
-
-static bool validColor(const PbValue *values) {
-  if (!numbersFitInt(values, 3)) return false;
-  for (int i = 0; i < 3; i++) {
-    double channel = values[i].as.number;
-    if (channel < 0 || channel > 255 || trunc(channel) != channel) return false;
-  }
-  return true;
-}
-
-static int findCode(const NameCode *codes, size_t count, const char *name) {
-  for (size_t i = 0; i < count; i++) {
-    if (strcmp(codes[i].name, name) == 0) return codes[i].code;
-  }
-  return -1;
-}
-
-static int getKeyCode(const char *name) { return findCode(keyCodes, sizeof(keyCodes) / sizeof(keyCodes[0]), name); }
-
-static int getMouseButtonCode(const char *name) {
-  static const NameCode mouseCodes[] = {{"LEFT", 0},  {"RIGHT", 1},   {"MIDDLE", 2}, {"SIDE", 3},
-                                        {"EXTRA", 4}, {"FORWARD", 5}, {"BACK", 6}};
-  return findCode(mouseCodes, sizeof(mouseCodes) / sizeof(mouseCodes[0]), name);
 }
 
 static PbValue guiInitWindow(PbVM *vm, int argCount, const PbValue *args, void *userData) {
@@ -488,7 +548,7 @@ static PbValue guiEndDrawing(PbVM *vm, int argCount, const PbValue *args, void *
 
 static PbValue guiDrawPixel(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 5 || !numbersFitInt(args, 2) || !validColor(args + 2))
+  if (argCount != 5 || !numbersFitCoord(args, 2) || !validColor(args + 2))
     return guiError(vm, "drawPixel(x, y, r, g, b) expected.");
   raylib.drawPixel((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number, (int)args[3].as.number,
                    (int)args[4].as.number);
@@ -497,7 +557,7 @@ static PbValue guiDrawPixel(PbVM *vm, int argCount, const PbValue *args, void *u
 
 static PbValue guiDrawLine(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 7 || !numbersFitInt(args, 4) || !validColor(args + 4))
+  if (argCount != 7 || !numbersFitCoord(args, 4) || !validColor(args + 4))
     return guiError(vm, "drawLine(x1, y1, x2, y2, r, g, b) expected.");
   raylib.drawLine((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number, (int)args[3].as.number,
                   (int)args[4].as.number, (int)args[5].as.number, (int)args[6].as.number);
@@ -506,7 +566,7 @@ static PbValue guiDrawLine(PbVM *vm, int argCount, const PbValue *args, void *us
 
 static PbValue guiDrawCircle(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 6 || !numbersFitInt(args, 2) || !numberFitsFloat(args[2]) || args[2].as.number < 0 ||
+  if (argCount != 6 || !numbersFitCoord(args, 2) || !numberFitsFloat(args[2]) || args[2].as.number < 0 ||
       !validColor(args + 3))
     return guiError(vm, "drawCircle(x, y, radius, r, g, b) expected.");
   raylib.drawCircle((int)args[0].as.number, (int)args[1].as.number, (float)args[2].as.number, (int)args[3].as.number,
@@ -516,7 +576,7 @@ static PbValue guiDrawCircle(PbVM *vm, int argCount, const PbValue *args, void *
 
 static PbValue guiDrawCircleLines(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 6 || !numbersFitInt(args, 2) || !numberFitsFloat(args[2]) || args[2].as.number < 0 ||
+  if (argCount != 6 || !numbersFitCoord(args, 2) || !numberFitsFloat(args[2]) || args[2].as.number < 0 ||
       !validColor(args + 3))
     return guiError(vm, "drawCircleLines(x, y, radius, r, g, b) expected.");
   if (raylib.drawCircleLines == NULL) return missingRaylibFunction(vm, "drawCircleLines");
@@ -525,9 +585,21 @@ static PbValue guiDrawCircleLines(PbVM *vm, int argCount, const PbValue *args, v
   return pbNilValue();
 }
 
+static PbValue guiDrawCircleAlpha(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 7 || !numbersFitCoord(args, 2) || !numberFitsFloat(args[2]) || args[2].as.number < 0 ||
+      !validColorAlpha(args + 3))
+    return guiError(vm, "drawCircleAlpha(x, y, radius, r, g, b, a) expected.");
+  if (raylib.drawCircleAlpha == NULL) return missingRaylibFunction(vm, "drawCircleAlpha");
+  raylib.drawCircleAlpha((int)args[0].as.number, (int)args[1].as.number, (float)args[2].as.number,
+                         (int)args[3].as.number, (int)args[4].as.number, (int)args[5].as.number,
+                         (int)args[6].as.number);
+  return pbNilValue();
+}
+
 static PbValue guiDrawEllipse(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 7 || !numbersFitInt(args, 2) || !numberFitsFloat(args[2]) || !numberFitsFloat(args[3]) ||
+  if (argCount != 7 || !numbersFitCoord(args, 2) || !numberFitsFloat(args[2]) || !numberFitsFloat(args[3]) ||
       args[2].as.number < 0 || args[3].as.number < 0 || !validColor(args + 4))
     return guiError(vm, "drawEllipse(x, y, radiusH, radiusV, r, g, b) expected.");
   raylib.drawEllipse((int)args[0].as.number, (int)args[1].as.number, (float)args[2].as.number, (float)args[3].as.number,
@@ -537,7 +609,7 @@ static PbValue guiDrawEllipse(PbVM *vm, int argCount, const PbValue *args, void 
 
 static PbValue guiDrawRectangle(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 7 || !numbersFitInt(args, 4) || !validColor(args + 4))
+  if (argCount != 7 || !numbersFitCoord(args, 4) || !validColor(args + 4))
     return guiError(vm, "drawRectangle(x, y, width, height, r, g, b) expected.");
   raylib.drawRectangle((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number, (int)args[3].as.number,
                        (int)args[4].as.number, (int)args[5].as.number, (int)args[6].as.number);
@@ -546,7 +618,7 @@ static PbValue guiDrawRectangle(PbVM *vm, int argCount, const PbValue *args, voi
 
 static PbValue guiDrawRectangleLines(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 7 || !numbersFitInt(args, 4) || !validColor(args + 4))
+  if (argCount != 7 || !numbersFitCoord(args, 4) || !validColor(args + 4))
     return guiError(vm, "drawRectangleLines(x, y, width, height, r, g, b) expected.");
   if (raylib.drawRectangleLines == NULL) return missingRaylibFunction(vm, "drawRectangleLines");
   raylib.drawRectangleLines((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number,
@@ -555,10 +627,33 @@ static PbValue guiDrawRectangleLines(PbVM *vm, int argCount, const PbValue *args
   return pbNilValue();
 }
 
+static PbValue guiDrawRectangleAlpha(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 8 || !numbersFitCoord(args, 4) || !validColorAlpha(args + 4))
+    return guiError(vm, "drawRectangleAlpha(x, y, width, height, r, g, b, a) expected.");
+  if (raylib.drawRectangleAlpha == NULL) return missingRaylibFunction(vm, "drawRectangleAlpha");
+  raylib.drawRectangleAlpha((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number,
+                            (int)args[3].as.number, (int)args[4].as.number, (int)args[5].as.number,
+                            (int)args[6].as.number, (int)args[7].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawRectangleRounded(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 9 || !numbersFitFloat(args, 5) || !numbersFitInt(args + 5, 1) || args[4].as.number < 0.0 ||
+      args[4].as.number > 1.0 || args[5].as.number <= 0 || !validColor(args + 6))
+    return guiError(vm, "drawRectangleRounded(x, y, width, height, roundness, segments, r, g, b) expected.");
+  if (raylib.drawRectangleRounded == NULL) return missingRaylibFunction(vm, "drawRectangleRounded");
+  raylib.drawRectangleRounded((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                              (float)args[3].as.number, (float)args[4].as.number, (int)args[5].as.number,
+                              (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
+  return pbNilValue();
+}
+
 static PbValue guiDrawText(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 7 || args[0].type != PB_VALUE_STRING || !numbersFitInt(args + 1, 3) || args[3].as.number <= 0 ||
-      !validColor(args + 4))
+  if (argCount != 7 || args[0].type != PB_VALUE_STRING || !numbersFitCoord(args + 1, 2) ||
+      !numbersFitInt(args + 3, 1) || args[3].as.number <= 0 || !validColor(args + 4))
     return guiError(vm, "drawText(text, x, y, fontSize, r, g, b) expected.");
   raylib.drawText(args[0].as.string.chars, (int)args[1].as.number, (int)args[2].as.number, (int)args[3].as.number,
                   (int)args[4].as.number, (int)args[5].as.number, (int)args[6].as.number);
@@ -571,6 +666,91 @@ static PbValue guiMeasureText(PbVM *vm, int argCount, const PbValue *args, void 
     return guiError(vm, "measureText(text, fontSize) expected.");
   if (raylib.measureText == NULL) return missingRaylibFunction(vm, "measureText");
   return pbNumberValue(raylib.measureText(args[0].as.string.chars, (int)args[1].as.number));
+}
+
+static PbValue guiDrawFPS(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || !numbersFitCoord(args, 2)) return guiError(vm, "drawFPS(x, y) expected.");
+  if (raylib.drawFPS == NULL) return missingRaylibFunction(vm, "drawFPS");
+  raylib.drawFPS((int)args[0].as.number, (int)args[1].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiGetTime(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "getTime() takes no arguments.");
+  if (raylib.getTime == NULL) return missingRaylibFunction(vm, "getTime");
+  return pbNumberValue(raylib.getTime());
+}
+
+static PbValue guiSetWindowSize(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || !numbersFitInt(args, 2) || args[0].as.number <= 0 || args[1].as.number <= 0)
+    return guiError(vm, "setWindowSize(width, height) expected.");
+  if (raylib.setWindowSize == NULL) return missingRaylibFunction(vm, "setWindowSize");
+  raylib.setWindowSize((int)args[0].as.number, (int)args[1].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetWindowPosition(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || !numbersFitInt(args, 2)) return guiError(vm, "setWindowPosition(x, y) expected.");
+  if (raylib.setWindowPosition == NULL) return missingRaylibFunction(vm, "setWindowPosition");
+  raylib.setWindowPosition((int)args[0].as.number, (int)args[1].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiIsWindowFullscreen(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "isWindowFullscreen() takes no arguments.");
+  if (raylib.isWindowFullscreen == NULL) return missingRaylibFunction(vm, "isWindowFullscreen");
+  return pbBoolValue(raylib.isWindowFullscreen());
+}
+
+static PbValue guiIsWindowMaximized(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "isWindowMaximized() takes no arguments.");
+  if (raylib.isWindowMaximized == NULL) return missingRaylibFunction(vm, "isWindowMaximized");
+  return pbBoolValue(raylib.isWindowMaximized());
+}
+
+static PbValue guiMaximizeWindow(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "maximizeWindow() takes no arguments.");
+  if (raylib.maximizeWindow == NULL) return missingRaylibFunction(vm, "maximizeWindow");
+  raylib.maximizeWindow();
+  return pbNilValue();
+}
+
+static PbValue guiRestoreWindow(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "restoreWindow() takes no arguments.");
+  if (raylib.restoreWindow == NULL) return missingRaylibFunction(vm, "restoreWindow");
+  raylib.restoreWindow();
+  return pbNilValue();
+}
+
+static PbValue guiHideCursor(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "hideCursor() takes no arguments.");
+  if (raylib.hideCursor == NULL) return missingRaylibFunction(vm, "hideCursor");
+  raylib.hideCursor();
+  return pbNilValue();
+}
+
+static PbValue guiShowCursor(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "showCursor() takes no arguments.");
+  if (raylib.showCursor == NULL) return missingRaylibFunction(vm, "showCursor");
+  raylib.showCursor();
+  return pbNilValue();
 }
 
 static PbValue keyQuery(PbVM *vm, int argCount, const PbValue *args, bool (*query)(int), const char *usage) {
@@ -680,201 +860,6 @@ static PbValue guiGetMouseWheelMove(PbVM *vm, int argCount, const PbValue *args,
   return pbNumberValue(raylib.getMouseWheelMove());
 }
 
-static PbValue guiDrawTriangle(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 9 || !numbersFitFloat(args, 6) || !validColor(args + 6))
-    return guiError(vm, "drawTriangle(x1, y1, x2, y2, x3, y3, r, g, b) expected.");
-  if (raylib.drawTriangle == NULL) return missingRaylibFunction(vm, "drawTriangle");
-  raylib.drawTriangle((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
-                      (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
-                      (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawTriangleLines(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 9 || !numbersFitFloat(args, 6) || !validColor(args + 6))
-    return guiError(vm, "drawTriangleLines(x1, y1, x2, y2, x3, y3, r, g, b) expected.");
-  if (raylib.drawTriangleLines == NULL) return missingRaylibFunction(vm, "drawTriangleLines");
-  raylib.drawTriangleLines((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
-                           (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
-                           (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawRectangleRounded(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 9 || !numbersFitFloat(args, 5) || !numbersFitInt(args + 5, 1) || args[4].as.number < 0.0 ||
-      args[4].as.number > 1.0 || args[5].as.number <= 0 || !validColor(args + 6))
-    return guiError(vm, "drawRectangleRounded(x, y, width, height, roundness, segments, r, g, b) expected.");
-  if (raylib.drawRectangleRounded == NULL) return missingRaylibFunction(vm, "drawRectangleRounded");
-  raylib.drawRectangleRounded((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
-                              (float)args[3].as.number, (float)args[4].as.number, (int)args[5].as.number,
-                              (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawRectangleRoundedLines(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 9 || !numbersFitFloat(args, 5) || !numbersFitInt(args + 5, 1) || args[4].as.number < 0.0 ||
-      args[4].as.number > 1.0 || args[5].as.number <= 0 || !validColor(args + 6))
-    return guiError(vm, "drawRectangleRoundedLines(x, y, width, height, roundness, segments, r, g, b) expected.");
-  if (raylib.drawRectangleRoundedLines == NULL) return missingRaylibFunction(vm, "drawRectangleRoundedLines");
-  raylib.drawRectangleRoundedLines((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
-                                   (float)args[3].as.number, (float)args[4].as.number, (int)args[5].as.number,
-                                   (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawPoly(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 8 || !numbersFitFloat(args, 2) || !numbersFitInt(args + 2, 1) || args[2].as.number < 3 ||
-      !numbersFitFloat(args + 3, 2) || args[3].as.number < 0.0 || !validColor(args + 5))
-    return guiError(vm, "drawPoly(x, y, sides, radius, rotation, r, g, b) expected.");
-  if (raylib.drawPoly == NULL) return missingRaylibFunction(vm, "drawPoly");
-  raylib.drawPoly((float)args[0].as.number, (float)args[1].as.number, (int)args[2].as.number, (float)args[3].as.number,
-                  (float)args[4].as.number, (int)args[5].as.number, (int)args[6].as.number, (int)args[7].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawPolyLines(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 8 || !numbersFitFloat(args, 2) || !numbersFitInt(args + 2, 1) || args[2].as.number < 3 ||
-      !numbersFitFloat(args + 3, 2) || args[3].as.number < 0.0 || !validColor(args + 5))
-    return guiError(vm, "drawPolyLines(x, y, sides, radius, rotation, r, g, b) expected.");
-  if (raylib.drawPolyLines == NULL) return missingRaylibFunction(vm, "drawPolyLines");
-  raylib.drawPolyLines((float)args[0].as.number, (float)args[1].as.number, (int)args[2].as.number,
-                       (float)args[3].as.number, (float)args[4].as.number, (int)args[5].as.number,
-                       (int)args[6].as.number, (int)args[7].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawRing(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 10 || !numbersFitFloat(args, 6) || !numbersFitInt(args + 6, 1) || args[2].as.number < 0.0 ||
-      args[3].as.number < 0.0 || args[6].as.number < 0 || !validColor(args + 7))
-    return guiError(vm, "drawRing(x, y, innerRadius, outerRadius, startAngle, endAngle, segments, r, g, b) expected.");
-  if (raylib.drawRing == NULL) return missingRaylibFunction(vm, "drawRing");
-  raylib.drawRing((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
-                  (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number, (int)args[6].as.number,
-                  (int)args[7].as.number, (int)args[8].as.number, (int)args[9].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawRingLines(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 10 || !numbersFitFloat(args, 6) || !numbersFitInt(args + 6, 1) || args[2].as.number < 0.0 ||
-      args[3].as.number < 0.0 || args[6].as.number < 0 || !validColor(args + 7))
-    return guiError(vm,
-                    "drawRingLines(x, y, innerRadius, outerRadius, startAngle, endAngle, segments, r, g, b) expected.");
-  if (raylib.drawRingLines == NULL) return missingRaylibFunction(vm, "drawRingLines");
-  raylib.drawRingLines((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
-                       (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
-                       (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number, (int)args[9].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawCircleSector(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 9 || !numbersFitFloat(args, 5) || !numbersFitInt(args + 5, 1) || args[2].as.number < 0.0 ||
-      args[5].as.number < 0 || !validColor(args + 6))
-    return guiError(vm, "drawCircleSector(x, y, radius, startAngle, endAngle, segments, r, g, b) expected.");
-  if (raylib.drawCircleSector == NULL) return missingRaylibFunction(vm, "drawCircleSector");
-  raylib.drawCircleSector((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
-                          (float)args[3].as.number, (float)args[4].as.number, (int)args[5].as.number,
-                          (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawCircleSectorLines(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 9 || !numbersFitFloat(args, 5) || !numbersFitInt(args + 5, 1) || args[2].as.number < 0.0 ||
-      args[5].as.number < 0 || !validColor(args + 6))
-    return guiError(vm, "drawCircleSectorLines(x, y, radius, startAngle, endAngle, segments, r, g, b) expected.");
-  if (raylib.drawCircleSectorLines == NULL) return missingRaylibFunction(vm, "drawCircleSectorLines");
-  raylib.drawCircleSectorLines((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
-                               (float)args[3].as.number, (float)args[4].as.number, (int)args[5].as.number,
-                               (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawCircleGradient(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 9 || !numbersFitInt(args, 2) || !numberFitsFloat(args[2]) || args[2].as.number < 0.0 ||
-      !validColor(args + 3) || !validColor(args + 6))
-    return guiError(vm, "drawCircleGradient(x, y, radius, r1, g1, b1, r2, g2, b2) expected.");
-  if (raylib.drawCircleGradient == NULL) return missingRaylibFunction(vm, "drawCircleGradient");
-  raylib.drawCircleGradient((int)args[0].as.number, (int)args[1].as.number, (float)args[2].as.number,
-                            (int)args[3].as.number, (int)args[4].as.number, (int)args[5].as.number,
-                            (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawRectangleGradientV(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 10 || !numbersFitInt(args, 4) || !validColor(args + 4) || !validColor(args + 7))
-    return guiError(vm, "drawRectangleGradientV(x, y, width, height, r1, g1, b1, r2, g2, b2) expected.");
-  if (raylib.drawRectangleGradientV == NULL) return missingRaylibFunction(vm, "drawRectangleGradientV");
-  raylib.drawRectangleGradientV((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number,
-                                (int)args[3].as.number, (int)args[4].as.number, (int)args[5].as.number,
-                                (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number,
-                                (int)args[9].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawRectangleGradientH(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 10 || !numbersFitInt(args, 4) || !validColor(args + 4) || !validColor(args + 7))
-    return guiError(vm, "drawRectangleGradientH(x, y, width, height, r1, g1, b1, r2, g2, b2) expected.");
-  if (raylib.drawRectangleGradientH == NULL) return missingRaylibFunction(vm, "drawRectangleGradientH");
-  raylib.drawRectangleGradientH((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number,
-                                (int)args[3].as.number, (int)args[4].as.number, (int)args[5].as.number,
-                                (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number,
-                                (int)args[9].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiDrawFPS(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 2 || !numbersFitInt(args, 2)) return guiError(vm, "drawFPS(x, y) expected.");
-  if (raylib.drawFPS == NULL) return missingRaylibFunction(vm, "drawFPS");
-  raylib.drawFPS((int)args[0].as.number, (int)args[1].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiGetTime(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)args;
-  (void)userData;
-  if (argCount != 0) return guiError(vm, "getTime() takes no arguments.");
-  if (raylib.getTime == NULL) return missingRaylibFunction(vm, "getTime");
-  return pbNumberValue(raylib.getTime());
-}
-
-static PbValue guiSetWindowSize(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 2 || !numbersFitInt(args, 2) || args[0].as.number <= 0 || args[1].as.number <= 0)
-    return guiError(vm, "setWindowSize(width, height) expected.");
-  if (raylib.setWindowSize == NULL) return missingRaylibFunction(vm, "setWindowSize");
-  raylib.setWindowSize((int)args[0].as.number, (int)args[1].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiSetWindowPosition(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 2 || !numbersFitInt(args, 2)) return guiError(vm, "setWindowPosition(x, y) expected.");
-  if (raylib.setWindowPosition == NULL) return missingRaylibFunction(vm, "setWindowPosition");
-  raylib.setWindowPosition((int)args[0].as.number, (int)args[1].as.number);
-  return pbNilValue();
-}
-
-static PbValue guiIsWindowFullscreen(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)args;
-  (void)userData;
-  if (argCount != 0) return guiError(vm, "isWindowFullscreen() takes no arguments.");
-  if (raylib.isWindowFullscreen == NULL) return missingRaylibFunction(vm, "isWindowFullscreen");
-  return pbBoolValue(raylib.isWindowFullscreen());
-}
-
 static PbValue guiCheckCollisionRecs(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
   if (argCount != 8 || !numbersFitFloat(args, 8))
@@ -925,80 +910,265 @@ static PbValue guiCheckCollisionPointCircle(PbVM *vm, int argCount, const PbValu
                                                       (float)args[4].as.number));
 }
 
-static PbValue guiCheckCollisionPointTriangle(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+/* Sprites & Textures */
+
+static PbValue guiLoadTexture(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 8 || !numbersFitFloat(args, 8))
-    return guiError(vm, "checkCollisionPointTriangle(px, py, x1, y1, x2, y2, x3, y3) expected.");
-  if (raylib.checkCollisionPointTriangle == NULL) return missingRaylibFunction(vm, "checkCollisionPointTriangle");
-  return pbBoolValue(raylib.checkCollisionPointTriangle(
-      (float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number, (float)args[3].as.number,
-      (float)args[4].as.number, (float)args[5].as.number, (float)args[6].as.number, (float)args[7].as.number));
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING) return guiError(vm, "loadTexture(path) expected.");
+  if (raylib.loadTexture == NULL) return missingRaylibFunction(vm, "loadTexture");
+  return pbNumberValue(raylib.loadTexture(args[0].as.string.chars));
 }
 
-static PbValue guiGetCurrentMonitor(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)args;
+static PbValue guiUnloadTexture(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 0) return guiError(vm, "getCurrentMonitor() takes no arguments.");
-  if (raylib.getCurrentMonitor == NULL) return missingRaylibFunction(vm, "getCurrentMonitor");
-  return pbNumberValue(raylib.getCurrentMonitor());
-}
-
-static PbValue guiGetMonitorCount(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)args;
-  (void)userData;
-  if (argCount != 0) return guiError(vm, "getMonitorCount() takes no arguments.");
-  if (raylib.getMonitorCount == NULL) return missingRaylibFunction(vm, "getMonitorCount");
-  return pbNumberValue(raylib.getMonitorCount());
-}
-
-static PbValue guiGetMonitorWidth(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 1 || !numbersFitInt(args, 1) || args[0].as.number < 0)
-    return guiError(vm, "getMonitorWidth(monitor) expects a non-negative integer.");
-  if (raylib.getMonitorWidth == NULL) return missingRaylibFunction(vm, "getMonitorWidth");
-  return pbNumberValue(raylib.getMonitorWidth((int)args[0].as.number));
-}
-
-static PbValue guiGetMonitorHeight(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 1 || !numbersFitInt(args, 1) || args[0].as.number < 0)
-    return guiError(vm, "getMonitorHeight(monitor) expects a non-negative integer.");
-  if (raylib.getMonitorHeight == NULL) return missingRaylibFunction(vm, "getMonitorHeight");
-  return pbNumberValue(raylib.getMonitorHeight((int)args[0].as.number));
-}
-
-static PbValue guiIsWindowMaximized(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)args;
-  (void)userData;
-  if (argCount != 0) return guiError(vm, "isWindowMaximized() takes no arguments.");
-  if (raylib.isWindowMaximized == NULL) return missingRaylibFunction(vm, "isWindowMaximized");
-  return pbBoolValue(raylib.isWindowMaximized());
-}
-
-static PbValue guiMaximizeWindow(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)args;
-  (void)userData;
-  if (argCount != 0) return guiError(vm, "maximizeWindow() takes no arguments.");
-  if (raylib.maximizeWindow == NULL) return missingRaylibFunction(vm, "maximizeWindow");
-  raylib.maximizeWindow();
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "unloadTexture(id) expected.");
+  if (raylib.unloadTexture == NULL) return missingRaylibFunction(vm, "unloadTexture");
+  raylib.unloadTexture((int)args[0].as.number);
   return pbNilValue();
 }
 
-static PbValue guiRestoreWindow(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+static PbValue guiDrawTexture(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 3 || !numbersFitInt(args, 1) || !numbersFitCoord(args + 1, 2))
+    return guiError(vm, "drawTexture(id, x, y) expected.");
+  if (raylib.drawTexture == NULL) return missingRaylibFunction(vm, "drawTexture");
+  raylib.drawTexture((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawTextureTint(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 6 || !numbersFitInt(args, 1) || !numbersFitCoord(args + 1, 2) || !validColor(args + 3))
+    return guiError(vm, "drawTextureTint(id, x, y, r, g, b) expected.");
+  if (raylib.drawTextureTint == NULL) return missingRaylibFunction(vm, "drawTextureTint");
+  raylib.drawTextureTint((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number, (int)args[3].as.number,
+                         (int)args[4].as.number, (int)args[5].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawTextureRec(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 7 || !numbersFitInt(args, 1) || !numbersFitFloat(args + 1, 6))
+    return guiError(vm, "drawTextureRec(id, sourceX, sourceY, sourceW, sourceH, destX, destY) expected.");
+  if (raylib.drawTextureRec == NULL) return missingRaylibFunction(vm, "drawTextureRec");
+  raylib.drawTextureRec((int)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                        (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
+                        (float)args[6].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawTexturePro(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 12 || !numbersFitInt(args, 1) || !numbersFitFloat(args + 1, 11))
+    return guiError(vm, "drawTexturePro(id, sx, sy, sw, sh, dx, dy, dw, dh, ox, oy, rot) expected.");
+  if (raylib.drawTexturePro == NULL) return missingRaylibFunction(vm, "drawTexturePro");
+  raylib.drawTexturePro((int)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                        (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
+                        (float)args[6].as.number, (float)args[7].as.number, (float)args[8].as.number,
+                        (float)args[9].as.number, (float)args[10].as.number, (float)args[11].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiGetTextureWidth(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "getTextureWidth(id) expected.");
+  if (raylib.getTextureWidth == NULL) return missingRaylibFunction(vm, "getTextureWidth");
+  return pbNumberValue(raylib.getTextureWidth((int)args[0].as.number));
+}
+
+static PbValue guiGetTextureHeight(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "getTextureHeight(id) expected.");
+  if (raylib.getTextureHeight == NULL) return missingRaylibFunction(vm, "getTextureHeight");
+  return pbNumberValue(raylib.getTextureHeight((int)args[0].as.number));
+}
+
+/* Audio: Sound & Music */
+
+static PbValue guiInitAudio(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)args;
   (void)userData;
-  if (argCount != 0) return guiError(vm, "restoreWindow() takes no arguments.");
-  if (raylib.restoreWindow == NULL) return missingRaylibFunction(vm, "restoreWindow");
-  raylib.restoreWindow();
+  if (argCount != 0) return guiError(vm, "initAudio() takes no arguments.");
+  if (raylib.initAudio == NULL) return missingRaylibFunction(vm, "initAudio");
+  raylib.initAudio();
   return pbNilValue();
+}
+
+static PbValue guiCloseAudio(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "closeAudio() takes no arguments.");
+  if (raylib.closeAudio == NULL) return missingRaylibFunction(vm, "closeAudio");
+  raylib.closeAudio();
+  return pbNilValue();
+}
+
+static PbValue guiLoadSound(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING) return guiError(vm, "loadSound(path) expected.");
+  if (raylib.loadSound == NULL) return missingRaylibFunction(vm, "loadSound");
+  return pbNumberValue(raylib.loadSound(args[0].as.string.chars));
+}
+
+static PbValue guiUnloadSound(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "unloadSound(id) expected.");
+  if (raylib.unloadSound == NULL) return missingRaylibFunction(vm, "unloadSound");
+  raylib.unloadSound((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiPlaySound(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "playSound(id) expected.");
+  if (raylib.playSound == NULL) return missingRaylibFunction(vm, "playSound");
+  raylib.playSound((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiStopSound(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "stopSound(id) expected.");
+  if (raylib.stopSound == NULL) return missingRaylibFunction(vm, "stopSound");
+  raylib.stopSound((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetSoundVolume(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || !numbersFitInt(args, 1) || !numberFitsFloat(args[1]))
+    return guiError(vm, "setSoundVolume(id, volume) expected.");
+  if (raylib.setSoundVolume == NULL) return missingRaylibFunction(vm, "setSoundVolume");
+  raylib.setSoundVolume((int)args[0].as.number, (float)args[1].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetSoundPitch(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || !numbersFitInt(args, 1) || !numberFitsFloat(args[1]))
+    return guiError(vm, "setSoundPitch(id, pitch) expected.");
+  if (raylib.setSoundPitch == NULL) return missingRaylibFunction(vm, "setSoundPitch");
+  raylib.setSoundPitch((int)args[0].as.number, (float)args[1].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiIsSoundPlaying(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "isSoundPlaying(id) expected.");
+  if (raylib.isSoundPlaying == NULL) return missingRaylibFunction(vm, "isSoundPlaying");
+  return pbBoolValue(raylib.isSoundPlaying((int)args[0].as.number));
+}
+
+static PbValue guiSetMasterVolume(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numberFitsFloat(args[0])) return guiError(vm, "setMasterVolume(volume) expected.");
+  if (raylib.setMasterVolume == NULL) return missingRaylibFunction(vm, "setMasterVolume");
+  raylib.setMasterVolume((float)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiLoadMusic(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING) return guiError(vm, "loadMusic(path) expected.");
+  if (raylib.loadMusic == NULL) return missingRaylibFunction(vm, "loadMusic");
+  return pbNumberValue(raylib.loadMusic(args[0].as.string.chars));
+}
+
+static PbValue guiUnloadMusic(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "unloadMusic(id) expected.");
+  if (raylib.unloadMusic == NULL) return missingRaylibFunction(vm, "unloadMusic");
+  raylib.unloadMusic((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiPlayMusic(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "playMusic(id) expected.");
+  if (raylib.playMusic == NULL) return missingRaylibFunction(vm, "playMusic");
+  raylib.playMusic((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiPauseMusic(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "pauseMusic(id) expected.");
+  if (raylib.pauseMusic == NULL) return missingRaylibFunction(vm, "pauseMusic");
+  raylib.pauseMusic((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiResumeMusic(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "resumeMusic(id) expected.");
+  if (raylib.resumeMusic == NULL) return missingRaylibFunction(vm, "resumeMusic");
+  raylib.resumeMusic((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiStopMusic(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "stopMusic(id) expected.");
+  if (raylib.stopMusic == NULL) return missingRaylibFunction(vm, "stopMusic");
+  raylib.stopMusic((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiUpdateMusic(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "updateMusic(id) expected.");
+  if (raylib.updateMusic == NULL) return missingRaylibFunction(vm, "updateMusic");
+  raylib.updateMusic((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetMusicVolume(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || !numbersFitInt(args, 1) || !numberFitsFloat(args[1]))
+    return guiError(vm, "setMusicVolume(id, volume) expected.");
+  if (raylib.setMusicVolume == NULL) return missingRaylibFunction(vm, "setMusicVolume");
+  raylib.setMusicVolume((int)args[0].as.number, (float)args[1].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiIsMusicStreamPlaying(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "isMusicStreamPlaying(id) expected.");
+  if (raylib.isMusicStreamPlaying == NULL) return missingRaylibFunction(vm, "isMusicStreamPlaying");
+  return pbBoolValue(raylib.isMusicStreamPlaying((int)args[0].as.number));
+}
+
+static PbValue guiSetVirtualResolution(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || !numbersFitInt(args, 2) || args[0].as.number <= 0 || args[1].as.number <= 0)
+    return guiError(vm, "setVirtualResolution(width, height) expected positive integers.");
+  if (raylib.setVirtualResolution == NULL) return missingRaylibFunction(vm, "setVirtualResolution");
+  raylib.setVirtualResolution((int)args[0].as.number, (int)args[1].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiGetRenderWidth(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "getRenderWidth() takes no arguments.");
+  if (raylib.getRenderWidth == NULL) return missingRaylibFunction(vm, "getRenderWidth");
+  return pbNumberValue(raylib.getRenderWidth());
+}
+
+static PbValue guiGetRenderHeight(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "getRenderHeight() takes no arguments.");
+  if (raylib.getRenderHeight == NULL) return missingRaylibFunction(vm, "getRenderHeight");
+  return pbNumberValue(raylib.getRenderHeight());
 }
 
 static bool openRaylibLibrary(void) {
   const char *overridePath = getenv("PB_RAYLIB_LIBRARY");
 #ifdef _WIN32
-  if (overridePath != NULL && overridePath[0] != '\0')
+  if (overridePath != NULL && overridePath[0] != '\0') {
     raylibLibrary = LoadLibraryA(overridePath);
-  else {
+  } else {
     raylibLibrary = LoadLibraryA("build\\pb_raylib_windows.dll");
     if (raylibLibrary == NULL) raylibLibrary = LoadLibraryA("lib\\pb_raylib_windows.dll");
     if (raylibLibrary == NULL) {
@@ -1016,9 +1186,9 @@ static bool openRaylibLibrary(void) {
     }
   }
 #else
-  if (overridePath != NULL && overridePath[0] != '\0')
+  if (overridePath != NULL && overridePath[0] != '\0') {
     raylibLibrary = dlopen(overridePath, RTLD_NOW | RTLD_LOCAL);
-  else {
+  } else {
     const char *paths[] = {"build/pb_raylib_linux.so", "$ORIGIN/pb_raylib_linux.so", "lib/pb_raylib_linux.so",
                            "$ORIGIN/../lib/pb_raylib_linux.so", "$ORIGIN/../lib/pb/pb_raylib_linux.so"};
     for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]) && raylibLibrary == NULL; i++)
