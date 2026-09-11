@@ -4,19 +4,33 @@ Pogberry is a lightweight, bytecode-compiled programming language designed for l
 
 The project is under active development. The core language, collections, classes, source modules, native modules, embedding API, test suite, and 2D game engine work today.
 
-## Build and run
+## Build and install
 
-Build the interpreter:
+### Linux / macOS
+
+Build the interpreter and install it for your user:
 
 ```sh
 make
 make install PREFIX="$HOME/.local"
 ```
 
-This installs `pb`, its GUI runtime, and its standard-library sources for your
-user. If `~/.local/bin` is on `PATH`, `pb` can then be used from any directory.
-Use `sudo make install` instead for an all-users installation under
-`/usr/local`.
+This installs `pb`, its GUI runtime (`lib/pb_raylib_linux.so`), and standard-library sources under `~/.local`. If `~/.local/bin` is on `PATH`, `pb` can then be used from any directory. Use `sudo make install` for an all-users installation under `/usr/local`.
+
+### Windows
+
+Ensure `gcc` and `make` are installed and available in your terminal.
+
+Run `make` from the repository root:
+```cmd
+make
+```
+
+To run `pb` from any directory, copy the binary, standard library, and runtime libraries to a folder on your `PATH` (such as `%LOCALAPPDATA%\Programs\pogberry`):
+
+---
+
+## Running programs
 
 Run the `main.pb` in a project directory:
 
@@ -37,8 +51,9 @@ pb run examples/basics/hello_world.pb
 pb repl
 ```
 
-The older `pb <path>` and bare `pb` forms remain available. Without installing,
-the same commands can still be run as `build/pb` from the repository root.
+Without installing, commands can be run directly from the repository root:
+- On Linux/macOS: `./build/pb run examples/games/cyber_runner`
+- On Windows: `build\pb run examples\games\cyber_runner`
 
 Build the embeddable shared library:
 
