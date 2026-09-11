@@ -63,7 +63,7 @@ The [examples](examples/README.md) directory is organized by purpose:
 
 ```sh
 pb run examples/module_project
-pb run examples/games/gui_project
+pb run examples/games/cyber_runner
 ```
 
 For 2D game development, windowing, sprites, and audio with `pb_gui`, refer to the [2D Game Cheatsheet](docs/CHEATSHEET.md).

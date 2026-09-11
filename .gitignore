@@ -7,3 +7,4 @@ pb
 .log
 .clang-format
 *.md
+!docs/*.md

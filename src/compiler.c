@@ -70,6 +70,7 @@ typedef struct Compiler {
   int localCount;
   int scopeDepth;
   int lastAssignmentOpOffset;
+  int lastComparisonOpOffset;
 } Compiler;
 
 typedef struct ClassCompiler {
@@ -241,23 +242,29 @@ static int emitJump(uint8_t instruction) {
 
 static int emitConditionJump(int jumpsBefore) {
   Chunk *chunk = currentChunk();
-  if (jumpEmitCount == jumpsBefore && chunk->count > 0) {
-    uint8_t lastOp = chunk->code[chunk->count - 1];
+  if (jumpEmitCount == jumpsBefore && current != NULL && current->lastComparisonOpOffset != -1 &&
+      chunk->count == current->lastComparisonOpOffset + 1) {
+    int compOffset = current->lastComparisonOpOffset;
+    current->lastComparisonOpOffset = -1;
+    uint8_t lastOp = chunk->code[compOffset];
     if (lastOp == OP_LESS) {
-      chunk->code[chunk->count - 1] = OP_JUMP_IF_NOT_LESS;
+      chunk->code[compOffset] = OP_JUMP_IF_NOT_LESS;
       emitU16BE(UINT16_MAX);
       return chunk->count - 2;
     }
     if (lastOp == OP_GREATER) {
-      chunk->code[chunk->count - 1] = OP_JUMP_IF_NOT_GREATER;
+      chunk->code[compOffset] = OP_JUMP_IF_NOT_GREATER;
       emitU16BE(UINT16_MAX);
       return chunk->count - 2;
     }
     if (lastOp == OP_EQUAL) {
-      chunk->code[chunk->count - 1] = OP_JUMP_IF_NOT_EQUAL;
+      chunk->code[compOffset] = OP_JUMP_IF_NOT_EQUAL;
       emitU16BE(UINT16_MAX);
       return chunk->count - 2;
     }
+  }
+  if (current != NULL) {
+    current->lastComparisonOpOffset = -1;
   }
   return emitJump(OP_POP_JUMP_IF_FALSE);
 }
@@ -384,6 +391,7 @@ static void initCompiler(Compiler *compiler, FunctionType type) {
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
   compiler->lastAssignmentOpOffset = -1;
+  compiler->lastComparisonOpOffset = -1;
   compiler->function = newFunction();
   current = compiler;
   if (sourceName != NULL) current->function->sourceName = copyString(sourceName, (int)strlen(sourceName));
@@ -580,15 +588,18 @@ static void binary(bool canAssign) {
     emitBytes(OP_EQUAL, OP_NOT);
     break;
   case TOKEN_EQUAL_EQUAL:
+    if (current != NULL) current->lastComparisonOpOffset = currentChunk()->count;
     emitByte(OP_EQUAL);
     break;
   case TOKEN_GREATER:
+    if (current != NULL) current->lastComparisonOpOffset = currentChunk()->count;
     emitByte(OP_GREATER);
     break;
   case TOKEN_GREATER_EQUAL:
     emitBytes(OP_LESS, OP_NOT);
     break;
   case TOKEN_LESS:
+    if (current != NULL) current->lastComparisonOpOffset = currentChunk()->count;
     emitByte(OP_LESS);
     break;
   case TOKEN_LESS_EQUAL:
@@ -839,7 +850,7 @@ static void forStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
   if (match(TOKEN_SEMICOLON)) {
     // no initializer.
-  } else if (match(TOKEN_VAR)) {
+  } else if (match(TOKEN_VAR) || match(TOKEN_LET)) {
     varDeclaration();
   } else {
     expressionStatement();
@@ -848,6 +859,7 @@ static void forStatement() {
   int loopStart = currentChunk()->count;
   int exitJump = -1;
   if (!match(TOKEN_SEMICOLON)) {
+    if (current != NULL) current->lastComparisonOpOffset = -1;
     int jumpsBefore = jumpEmitCount;
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
@@ -889,6 +901,7 @@ static void forStatement() {
 
 static void ifStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+  if (current != NULL) current->lastComparisonOpOffset = -1;
   int jumpsBefore = jumpEmitCount;
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -989,6 +1002,7 @@ static void whileStatement() {
 
   int loopStart = currentChunk()->count;
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+  if (current != NULL) current->lastComparisonOpOffset = -1;
   int jumpsBefore = jumpEmitCount;
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
