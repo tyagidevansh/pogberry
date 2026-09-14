@@ -1,8 +1,8 @@
-var list = [];
+let list = [];
 list.push(list);
 print(list);
 
-var map = {};
+let map = {};
 map["self"] = map;
 print(map);
 // EXPECTED STATUS: 0

@@ -1,4 +1,4 @@
-var items = [];
+let items = [];
 items.push();
 // EXPECTED STATUS: 70
 // EXPECTED OUTPUT:

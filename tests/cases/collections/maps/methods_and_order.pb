@@ -1,4 +1,4 @@
-var data = {"a": 1, "b": 2};
+let data = {"a": 1, "b": 2};
 print(data.has("a"));
 print(data.has("missing"));
 print(data.get("a", 99));

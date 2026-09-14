@@ -89,14 +89,14 @@ Statements end with semicolons. `//` starts a line comment.
 
 ```pb
 let name = "Sajid";
-var health = 100;
+let health = 100;
 health = health - 10;
 
 if (health > 0)
   print(name + " is still standing.");
 ```
 
-`let` and `var` currently create mutable bindings. Values include `nil`,
+`let` creates a mutable binding. Values include `nil`,
 booleans, numbers, strings, lists, maps, functions, classes, instances, and
 modules. `false` and `nil` are falsey; every other value is truthy.
 

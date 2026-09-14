@@ -1,4 +1,4 @@
-var items = [1];
+let items = [1];
 items.remove(2);
 // EXPECTED STATUS: 70
 // EXPECTED OUTPUT:

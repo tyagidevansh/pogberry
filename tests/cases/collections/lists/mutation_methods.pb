@@ -1,4 +1,4 @@
-var values = [1, 2];
+let values = [1, 2];
 values.push(3);
 values.extend([4, 5]);
 values.insert(0, 0);

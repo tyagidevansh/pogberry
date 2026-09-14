@@ -1,4 +1,4 @@
-var items = [1];
+let items = [1];
 print(items[1]);
 // EXPECTED STATUS: 70
 // EXPECTED OUTPUT:

@@ -1,7 +1,7 @@
-var iterations = 0;
+let iterations = 0;
 while (iterations < 20000) {
   while (true) {
-    var temporary = iterations;
+    let temporary = iterations;
     iterations = temporary + 1;
     break;
   }

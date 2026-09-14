@@ -1,5 +1,5 @@
 fun makeCounter(start) {
-  var value = start;
+  let value = start;
   fun next() {
     value = value + 1;
     return value;
@@ -7,14 +7,14 @@ fun makeCounter(start) {
   return next;
 }
 
-var first = makeCounter(10);
-var second = makeCounter(100);
+let first = makeCounter(10);
+let second = makeCounter(100);
 print(first());
 print(first());
 print(second());
 
 fun outer() {
-  var message = "captured";
+  let message = "captured";
   fun middle() {
     fun inner() {
       return message;
@@ -37,7 +37,7 @@ class Box {
     return get;
   }
 }
-var getBox = Box(42).getter();
+let getBox = Box(42).getter();
 print(getBox());
 print(type(getBox));
 // EXPECTED STATUS: 0

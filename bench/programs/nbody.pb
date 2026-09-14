@@ -14,9 +14,9 @@ class Body {
 
 fun advance(bodies, dt) {
   let n = len(bodies);
-  for (var i = 0; i < n; i = i + 1) {
+  for (let i = 0; i < n; i = i + 1) {
     let bi = bodies[i];
-    for (var j = i + 1; j < n; j = j + 1) {
+    for (let j = i + 1; j < n; j = j + 1) {
       let bj = bodies[j];
       let dx = bi.x - bj.x;
       let dy = bi.y - bj.y;
@@ -35,7 +35,7 @@ fun advance(bodies, dt) {
     }
   }
 
-  for (var i = 0; i < n; i = i + 1) {
+  for (let i = 0; i < n; i = i + 1) {
     let b = bodies[i];
     b.x = b.x + dt * b.vx;
     b.y = b.y + dt * b.vy;
@@ -45,11 +45,11 @@ fun advance(bodies, dt) {
 
 fun energy(bodies) {
   let n = len(bodies);
-  var e = 0.0;
-  for (var i = 0; i < n; i = i + 1) {
+  let e = 0.0;
+  for (let i = 0; i < n; i = i + 1) {
     let bi = bodies[i];
     e = e + 0.5 * bi.mass * (bi.vx * bi.vx + bi.vy * bi.vy + bi.vz * bi.vz);
-    for (var j = i + 1; j < n; j = j + 1) {
+    for (let j = i + 1; j < n; j = j + 1) {
       let bj = bodies[j];
       let dx = bi.x - bj.x;
       let dy = bi.y - bj.y;
@@ -107,10 +107,10 @@ fun main() {
   ];
 
   // Offset momentum of the sun
-  var px = 0.0;
-  var py = 0.0;
-  var pz = 0.0;
-  for (var i = 0; i < len(bodies); i = i + 1) {
+  let px = 0.0;
+  let py = 0.0;
+  let pz = 0.0;
+  for (let i = 0; i < len(bodies); i = i + 1) {
     let b = bodies[i];
     px = px + b.vx * b.mass;
     py = py + b.vy * b.mass;
@@ -120,7 +120,7 @@ fun main() {
   bodies[0].vy = -py / SOLAR_MASS;
   bodies[0].vz = -pz / SOLAR_MASS;
 
-  for (var step = 0; step < 50000; step = step + 1) {
+  for (let step = 0; step < 50000; step = step + 1) {
     advance(bodies, 0.01);
   }
 

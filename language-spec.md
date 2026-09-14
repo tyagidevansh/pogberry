@@ -3,17 +3,16 @@
 **Status:** Ready for Pogberry 2.0  
 **Scope:** This is the target specification. It intentionally differs from the
 current interpreter where the current behaviour is unsafe, incomplete, or an
-implementation accident. It also contains all the extra features I plan on 
+implementation accident. It also contains all the extra features I plan on
 adding to the language over the next month. Changes in this spec likely.
 
 ## 1. Purpose and design position
 
 Pogberry is an dynamically typed scripting language for games and
-interactive simulations. It is designed to be easy to pick up and more 
-approachable than general-purpose programming languages.
-While the syntax is fairly pythonic, the hope is that by baking 
-in all the GUI stuff rather than having the user rely on external libraries, 
-Pogberry would be a simpler to learn and use. A middle ground in between 
+interactive simulations. It is designed to be easy to pick up and more approachable than general-purpose programming languages.
+While the syntax is fairly pythonic, the hope is that by baking
+in all the GUI stuff rather than having the user rely on external libraries,
+Pogberry would be a simpler to learn and use. A middle ground in between
 scratch and python + pygame.
 
 Pogberry is **not** a wrapper around Raylib. A Raylib binding is going to be the first
@@ -53,8 +52,8 @@ The language has four layers:
 
 ## 2. Source text and lexical rules
 
-Version 2.0 identifiers use ASCII letters, digits, and `_`, beginning with  a 
-letter or `_`. For now only UTF-8 but Unicode identifiers may be added later 
+Version 2.0 identifiers use ASCII letters, digits, and `_`, beginning with  a
+letter or `_`. For now only UTF-8 but Unicode identifiers may be added later
 without changing the rest of the grammar.
 
 - Whitespace separates tokens and is otherwise insignificant.
@@ -68,10 +67,9 @@ without changing the rest of the grammar.
 
 Reserved words are: `and`, `as`, `break`, `class`, `const`, `continue`,
 `else`, `export`, `false`, `for`, `fun`, `if`, `let`, `nil`, `or`, `return`,
-`super`, `this`, `true`, `use`, `var`, and `while`.
+`super`, `this`, `true`, `use`, and `while`.
 
-`let` is introduced in 2.0. `var` remains a supported mutable-declaration
-spelling; new code should prefer `let` for consistency with `const`.
+`let` is introduced in 2.0 for mutable declarations, replacing `var`. The `var` declaration syntax has been removed and is no longer supported.
 
 ## 3. Values, identity, and mutability
 
@@ -92,7 +90,7 @@ Every runtime value is one of the following:
 
 Strings are immutable. An implementation may intern strings, copy them, or
 compact them in memory, but scripts must not be able to observe that choice.
-In particular, no library operation may modify a string's contents in place. 
+In particular, no library operation may modify a string's contents in place.
 Existing implementation does not respect this and needs to be fixed.
 
 Lists, maps, and instances are reference values. Assigning one copies the
@@ -177,18 +175,18 @@ has a practical limit must report a normal compile error.
 
 ```ebnf
 program        = { declaration } EOF ;
-declaration    = importDecl | exportDecl | classDecl | funDecl | varDecl | statement ;
+declaration    = importDecl | exportDecl | classDecl | funDecl | variableDecl | statement ;
 importDecl     = "use" STRING [ "as" IDENTIFIER ] ";" ;
-exportDecl     = "export" (classDecl | funDecl | varDecl) ;
+exportDecl     = "export" (classDecl | funDecl | variableDecl) ;
 classDecl      = "class" IDENTIFIER [ "<" IDENTIFIER ] "{" { method } "}" ;
 funDecl        = "fun" IDENTIFIER functionBody ;
-varDecl        = ( "let" | "var" | "const" ) IDENTIFIER [ "=" expression ] ";" ;
+variableDecl   = "let" IDENTIFIER [ "=" expression ] ";" ;
 statement      = exprStmt | block | ifStmt | whileStmt | forStmt |
                  breakStmt | continueStmt | returnStmt ;
 block          = "{" { declaration } "}" ;
 ifStmt         = "if" "(" expression ")" statement [ "else" statement ] ;
 whileStmt      = "while" "(" expression ")" statement ;
-forStmt        = "for" "(" (varDecl | exprStmt | ";")
+forStmt        = "for" "(" (variableDecl | exprStmt | ";")
                  [ expression ] ";" [ expression ] ")" statement ;
 breakStmt      = "break" ";" ;
 continueStmt   = "continue" ";" ;
@@ -515,7 +513,7 @@ These requirements exist to keep language semantics separate from VM details:
 
 ## 13. Progress
 
-- Added `let` alongside `var`, with block scoping and assignment.
+- Added `let` with block scoping and assignment, replacing `var`.
 - Functions support recursion and lexical closures. Classes support
   inheritance, `this`, `super`, and bound methods.
 - List and Map literals support direct and chained indexing and assignment.

@@ -37,13 +37,13 @@ class BinaryTree {
 }
 
 // Create nodes
-var root = Node(5);
-var node1 = Node(3);
-var node2 = Node(7);
-var node3 = Node(2);
-var node4 = Node(4);
-var node5 = Node(6);
-var node6 = Node(8);
+let root = Node(5);
+let node1 = Node(3);
+let node2 = Node(7);
+let node3 = Node(2);
+let node4 = Node(4);
+let node5 = Node(6);
+let node6 = Node(8);
 
 // Build tree structure
 root.setLeft(node1);
@@ -54,7 +54,7 @@ node2.setLeft(node5);
 node2.setRight(node6);
 
 // Create tree and traverse inorder
-var tree = BinaryTree(root);
+let tree = BinaryTree(root);
 tree.startInorder();
 
 // Expected Output (Inorder Traversal):

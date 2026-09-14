@@ -1,12 +1,12 @@
-var program = strInput();
-var length = len(program);
+let program = strInput();
+let length = len(program);
 
-var mem_size = 256;
-var memory = [];
-for (var i = 0; i < mem_size; i = i + 1) { memory.push(0); }
+let mem_size = 256;
+let memory = [];
+for (let i = 0; i < mem_size; i = i + 1) { memory.push(0); }
 
-var pointer = 0;
-var output = "";
+let pointer = 0;
+let output = "";
 
 fun asciiToChar(ascii) {
     if (ascii == 32) { return " "; }
@@ -108,7 +108,7 @@ fun asciiToChar(ascii) {
 }
 
 fun findMatchingBracket(pc, direction) {
-    var loop_level = 1;
+    let loop_level = 1;
     while (loop_level > 0) {
         pc = pc + direction;
         if (program[pc] == "[") {
@@ -139,7 +139,7 @@ fun executeInstruction(pc) {
     return pc;
 }
 
-for (var pc = 0; pc < length; pc = pc + 1) {
+for (let pc = 0; pc < length; pc = pc + 1) {
     pc = executeInstruction(pc);
 }
 

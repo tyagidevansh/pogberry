@@ -1,6 +1,6 @@
-var left = [];
+let left = [];
 left.push(left);
-var right = [];
+let right = [];
 right.push(right);
 print(left == right);
 // EXPECTED STATUS: 70

@@ -730,7 +730,7 @@ static void funDeclaration() {
   defineVariable(global);
 }
 
-static void varDeclaration() {
+static void variableDeclaration() {
   ConstantIndex global = parseVariable("Expect variable name.");
 
   if (match(TOKEN_EQUAL)) {
@@ -769,13 +769,13 @@ static void exportDeclaration() {
     return;
   }
 
-  if (match(TOKEN_VAR) || match(TOKEN_LET)) {
+  if (match(TOKEN_LET)) {
     if (!check(TOKEN_IDENTIFIER)) {
       errorAtCurrent("Expect variable name.");
       return;
     }
     Token name = parser.current;
-    varDeclaration();
+    variableDeclaration();
     if (validScope) emitConstantInstruction(OP_EXPORT, OP_EXPORT_LONG, identifierConstant(&name));
     return;
   }
@@ -850,8 +850,8 @@ static void forStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
   if (match(TOKEN_SEMICOLON)) {
     // no initializer.
-  } else if (match(TOKEN_VAR) || match(TOKEN_LET)) {
-    varDeclaration();
+  } else if (match(TOKEN_LET)) {
+    variableDeclaration();
   } else {
     expressionStatement();
   }
@@ -1032,7 +1032,7 @@ static bool isAliasCharacter(char character) {
 static bool isReservedAlias(const char *chars, int length) {
   static const char *reserved[] = {"and",   "as",   "break", "case", "class", "default", "else",  "export", "false",
                                    "for",   "fun",  "if",    "let",  "nil",   "or",      "print", "return", "rizz",
-                                   "super", "this", "true",  "use",  "var",   "while",   "yap"};
+                                   "super", "this", "true",  "use",  "while",   "yap"};
   size_t count = sizeof(reserved) / sizeof(reserved[0]);
   for (size_t i = 0; i < count; i++) {
     if ((int)strlen(reserved[i]) == length && memcmp(chars, reserved[i], (size_t)length) == 0) return true;
@@ -1146,7 +1146,6 @@ static void synchronize() {
     switch (parser.current.type) {
     case TOKEN_CLASS:
     case TOKEN_FUN:
-    case TOKEN_VAR:
     case TOKEN_LET:
     case TOKEN_EXPORT:
     case TOKEN_FOR:
@@ -1167,8 +1166,8 @@ static void declaration() {
     exportDeclaration();
   } else if (match(TOKEN_FUN)) {
     funDeclaration();
-  } else if (match(TOKEN_VAR) || match(TOKEN_LET)) {
-    varDeclaration();
+  } else if (match(TOKEN_LET)) {
+    variableDeclaration();
   } else if (match(TOKEN_CLASS)) {
     classDeclaration();
   } else {
@@ -1425,7 +1424,6 @@ ParseRule rules[] = {
     [TOKEN_SUPER] = {super_, NULL, PREC_NONE},
     [TOKEN_THIS] = {this_, NULL, PREC_NONE},
     [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
-    [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
     [TOKEN_LET] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
     [TOKEN_USE] = {NULL, NULL, PREC_NONE},

@@ -17,7 +17,7 @@ fun inorder(node) {
   print(node.value);
   inorder(node.right);
 }
-var root = Node(5);
+let root = Node(5);
 root.setLeft(Node(3));
 root.setRight(Node(7));
 root.left.setLeft(Node(2));

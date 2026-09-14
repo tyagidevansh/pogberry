@@ -1,6 +1,6 @@
-var left = {};
+let left = {};
 left["self"] = left;
-var right = {};
+let right = {};
 right["self"] = right;
 print(left == right);
 // EXPECTED STATUS: 70

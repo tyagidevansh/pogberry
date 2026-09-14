@@ -1,4 +1,4 @@
-var data = {"name": "Pog", 2: "two", true: "yes", nil: "none"};
+let data = {"name": "Pog", 2: "two", true: "yes", nil: "none"};
 print(data);
 print(data["name"]);
 print(data[2]);
