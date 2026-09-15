@@ -1,22 +1,22 @@
 use "pb_gui" as gui;
 use "std.math";
 
-var BLOCK_SIZE = 100;
-var GRID_WIDTH = 5;
-var GRID_HEIGHT = 5;
-var WINDOW_WIDTH = BLOCK_SIZE * GRID_WIDTH;
-var WINDOW_HEIGHT = BLOCK_SIZE * GRID_HEIGHT + 60;
+let BLOCK_SIZE = 100;
+let GRID_WIDTH = 5;
+let GRID_HEIGHT = 5;
+let WINDOW_WIDTH = BLOCK_SIZE * GRID_WIDTH;
+let WINDOW_HEIGHT = BLOCK_SIZE * GRID_HEIGHT + 60;
 
-var moleX = 0;
-var moleY = 0;
-var hitX = 0;
-var hitY = 0;
-var hitTimer = 0.0;
-var score = 0;
+let moleX = 0;
+let moleY = 0;
+let hitX = 0;
+let hitY = 0;
+let hitTimer = 0.0;
+let score = 0;
 
 fun spawnMole() {
-    var newX = moleX;
-    var newY = moleY;
+    let newX = moleX;
+    let newY = moleY;
     if (GRID_WIDTH > 1 or GRID_HEIGHT > 1) {
         while (newX == moleX and newY == moleY) {
             newX = math.floor(rand() * GRID_WIDTH);
@@ -29,11 +29,11 @@ fun spawnMole() {
 
 fun handleClick() {
     if (gui.isMouseButtonPressed("LEFT")) {
-        var mx = gui.getMouseX();
-        var my = gui.getMouseY();
+        let mx = gui.getMouseX();
+        let my = gui.getMouseY();
 
-        var gx = math.floor(mx / BLOCK_SIZE);
-        var gy = math.floor(my / BLOCK_SIZE);
+        let gx = math.floor(mx / BLOCK_SIZE);
+        let gy = math.floor(my / BLOCK_SIZE);
 
         if (gx == moleX and gy == moleY) {
             score = score + 1;
@@ -52,10 +52,10 @@ fun drawGame(timeLeft) {
     gui.clearBackground(34, 110, 48);
 
     // Lawn and hole tiles
-    for (var y = 0; y < GRID_HEIGHT; y = y + 1) {
-        for (var x = 0; x < GRID_WIDTH; x = x + 1) {
-            var px = x * BLOCK_SIZE;
-            var py = y * BLOCK_SIZE;
+    for (let y = 0; y < GRID_HEIGHT; y = y + 1) {
+        for (let x = 0; x < GRID_WIDTH; x = x + 1) {
+            let px = x * BLOCK_SIZE;
+            let py = y * BLOCK_SIZE;
 
             // Grass patch
             gui.drawRectangle(px + 4, py + 4, BLOCK_SIZE - 8, BLOCK_SIZE - 8, 48, 135, 62);
@@ -67,8 +67,8 @@ fun drawGame(timeLeft) {
     }
 
     // Draw Mole
-    var mx = moleX * BLOCK_SIZE + 50;
-    var my = moleY * BLOCK_SIZE + 50;
+    let mx = moleX * BLOCK_SIZE + 50;
+    let my = moleY * BLOCK_SIZE + 50;
 
     // Mole head
     gui.drawCircle(mx, my, 28.0, 130, 82, 45);
@@ -88,8 +88,8 @@ fun drawGame(timeLeft) {
 
     // Whack popup effect
     if (hitTimer > 0.0) {
-        var hx = hitX * BLOCK_SIZE + 18;
-        var hy = hitY * BLOCK_SIZE + 12;
+        let hx = hitX * BLOCK_SIZE + 18;
+        let hy = hitY * BLOCK_SIZE + 12;
         gui.drawText("WHACK! +1", hx, hy, 16, 255, 235, 60);
     }
 
@@ -99,7 +99,7 @@ fun drawGame(timeLeft) {
 
     gui.drawText("SCORE: " + str(score), 20, BLOCK_SIZE * GRID_HEIGHT + 18, 24, 255, 255, 255);
 
-    var secondsLeft = math.floor(timeLeft + 0.999);
+    let secondsLeft = math.floor(timeLeft + 0.999);
     if (secondsLeft <= 5) {
         gui.drawText("TIME: " + str(secondsLeft) + "s", 360, BLOCK_SIZE * GRID_HEIGHT + 18, 24, 255, 80, 80);
     } else {
@@ -113,16 +113,16 @@ fun drawGameOver() {
     gui.beginDrawing();
     gui.clearBackground(20, 20, 26);
 
-    var title = "TIME'S UP!";
-    var tw = gui.measureText(title, 36);
+    let title = "TIME'S UP!";
+    let tw = gui.measureText(title, 36);
     gui.drawText(title, math.floor((WINDOW_WIDTH - tw) / 2), 130, 36, 255, 75, 75);
 
-    var scoreStr = "FINAL SCORE: " + str(score);
-    var sw = gui.measureText(scoreStr, 28);
+    let scoreStr = "FINAL SCORE: " + str(score);
+    let sw = gui.measureText(scoreStr, 28);
     gui.drawText(scoreStr, math.floor((WINDOW_WIDTH - sw) / 2), 200, 28, 255, 230, 80);
 
-    var prompt = "CLICK OR PRESS SPACE TO PLAY AGAIN";
-    var pw = gui.measureText(prompt, 18);
+    let prompt = "CLICK OR PRESS SPACE TO PLAY AGAIN";
+    let pw = gui.measureText(prompt, 18);
     gui.drawText(prompt, math.floor((WINDOW_WIDTH - pw) / 2), 280, 18, 120, 230, 160);
 
     gui.endDrawing();
@@ -132,11 +132,11 @@ fun gameLoop() {
     spawnMole();
     score = 0;
     hitTimer = 0.0;
-    var moleTimer = 0.0;
-    var timeLeft = 30.0;
+    let moleTimer = 0.0;
+    let timeLeft = 30.0;
 
     while (!gui.windowShouldClose()) {
-        var dt = gui.getFrameTime();
+        let dt = gui.getFrameTime();
         if (dt > 0.05) dt = 0.05;
 
         timeLeft = timeLeft - dt;
@@ -148,7 +148,7 @@ fun gameLoop() {
         }
 
         // Mole hides faster as score increases (1.2s down to 0.65s)
-        var maxMoleTime = 1.2 - (score * 0.02);
+        let maxMoleTime = 1.2 - (score * 0.02);
         if (maxMoleTime < 0.65) maxMoleTime = 0.65;
 
         if (moleTimer > maxMoleTime) {
@@ -165,9 +165,9 @@ fun gameLoop() {
 }
 
 fun waitForRestart() {
-    var debounceTimer = 0.4;
+    let debounceTimer = 0.4;
     while (!gui.windowShouldClose()) {
-        var dt = gui.getFrameTime();
+        let dt = gui.getFrameTime();
         if (debounceTimer > 0.0) {
             debounceTimer = debounceTimer - dt;
         }

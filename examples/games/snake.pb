@@ -1,16 +1,16 @@
 use "pb_gui" as gui;
 use "std.math";
 
-var BLOCK_SIZE = 20;
-var GRID_WIDTH = 40;
-var GRID_HEIGHT = 30;
+let BLOCK_SIZE = 20;
+let GRID_WIDTH = 40;
+let GRID_HEIGHT = 30;
 
-var snake;
-var dir;
-var nextDir;
-var fruit;
-var isDead = false;
-var deathTimer = 0.0;
+let snake;
+let dir;
+let nextDir;
+let fruit;
+let isDead = false;
+let deathTimer = 0.0;
 
 fun resetGame() {
     snake = [[5, 5]];
@@ -22,15 +22,15 @@ fun resetGame() {
 }
 
 fun spawnFruit() {
-    var placed = false;
+    let placed = false;
     while (!placed) {
-        var fx = math.floor(rand() * GRID_WIDTH);
-        var fy = math.floor(rand() * GRID_HEIGHT);
-        var valid = true;
-        var i = 0;
+        let fx = math.floor(rand() * GRID_WIDTH);
+        let fy = math.floor(rand() * GRID_HEIGHT);
+        let valid = true;
+        let i = 0;
 
         while (i < len(snake)) {
-            var p = snake[i];
+            let p = snake[i];
             if (p[0] == fx and p[1] == fy) {
                 valid = false;
             }
@@ -59,9 +59,9 @@ fun updateInput() {
 fun updateSnake() {
     dir = nextDir;
 
-    var head = snake[0];
-    var newX = head[0] + dir[0];
-    var newY = head[1] + dir[1];
+    let head = snake[0];
+    let newX = head[0] + dir[0];
+    let newY = head[1] + dir[1];
 
     // Wrap around screen
     if (newX < 0) newX = GRID_WIDTH - 1;
@@ -69,13 +69,13 @@ fun updateSnake() {
     if (newX >= GRID_WIDTH) newX = 0;
     if (newY >= GRID_HEIGHT) newY = 0;
 
-    var newHead = [newX, newY];
+    let newHead = [newX, newY];
 
     // Check self-collision
-    var collided = false;
-    var i = 0;
+    let collided = false;
+    let i = 0;
     while (i < len(snake)) {
-        var p = snake[i];
+        let p = snake[i];
         if (p[0] == newX and p[1] == newY) {
             collided = true;
         }
@@ -102,9 +102,9 @@ fun drawGame() {
     gui.clearBackground(20, 20, 20);
 
     // Draw snake
-    var i = 0;
+    let i = 0;
     while (i < len(snake)) {
-        var point = snake[i];
+        let point = snake[i];
         gui.drawRectangle(point[0] * BLOCK_SIZE, point[1] * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 255, 255, 255);
         i = i + 1;
     }
@@ -118,11 +118,11 @@ fun drawGame() {
 fun main() {
     gui.initWindow(BLOCK_SIZE * GRID_WIDTH, BLOCK_SIZE * GRID_HEIGHT, "Snake");
 
-    var lastTime = getTime();
+    let lastTime = getTime();
     resetGame();
 
     while (!gui.windowShouldClose()) {
-        var now = getTime();
+        let now = getTime();
 
         updateInput();
 

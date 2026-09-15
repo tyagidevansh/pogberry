@@ -1,7 +1,7 @@
 fun matrix() {
   return [[1, 2], [3, 4]];
 }
-var world = {"players": [{"name": "Ada"}, {"name": "Lin"}]};
+let world = {"players": [{"name": "Ada"}, {"name": "Lin"}]};
 print([10, 20][1]);
 print(matrix()[1][0]);
 print(world["players"][1]["name"]);

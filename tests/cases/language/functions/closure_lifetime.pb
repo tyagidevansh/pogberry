@@ -1,7 +1,7 @@
 fun makeGetter() {
-  var getter = nil;
+  let getter = nil;
   while (true) {
-    var captured = "still alive";
+    let captured = "still alive";
     fun get() {
       return captured;
     }
@@ -11,9 +11,9 @@ fun makeGetter() {
   return getter;
 }
 
-var get = makeGetter();
-for (var i = 0; i < 20000; i = i + 1) {
-  var temporary = [i, i + 1, i + 2];
+let get = makeGetter();
+for (let i = 0; i < 20000; i = i + 1) {
+  let temporary = [i, i + 1, i + 2];
 }
 print(get());
 // EXPECTED STATUS: 0

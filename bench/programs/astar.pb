@@ -17,9 +17,9 @@ fun findPath(gridWidth, gridHeight, startX, startY, goalX, goalY, walls) {
 
   while (len(openList) > 0) {
     // Find node with lowest fScore
-    var lowestIdx = 0;
-    var lowestF = 999999;
-    for (var i = 0; i < len(openList); i = i + 1) {
+    let lowestIdx = 0;
+    let lowestF = 999999;
+    for (let i = 0; i < len(openList); i = i + 1) {
       let node = openList[i];
       let k = str(node[0]) + "," + str(node[1]);
       let f = fScore.get(k, 999999);
@@ -45,7 +45,7 @@ fun findPath(gridWidth, gridHeight, startX, startY, goalX, goalY, walls) {
     let dxs = [0, 0, -1, 1];
     let dys = [-1, 1, 0, 0];
 
-    for (var d = 0; d < 4; d = d + 1) {
+    for (let d = 0; d < 4; d = d + 1) {
       let nx = cx + dxs[d];
       let ny = cy + dys[d];
 
@@ -59,8 +59,8 @@ fun findPath(gridWidth, gridHeight, startX, startY, goalX, goalY, walls) {
             gScore[neighborKey] = tentativeG;
             fScore[neighborKey] = tentativeG + heuristic(nx, ny, goalX, goalY);
 
-            var inOpen = false;
-            for (var oi = 0; oi < len(openList); oi = oi + 1) {
+            let inOpen = false;
+            for (let oi = 0; oi < len(openList); oi = oi + 1) {
               let onode = openList[oi];
               if (onode[0] == nx and onode[1] == ny) {
                 inOpen = true;
@@ -84,8 +84,8 @@ fun main() {
   let H = 25;
   let walls = {};
 
-  for (var x = 0; x < W; x = x + 1) {
-    for (var y = 0; y < H; y = y + 1) {
+  for (let x = 0; x < W; x = x + 1) {
+    for (let y = 0; y < H; y = y + 1) {
       if ((x != 0 or y != 0) and (x != W - 1 or y != H - 1)) {
         if ((x * 7 + y * 13) % 5 == 0) {
           walls[str(x) + "," + str(y)] = true;
@@ -94,8 +94,8 @@ fun main() {
     }
   }
 
-  var totalLength = 0;
-  for (var run = 0; run < 40; run = run + 1) {
+  let totalLength = 0;
+  for (let run = 0; run < 40; run = run + 1) {
     let pathLen = findPath(W, H, 0, 0, W - 1, H - 1, walls);
     totalLength = totalLength + pathLen;
   }

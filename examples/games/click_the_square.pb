@@ -2,8 +2,8 @@ use "pb_gui" as gui;
 
 gui.initWindow(800, 600, "Click the square");
 
-var squareX = 400;
-var squareY = 250;
+let squareX = 400;
+let squareY = 250;
 
 gui.setTargetFPS(60);
 

@@ -1,6 +1,6 @@
 fun twoSum(numbers, target) {
-  var complements = {};
-  for (var i = 0; i < len(numbers); i = i + 1) {
+  let complements = {};
+  for (let i = 0; i < len(numbers); i = i + 1) {
     if (complements.has(numbers[i])) {
       return [complements[numbers[i]], i];
     }

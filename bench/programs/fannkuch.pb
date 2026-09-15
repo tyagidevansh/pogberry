@@ -1,26 +1,26 @@
 fun fannkuch(n) {
-  var p = [];
-  var q = [];
-  var s = [];
-  var sign = 1;
-  var max_flips = 0;
-  var sum = 0;
+  let p = [];
+  let q = [];
+  let s = [];
+  let sign = 1;
+  let max_flips = 0;
+  let sum = 0;
 
-  for (var i = 0; i < n; i = i + 1) {
+  for (let i = 0; i < n; i = i + 1) {
     p.push(i);
     q.push(i);
     s.push(i);
   }
 
   while (true) {
-    var q0 = p[0];
+    let q0 = p[0];
     if (q0 != 0) {
-      for (var i = 0; i < n; i = i + 1) {
+      for (let i = 0; i < n; i = i + 1) {
         q[i] = p[i];
       }
-      var flips = 1;
+      let flips = 1;
       while (true) {
-        var qq = q[q0];
+        let qq = q[q0];
         if (qq == 0) {
           sum = sum + sign * flips;
           if (flips > max_flips) max_flips = flips;
@@ -28,10 +28,10 @@ fun fannkuch(n) {
         }
         q[q0] = q0;
         if (q0 >= 3) {
-          var i = 1;
-          var j = q0 - 1;
+          let i = 1;
+          let j = q0 - 1;
           while (true) {
-            var t = q[i];
+            let t = q[i];
             q[i] = q[j];
             q[j] = t;
             i = i + 1;
@@ -45,18 +45,18 @@ fun fannkuch(n) {
     }
 
     if (sign == 1) {
-      var t = p[1];
+      let t = p[1];
       p[1] = p[0];
       p[0] = t;
       sign = -1;
     } else {
-      var t = p[1];
+      let t = p[1];
       p[1] = p[2];
       p[2] = t;
       sign = 1;
-      var i = 2;
+      let i = 2;
       while (true) {
-        var sx = s[i];
+        let sx = s[i];
         if (sx != 0) {
           s[i] = sx - 1;
           break;
@@ -65,8 +65,8 @@ fun fannkuch(n) {
           return max_flips;
         }
         s[i] = i;
-        var p0 = p[0];
-        for (var j = 0; j <= i; j = j + 1) {
+        let p0 = p[0];
+        for (let j = 0; j <= i; j = j + 1) {
           p[j] = p[j + 1];
         }
         p[i + 1] = p0;

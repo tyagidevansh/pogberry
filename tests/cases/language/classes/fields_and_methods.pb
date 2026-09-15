@@ -11,7 +11,7 @@ class Point {
     return this.x + this.y;
   }
 }
-var point = Point(2, 3);
+let point = Point(2, 3);
 print(point.sum());
 point.move(4, -1);
 print(point.x);

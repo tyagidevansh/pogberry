@@ -29,13 +29,13 @@ fun main() {
   let longLivedTree = bottomUpTree(0, maxDepth);
 
   let totalCheck = stretchCheck;
-  for (var depth = minDepth; depth <= maxDepth; depth = depth + 2) {
-    var iterations = 1;
-    for (var k = 0; k < (maxDepth - depth + minDepth); k = k + 1) {
+  for (let depth = minDepth; depth <= maxDepth; depth = depth + 2) {
+    let iterations = 1;
+    for (let k = 0; k < (maxDepth - depth + minDepth); k = k + 1) {
       iterations = iterations * 2;
     }
-    var check = 0;
-    for (var i = 1; i <= iterations; i = i + 1) {
+    let check = 0;
+    for (let i = 1; i <= iterations; i = i + 1) {
       check = check + itemCheck(bottomUpTree(i, depth));
       check = check + itemCheck(bottomUpTree(-i, depth));
     }

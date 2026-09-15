@@ -1,10 +1,10 @@
 let name = "Pogberry";
-var scores = [3, 1, 2];
+let scores = [3, 1, 2];
 scores.sort();
-var player = {"name": name, "scores": scores};
+let player = {"name": name, "scores": scores};
 fun total(values) {
-  var result = 0;
-  for (var i = 0; i < len(values); i = i + 1) {
+  let result = 0;
+  for (let i = 0; i < len(values); i = i + 1) {
     result = result + values[i];
   }
   return result;

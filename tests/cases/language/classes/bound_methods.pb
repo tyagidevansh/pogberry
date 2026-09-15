@@ -3,7 +3,7 @@ class Greeter {
     return "hello " + name;
   }
 }
-var greet = Greeter().greet;
+let greet = Greeter().greet;
 print(greet("Pogberry"));
 // EXPECTED STATUS: 0
 // EXPECTED OUTPUT:

@@ -9,18 +9,18 @@ class Graph {
   }
 
   traverse(start) {
-    var visited = {};
-    var queue = [];
+    let visited = {};
+    let queue = [];
     queue.push(start);
     visited[start] = true;
 
     while(len(queue) > 0) {
-      var vertex = queue[0];
+      let vertex = queue[0];
       queue.removeAt(0);
       print(vertex);
 
-      for (var i = 0; i < len(this.edges); i = i + 1) {
-        var edge = this.edges[i];
+      for (let i = 0; i < len(this.edges); i = i + 1) {
+        let edge = this.edges[i];
         if (edge[0] == vertex and !visited.has(edge[1])) {
           queue.push(edge[1]);
           visited[edge[1]] = true;
@@ -33,7 +33,7 @@ class Graph {
   }
 }
 
-var graph = Graph();
+let graph = Graph();
 
 graph.addEdge(1, 2);
 graph.addEdge(2, 0);

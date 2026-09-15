@@ -1,4 +1,4 @@
-var word = "pogberry";
+let word = "pogberry";
 print(word[0]);
 print(word[7]);
 print("hello " + "world");

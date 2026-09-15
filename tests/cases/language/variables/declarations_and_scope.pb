@@ -1,7 +1,7 @@
-var global = "global";
+let global = "global";
 let total = 3;
 {
-  var global = "local";
+  let global = "local";
   let total = 4;
   print(global);
   print(total);

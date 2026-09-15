@@ -1,6 +1,6 @@
 fun reverse(value) {
-  var result = "";
-  for (var i = len(value) - 1; i >= 0; i = i - 1) {
+  let result = "";
+  for (let i = len(value) - 1; i >= 0; i = i - 1) {
     result = result + value[i];
   }
   return result;

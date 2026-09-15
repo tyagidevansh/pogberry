@@ -133,11 +133,11 @@
     <header>
       <h1>Pogberry Benchmark Results</h1>
       <div class="meta-list">
-        <div class="meta-item">Linux <strong>7.1.7-200.fc44.x86_64</strong></div>
-        <div class="meta-item">CPU <strong>AMD Ryzen 5 5600H with Radeon Graphics</strong></div>
-        <div class="meta-item">GCC <strong>16.1.1</strong></div>
-        <div class="meta-item">Python <strong>3.14.6</strong></div>
-        <div class="meta-item">Runs: <strong>5 (1 warmup)</strong></div>
+        <div class="meta-item">Linux <strong>6.6.87.2-microsoft-standard-WSL2</strong></div>
+        <div class="meta-item">CPU <strong>Intel(R) Core(TM) Ultra 7 258V</strong></div>
+        <div class="meta-item">GCC <strong>13.3.0</strong></div>
+        <div class="meta-item">Python <strong>3.12.3</strong></div>
+        <div class="meta-item">Runs: <strong>1 (0 warmup)</strong></div>
       </div>
     </header>
 
@@ -179,156 +179,139 @@
           <tbody>
             <tr>
               <td>astar</td>
-              <td>57.2ms</td>
-              <td>39.8ms</td>
-              <td><span class="tag tag-slower">0.70x</span></td>
-              <td>4.6MB</td>
-              <td>9.8MB</td>
+              <td>38.5ms</td>
+              <td>27.5ms</td>
+              <td><span class="tag tag-slower">0.71x</span></td>
+              <td>4.1MB</td>
+              <td>10.4MB</td>
             </tr>
             <tr>
               <td>binary_trees</td>
-              <td>370.8ms</td>
-              <td>298.2ms</td>
-              <td><span class="tag tag-slower">0.80x</span></td>
-              <td>18.0MB</td>
-              <td>12.5MB</td>
+              <td>236.6ms</td>
+              <td>228.3ms</td>
+              <td><span class="tag tag-equal">0.97x</span></td>
+              <td>17.7MB</td>
+              <td>13.0MB</td>
             </tr>
             <tr>
               <td>bubble_sort</td>
-              <td>824.8ms</td>
-              <td>988.6ms</td>
-              <td><span class="tag tag-faster">1.20x</span></td>
-              <td>3.1MB</td>
-              <td>9.7MB</td>
+              <td>465.9ms</td>
+              <td>539.7ms</td>
+              <td><span class="tag tag-faster">1.16x</span></td>
+              <td>2.7MB</td>
+              <td>10.1MB</td>
             </tr>
             <tr>
               <td>class_hierarchy</td>
-              <td>32.6ms</td>
-              <td>52.3ms</td>
-              <td><span class="tag tag-faster">1.61x</span></td>
-              <td>4.0MB</td>
-              <td>9.5MB</td>
+              <td>30.3ms</td>
+              <td>36.4ms</td>
+              <td><span class="tag tag-faster">1.20x</span></td>
+              <td>3.7MB</td>
+              <td>10.0MB</td>
             </tr>
             <tr>
               <td>closures</td>
-              <td>7.4ms</td>
-              <td>19.9ms</td>
-              <td><span class="tag tag-faster">2.69x</span></td>
-              <td>2.9MB</td>
-              <td>9.5MB</td>
+              <td>4.8ms</td>
+              <td>15.5ms</td>
+              <td><span class="tag tag-faster">3.26x</span></td>
+              <td>2.5MB</td>
+              <td>10.1MB</td>
             </tr>
             <tr>
               <td>fannkuch</td>
-              <td>364.5ms</td>
-              <td>354.6ms</td>
-              <td><span class="tag tag-equal">0.97x</span></td>
-              <td>2.9MB</td>
-              <td>9.6MB</td>
+              <td>229.2ms</td>
+              <td>225.7ms</td>
+              <td><span class="tag tag-equal">0.98x</span></td>
+              <td>2.6MB</td>
+              <td>10.1MB</td>
             </tr>
             <tr>
               <td>fib_iterative</td>
-              <td>202.0ms</td>
-              <td>187.8ms</td>
-              <td><span class="tag tag-slower">0.93x</span></td>
-              <td>3.0MB</td>
-              <td>9.4MB</td>
-            </tr>
-            <tr>
-              <td>fib_or</td>
-              <td>183.2ms</td>
-              <td>315.9ms</td>
-              <td><span class="tag tag-faster">1.72x</span></td>
-              <td>2.8MB</td>
-              <td>9.4MB</td>
-            </tr>
-            <tr>
-              <td>fib_recursive</td>
-              <td>151.5ms</td>
-              <td>285.6ms</td>
-              <td><span class="tag tag-faster">1.89x</span></td>
-              <td>2.9MB</td>
-              <td>9.4MB</td>
-            </tr>
-            <tr>
-              <td>list_operations</td>
-              <td>10.6ms</td>
-              <td>22.0ms</td>
-              <td><span class="tag tag-faster">2.08x</span></td>
-              <td>3.9MB</td>
-              <td>11.5MB</td>
-            </tr>
-            <tr>
-              <td>mandelbrot</td>
-              <td>42.9ms</td>
-              <td>103.2ms</td>
-              <td><span class="tag tag-faster">2.40x</span></td>
-              <td>2.9MB</td>
-              <td>9.7MB</td>
-            </tr>
-            <tr>
-              <td>map_operations</td>
-              <td>60.5ms</td>
-              <td>38.0ms</td>
-              <td><span class="tag tag-slower">0.63x</span></td>
-              <td>17.8MB</td>
-              <td>15.6MB</td>
-            </tr>
-            <tr>
-              <td>nbody</td>
-              <td>257.0ms</td>
-              <td>319.2ms</td>
-              <td><span class="tag tag-faster">1.24x</span></td>
-              <td>2.9MB</td>
+              <td>122.5ms</td>
+              <td>115.1ms</td>
+              <td><span class="tag tag-slower">0.94x</span></td>
+              <td>2.6MB</td>
               <td>9.9MB</td>
             </tr>
             <tr>
+              <td>fib_or</td>
+              <td>142.6ms</td>
+              <td>181.3ms</td>
+              <td><span class="tag tag-faster">1.27x</span></td>
+              <td>2.6MB</td>
+              <td>9.9MB</td>
+            </tr>
+            <tr>
+              <td>fib_recursive</td>
+              <td>97.4ms</td>
+              <td>160.0ms</td>
+              <td><span class="tag tag-faster">1.64x</span></td>
+              <td>2.6MB</td>
+              <td>9.9MB</td>
+            </tr>
+            <tr>
+              <td>list_operations</td>
+              <td>6.4ms</td>
+              <td>16.9ms</td>
+              <td><span class="tag tag-faster">2.65x</span></td>
+              <td>3.4MB</td>
+              <td>11.9MB</td>
+            </tr>
+            <tr>
+              <td>mandelbrot</td>
+              <td>21.8ms</td>
+              <td>64.9ms</td>
+              <td><span class="tag tag-faster">2.97x</span></td>
+              <td>2.5MB</td>
+              <td>10.1MB</td>
+            </tr>
+            <tr>
+              <td>map_operations</td>
+              <td>39.8ms</td>
+              <td>26.0ms</td>
+              <td><span class="tag tag-slower">0.65x</span></td>
+              <td>17.4MB</td>
+              <td>16.1MB</td>
+            </tr>
+            <tr>
+              <td>nbody</td>
+              <td>141.7ms</td>
+              <td>181.6ms</td>
+              <td><span class="tag tag-faster">1.28x</span></td>
+              <td>2.6MB</td>
+              <td>10.5MB</td>
+            </tr>
+            <tr>
               <td>nested_loops</td>
-              <td>413.8ms</td>
-              <td>512.1ms</td>
-              <td><span class="tag tag-faster">1.24x</span></td>
-              <td>2.9MB</td>
-              <td>9.3MB</td>
+              <td>200.8ms</td>
+              <td>256.9ms</td>
+              <td><span class="tag tag-faster">1.28x</span></td>
+              <td>2.5MB</td>
+              <td>9.9MB</td>
             </tr>
             <tr>
               <td>sieve</td>
-              <td>101.5ms</td>
-              <td>117.8ms</td>
-              <td><span class="tag tag-faster">1.16x</span></td>
-              <td>3.7MB</td>
-              <td>9.6MB</td>
+              <td>74.2ms</td>
+              <td>72.0ms</td>
+              <td><span class="tag tag-equal">0.97x</span></td>
+              <td>3.1MB</td>
+              <td>10.0MB</td>
             </tr>
             <tr>
               <td>spectral_norm</td>
-              <td>181.4ms</td>
-              <td>396.2ms</td>
-              <td><span class="tag tag-faster">2.18x</span></td>
-              <td>3.0MB</td>
-              <td>9.8MB</td>
+              <td>118.6ms</td>
+              <td>205.8ms</td>
+              <td><span class="tag tag-faster">1.74x</span></td>
+              <td>2.6MB</td>
+              <td>10.2MB</td>
             </tr>
             <tr>
               <td>string_operations</td>
-              <td>26.9ms</td>
-              <td>23.7ms</td>
-              <td><span class="tag tag-slower">0.88x</span></td>
-              <td>6.0MB</td>
-              <td>10.5MB</td>
-            </tr>
-            <tr class="section-row"><td colspan="6">Headed GUI Benchmarks (pb_gui / Raylib vs Pygame)</td></tr>
-            <tr>
-              <td>gui_draw_stress</td>
-              <td>3.1ms/fr</td>
-              <td>4.4ms/fr</td>
-              <td><span class="tag tag-faster">1.43x</span></td>
-              <td>74.4MB</td>
-              <td>163.9MB</td>
-            </tr>
-            <tr>
-              <td>gui_particles</td>
-              <td>3.8ms/fr</td>
-              <td>2.2ms/fr</td>
-              <td><span class="tag tag-slower">0.57x</span></td>
-              <td>74.9MB</td>
-              <td>162.8MB</td>
+              <td>16.9ms</td>
+              <td>17.7ms</td>
+              <td><span class="tag tag-faster">1.05x</span></td>
+              <td>5.6MB</td>
+              <td>11.0MB</td>
             </tr>
           </tbody>
         </table>
@@ -336,7 +319,7 @@
     </div>
 
     <footer>
-      Pogberry Benchmark Suite · Generated on 2026-09-09 00:47:41
+      Pogberry Benchmark Suite · Generated on 2026-09-14 20:56:34
     </footer>
   </div>
 
@@ -355,8 +338,8 @@
         labels: labels,
         datasets: [{
           label: 'Speedup vs Python',
-          data: [0.7, 0.8, 1.2, 1.61, 2.69, 0.97, 0.93, 1.72, 1.89, 2.08, 2.4, 0.63, 1.24, 1.24, 1.16, 2.18, 0.88],
-          backgroundColor: ["#ef4444", "#ef4444", "#10b981", "#10b981", "#10b981", "#6b7280", "#ef4444", "#10b981", "#10b981", "#10b981", "#10b981", "#ef4444", "#10b981", "#10b981", "#10b981", "#10b981", "#ef4444"],
+          data: [0.71, 0.97, 1.16, 1.2, 3.26, 0.98, 0.94, 1.27, 1.64, 2.65, 2.97, 0.65, 1.28, 1.28, 0.97, 1.74, 1.05],
+          backgroundColor: ["#ef4444", "#6b7280", "#10b981", "#10b981", "#10b981", "#6b7280", "#ef4444", "#10b981", "#10b981", "#10b981", "#10b981", "#ef4444", "#10b981", "#10b981", "#6b7280", "#10b981", "#10b981"],
           borderRadius: 3
         }]
       },
@@ -392,13 +375,13 @@
         datasets: [
           {
             label: 'Pogberry',
-            data: [4.6, 18.0, 3.1, 4.0, 2.9, 2.9, 3.0, 2.8, 2.9, 3.9, 2.9, 17.8, 2.9, 2.9, 3.7, 3.0, 6.0],
+            data: [4.1, 17.7, 2.7, 3.7, 2.5, 2.6, 2.6, 2.6, 2.6, 3.4, 2.5, 17.4, 2.6, 2.5, 3.1, 2.6, 5.6],
             backgroundColor: '#818cf8',
             borderRadius: 3
           },
           {
             label: 'Python',
-            data: [9.8, 12.5, 9.7, 9.5, 9.5, 9.6, 9.4, 9.4, 9.4, 11.5, 9.7, 15.6, 9.9, 9.3, 9.6, 9.8, 10.5],
+            data: [10.4, 13.0, 10.1, 10.0, 10.1, 10.1, 9.9, 9.9, 9.9, 11.9, 10.1, 16.1, 10.5, 9.9, 10.0, 10.2, 11.0],
             backgroundColor: '#38bdf8',
             borderRadius: 3
           }
@@ -436,13 +419,13 @@
         datasets: [
           {
             label: 'Pogberry',
-            data: [57.2, 370.8, 824.8, 32.6, 7.4, 364.5, 202.0, 183.2, 151.5, 10.6, 42.9, 60.5, 257.0, 413.8, 101.5, 181.4, 26.9],
+            data: [38.5, 236.6, 465.9, 30.3, 4.8, 229.2, 122.5, 142.6, 97.4, 6.4, 21.8, 39.8, 141.7, 200.8, 74.2, 118.6, 16.9],
             backgroundColor: '#818cf8',
             borderRadius: 3
           },
           {
             label: 'Python',
-            data: [39.8, 298.2, 988.6, 52.3, 19.9, 354.6, 187.8, 315.9, 285.6, 22.0, 103.2, 38.0, 319.2, 512.1, 117.8, 396.2, 23.7],
+            data: [27.5, 228.3, 539.7, 36.4, 15.5, 225.7, 115.1, 181.3, 160.0, 16.9, 64.9, 26.0, 181.6, 256.9, 72.0, 205.8, 17.7],
             backgroundColor: '#38bdf8',
             borderRadius: 3
           }

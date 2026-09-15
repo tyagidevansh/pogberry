@@ -28,17 +28,17 @@ class Particle {
 gui.initWindow(800, 600, "Particle Simulation");
 gui.setTargetFPS(0);
 
-var particles = [];
-for (var i = 0; i < 1000; i = i + 1) {
+let particles = [];
+for (let i = 0; i < 1000; i = i + 1) {
   particles.push(Particle(i));
 }
 
-var frame = 0;
+let frame = 0;
 while (frame < 500) {
   gui.beginDrawing();
   gui.clearBackground(0, 0, 0);
 
-  for (var i = 0; i < 1000; i = i + 1) {
+  for (let i = 0; i < 1000; i = i + 1) {
     particles[i].update();
     particles[i].draw();
   }

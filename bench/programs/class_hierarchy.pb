@@ -31,7 +31,7 @@ class Leaf < Middle {
 }
 
 let sum = 0;
-for (var i = 0; i < 100000; i = i + 1) {
+for (let i = 0; i < 100000; i = i + 1) {
   let obj = Leaf(i);
   sum = sum + obj.compute(i);
 }
