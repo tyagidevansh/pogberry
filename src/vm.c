@@ -682,6 +682,8 @@ static InterpretResult run(int stopFrameCount) {
     [OP_TRUE] = &&target_OP_TRUE,
     [OP_FALSE] = &&target_OP_FALSE,
     [OP_POP] = &&target_OP_POP,
+    [OP_DUP] = &&target_OP_DUP,
+    [OP_DUP_TWO] = &&target_OP_DUP_TWO,
     [OP_GET_LOCAL] = &&target_OP_GET_LOCAL,
     [OP_SET_LOCAL] = &&target_OP_SET_LOCAL,
     [OP_GET_LOCAL_0] = &&target_OP_GET_LOCAL_0,
@@ -813,6 +815,18 @@ static InterpretResult run(int stopFrameCount) {
     TARGET(OP_POP)
       DROP();
       DISPATCH();
+    TARGET(OP_DUP) {
+      Value val = PEEK(0);
+      PUSH(val);
+      DISPATCH();
+    }
+    TARGET(OP_DUP_TWO) {
+      Value a = PEEK(1);
+      Value b = PEEK(0);
+      PUSH(a);
+      PUSH(b);
+      DISPATCH();
+    }
     TARGET(OP_GET_LOCAL) {
       uint8_t slot = READ_BYTE();
       PUSH(slots[slot]);

@@ -134,6 +134,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("OP_FALSE", offset);
   case OP_POP:
     return simpleInstruction("OP_POP", offset);
+  case OP_DUP:
+    return simpleInstruction("OP_DUP", offset);
+  case OP_DUP_TWO:
+    return simpleInstruction("OP_DUP_TWO", offset);
   case OP_GET_LOCAL:
     return byteInstruction("OP_GET_LOCAL", chunk, offset);
   case OP_SET_LOCAL:
@@ -305,6 +309,8 @@ static const char *opcodeNames[256] = {
     [OP_TRUE] = "OP_TRUE",
     [OP_FALSE] = "OP_FALSE",
     [OP_POP] = "OP_POP",
+    [OP_DUP] = "OP_DUP",
+    [OP_DUP_TWO] = "OP_DUP_TWO",
     [OP_GET_LOCAL] = "OP_GET_LOCAL",
     [OP_SET_LOCAL] = "OP_SET_LOCAL",
     [OP_GET_GLOBAL] = "OP_GET_GLOBAL",

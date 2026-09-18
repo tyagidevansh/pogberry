@@ -631,12 +631,43 @@ static void call(bool canAssign) {
   emitBytes(OP_CALL, argCount);
 }
 
+static bool matchAssignmentOp(uint8_t *binaryOp) {
+  if (match(TOKEN_PLUS_EQUAL)) {
+    *binaryOp = OP_ADD;
+    return true;
+  }
+  if (match(TOKEN_MINUS_EQUAL)) {
+    *binaryOp = OP_SUBTRACT;
+    return true;
+  }
+  if (match(TOKEN_STAR_EQUAL)) {
+    *binaryOp = OP_MULTIPLY;
+    return true;
+  }
+  if (match(TOKEN_SLASH_EQUAL)) {
+    *binaryOp = OP_DIVIDE;
+    return true;
+  }
+  if (match(TOKEN_MODULO_EQUAL)) {
+    *binaryOp = OP_MODULO;
+    return true;
+  }
+  return false;
+}
+
 static void dot(bool canAssign) {
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
   ConstantIndex name = identifierConstant(&parser.previous);
 
+  uint8_t binaryOp;
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
+    emitConstantInstruction(OP_SET_PROPERTY, OP_SET_PROPERTY_LONG, name);
+  } else if (canAssign && matchAssignmentOp(&binaryOp)) {
+    emitByte(OP_DUP);
+    emitConstantInstruction(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, name);
+    expression();
+    emitByte(binaryOp);
     emitConstantInstruction(OP_SET_PROPERTY, OP_SET_PROPERTY_LONG, name);
   } else if (match(TOKEN_LEFT_PAREN)) {
     uint8_t argCount = argumentList();
@@ -1125,8 +1156,18 @@ static void containerIndex(bool canAssign) {
   expression();
   consume(TOKEN_RIGHT_BRACKET, "Expect ']' after index.");
 
+  uint8_t binaryOp;
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
+    if (current != NULL) {
+      current->lastAssignmentOpOffset = currentChunk()->count;
+    }
+    emitByte(OP_SET_INDEX);
+  } else if (canAssign && matchAssignmentOp(&binaryOp)) {
+    emitByte(OP_DUP_TWO);
+    emitByte(OP_GET_INDEX);
+    expression();
+    emitByte(binaryOp);
     if (current != NULL) {
       current->lastAssignmentOpOffset = currentChunk()->count;
     }
@@ -1291,11 +1332,41 @@ static void namedVariable(Token name, bool canAssign) {
     }
   }
 
+  uint8_t binaryOp;
   if (canAssign && match(TOKEN_EQUAL)) {
     if (name.length == 4 && memcmp(name.start, "this", 4) == 0) {
       error("Cannot assign to 'this'.");
     }
     expression();
+    if (isGlobal) {
+      if (global <= UINT8_MAX && current != NULL) {
+        current->lastAssignmentOpOffset = currentChunk()->count;
+      }
+      emitConstantInstruction(OP_SET_GLOBAL, OP_SET_GLOBAL_LONG, global);
+    } else if (setOp == OP_SET_LOCAL && arg >= 0 && arg <= 3) {
+      if (current != NULL) {
+        current->lastAssignmentOpOffset = currentChunk()->count;
+      }
+      emitByte((uint8_t)(OP_SET_LOCAL_0 + arg));
+    } else {
+      if (current != NULL) {
+        current->lastAssignmentOpOffset = currentChunk()->count;
+      }
+      emitBytes(setOp, (uint8_t)arg);
+    }
+  } else if (canAssign && matchAssignmentOp(&binaryOp)) {
+    if (name.length == 4 && memcmp(name.start, "this", 4) == 0) {
+      error("Cannot assign to 'this'.");
+    }
+    if (isGlobal) {
+      emitConstantInstruction(OP_GET_GLOBAL, OP_GET_GLOBAL_LONG, global);
+    } else if (getOp == OP_GET_LOCAL && arg >= 0 && arg <= 3) {
+      emitByte((uint8_t)(OP_GET_LOCAL_0 + arg));
+    } else {
+      emitBytes(getOp, (uint8_t)arg);
+    }
+    expression();
+    emitByte(binaryOp);
     if (isGlobal) {
       if (global <= UINT8_MAX && current != NULL) {
         current->lastAssignmentOpOffset = currentChunk()->count;
@@ -1427,6 +1498,11 @@ ParseRule rules[] = {
     [TOKEN_LET] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
     [TOKEN_USE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_PLUS_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_MINUS_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_STAR_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_SLASH_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_MODULO_EQUAL] = {NULL, NULL, PREC_NONE},
     [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
     [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -1449,7 +1525,8 @@ static void parsePrecedence(Precedence precedence) {
     infixRule(canAssign);
   }
 
-  if (canAssign && match(TOKEN_EQUAL)) {
+  uint8_t dummyOp;
+  if (canAssign && (match(TOKEN_EQUAL) || matchAssignmentOp(&dummyOp))) {
     error("Invalid assignment target.");
   }
 }

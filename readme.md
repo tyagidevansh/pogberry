@@ -90,14 +90,26 @@ Statements end with semicolons. `//` starts a line comment.
 ```pb
 let name = "Sajid";
 let health = 100;
-health = health - 10;
+health -= 10;
 
 if (health > 0)
   print(name + " is still standing.");
 ```
 
-`let` creates a mutable binding. Values include `nil`,
-booleans, numbers, strings, lists, maps, functions, classes, instances, and
+`let` creates a mutable binding. Compound assignment operators (`+=`, `-=`, `*=`, `/=`, `%=`) are supported for variables, object properties, list indices, and map keys:
+
+```pb
+let count = 10;
+count += 5;             // 15
+count *= 2;             // 30
+
+player.x += speed * dt; // object properties
+inventory[0] -= 1;      // lists
+stats["score"] += 100;  // maps
+name += "!";            // string concatenation
+```
+
+Values include `nil`, booleans, numbers, strings, lists, maps, functions, classes, instances, and
 modules. `false` and `nil` are falsey; every other value is truthy.
 
 Numbers use double precision. Division and modulo by zero are runtime errors.
@@ -127,7 +139,7 @@ fun factorial(number)
   return number * factorial(number - 1);
 }
 
-for (let i = 0; i < 5; i = i + 1)
+for (let i = 0; i < 5; i += 1)
   print(factorial(i));
 ```
 
