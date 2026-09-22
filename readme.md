@@ -129,7 +129,7 @@ conversion.
 
 ## Functions and control flow
 
-Pogberry supports `if`, `else`, `while`, `for`, and `break`.
+Pogberry supports `if`, `else`, `while`, `for`, `break`, and `continue`.
 
 ```pb
 fun factorial(number)

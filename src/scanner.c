@@ -131,6 +131,8 @@ static TokenType identifierType() {
         return checkKeyword(1, 4, "lass", TOKEN_CLASS);
       case 'a':
         return checkKeyword(1, 3, "ase", TOKEN_CASE);
+      case 'o':
+        return checkKeyword(2, 6, "ntinue", TOKEN_CONTINUE);
       }
     }
     break;

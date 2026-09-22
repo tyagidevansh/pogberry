@@ -84,10 +84,13 @@ typedef struct LoopCompiler {
   int breakCount;
   int breakCapacity;
   int scopeDepth;
+  int continueTarget;
+  int bodyScopeDepth;
 } LoopCompiler;
 
 static LoopCompiler *currentLoop = NULL;
 static void breakStatement(void);
+static void continueStatement(void);
 
 Parser parser;
 Compiler *current = NULL;
@@ -912,6 +915,9 @@ static void forStatement() {
     patchJump(bodyJump);
   }
 
+  loopCompiler.continueTarget = loopStart;
+  loopCompiler.bodyScopeDepth = current->scopeDepth;
+
   statement();
   emitLoop(loopStart);
 
@@ -1022,6 +1028,18 @@ static void breakStatement(void) {
   consume(TOKEN_SEMICOLON, "Expect ';' after 'break'.");
 }
 
+static void continueStatement(void) {
+  if (currentLoop == NULL) {
+    error("Can't use 'continue' outside of a loop.");
+    return;
+  }
+  for (int i = current->localCount - 1; i >= 0 && current->locals[i].depth > currentLoop->bodyScopeDepth; i--) {
+    emitByte(current->locals[i].isCaptured ? OP_CLOSE_UPVALUE : OP_POP);
+  }
+  emitLoop(currentLoop->continueTarget);
+  consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+}
+
 static void whileStatement() {
   LoopCompiler loopCompiler;
   loopCompiler.enclosing = currentLoop;
@@ -1032,6 +1050,8 @@ static void whileStatement() {
   currentLoop = &loopCompiler;
 
   int loopStart = currentChunk()->count;
+  loopCompiler.continueTarget = loopStart;
+  loopCompiler.bodyScopeDepth = current->scopeDepth;
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   if (current != NULL) current->lastComparisonOpOffset = -1;
   int jumpsBefore = jumpEmitCount;
@@ -1061,9 +1081,9 @@ static bool isAliasCharacter(char character) {
 }
 
 static bool isReservedAlias(const char *chars, int length) {
-  static const char *reserved[] = {"and",   "as",   "break", "case", "class", "default", "else",  "export", "false",
-                                   "for",   "fun",  "if",    "let",  "nil",   "or",      "print", "return", "rizz",
-                                   "super", "this", "true",  "use",  "while",   "yap"};
+  static const char *reserved[] = {"and",    "as",   "break", "case", "class", "default", "else",  "export",
+                                   "false",  "for",  "fun",   "if",   "let",   "nil",     "or",    "print",
+                                   "return", "rizz", "super", "this", "true",  "use",     "while", "yap"};
   size_t count = sizeof(reserved) / sizeof(reserved[0]);
   for (size_t i = 0; i < count; i++) {
     if ((int)strlen(reserved[i]) == length && memcmp(chars, reserved[i], (size_t)length) == 0) return true;
@@ -1194,6 +1214,8 @@ static void synchronize() {
     case TOKEN_WHILE:
     case TOKEN_PRINT:
     case TOKEN_RETURN:
+    case TOKEN_BREAK:
+    case TOKEN_CONTINUE:
       return;
 
     default:; // do nothing
@@ -1239,6 +1261,8 @@ static void statement() {
     useStatement();
   } else if (match(TOKEN_BREAK)) {
     breakStatement();
+  } else if (match(TOKEN_CONTINUE)) {
+    continueStatement();
   } else {
     expressionStatement();
   }
@@ -1498,6 +1522,8 @@ ParseRule rules[] = {
     [TOKEN_LET] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
     [TOKEN_USE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_BREAK] = {NULL, NULL, PREC_NONE},
+    [TOKEN_CONTINUE] = {NULL, NULL, PREC_NONE},
     [TOKEN_PLUS_EQUAL] = {NULL, NULL, PREC_NONE},
     [TOKEN_MINUS_EQUAL] = {NULL, NULL, PREC_NONE},
     [TOKEN_STAR_EQUAL] = {NULL, NULL, PREC_NONE},
