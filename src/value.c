@@ -133,6 +133,16 @@ static bool objectsEqual(Value left, Value right, EqualityContext *context) {
 }
 
 static bool valuesEqualInternal(Value left, Value right, EqualityContext *context) {
+#if NAN_BOXING
+  if (IS_NUMBER(left) && IS_NUMBER(right)) {
+    return AS_NUMBER(left) == AS_NUMBER(right);
+  }
+  if (left == right) return true;
+  if (IS_OBJ(left) && IS_OBJ(right)) {
+    return objectsEqual(left, right, context);
+  }
+  return false;
+#else
   if (left.type != right.type) return false;
 
   switch (left.type) {
@@ -150,6 +160,7 @@ static bool valuesEqualInternal(Value left, Value right, EqualityContext *contex
   }
 
   return false;
+#endif
 }
 
 typedef struct {
@@ -188,6 +199,24 @@ static bool isActive(StringBuilder *builder, Obj *object) {
 }
 
 bool valuesEqual(Value left, Value right) {
+#if NAN_BOXING
+  if (IS_NUMBER(left) && IS_NUMBER(right)) {
+    return AS_NUMBER(left) == AS_NUMBER(right);
+  }
+  if (left == right) return true;
+  if (IS_OBJ(left) && IS_OBJ(right)) {
+    Obj *leftObject = AS_OBJ(left);
+    Obj *rightObject = AS_OBJ(right);
+    if (leftObject == rightObject) return true;
+    if (leftObject->type != rightObject->type) return false;
+    if (leftObject->type == OBJ_STRING) {
+      return stringsEqual((ObjString *)leftObject, (ObjString *)rightObject);
+    }
+    EqualityContext context = {0};
+    return objectsEqual(left, right, &context);
+  }
+  return false;
+#else
   if (left.type != right.type) return false;
   switch (left.type) {
   case VAL_BOOL:
@@ -209,6 +238,7 @@ bool valuesEqual(Value left, Value right) {
   }
   }
   return false;
+#endif
 }
 
 static void pushActive(StringBuilder *builder, Obj *object) {
@@ -225,19 +255,18 @@ static void pushActive(StringBuilder *builder, Obj *object) {
 static void appendValue(StringBuilder *builder, Value value) {
   char number[32];
 
-  switch (value.type) {
-  case VAL_BOOL:
+  if (IS_BOOL(value)) {
     appendCString(builder, AS_BOOL(value) ? "true" : "false");
     return;
-  case VAL_NIL:
+  }
+  if (IS_NIL(value)) {
     appendCString(builder, "nil");
     return;
-  case VAL_NUMBER:
+  }
+  if (IS_NUMBER(value)) {
     formatNumberString(number, sizeof(number), AS_NUMBER(value));
     appendCString(builder, number);
     return;
-  case VAL_OBJ:
-    break;
   }
 
   Obj *object = AS_OBJ(value);

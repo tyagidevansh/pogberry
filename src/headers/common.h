@@ -12,4 +12,8 @@
 // #define DEBUG_LOG_GC
 #define UINT8_COUNT (UINT8_MAX + 1)
 
+#ifndef NAN_BOXING
+#define NAN_BOXING 1
+#endif
+
 #endif

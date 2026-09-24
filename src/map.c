@@ -21,14 +21,13 @@ static uint32_t hashNumber(double number) {
 }
 
 static uint32_t mapKeyHash(Value key) {
-  switch (key.type) {
-  case VAL_NIL:
+  if (IS_NIL(key)) {
     return 0x9e3779b9u;
-  case VAL_BOOL:
+  } else if (IS_BOOL(key)) {
     return AS_BOOL(key) ? 0x85ebca6bu : 0xc2b2ae35u;
-  case VAL_NUMBER:
+  } else if (IS_NUMBER(key)) {
     return hashNumber(AS_NUMBER(key));
-  case VAL_OBJ:
+  } else if (IS_OBJ(key)) {
     return stringGetHash(AS_STRING(key));
   }
 
@@ -36,23 +35,32 @@ static uint32_t mapKeyHash(Value key) {
 }
 
 static inline bool mapKeysEqual(Value a, Value b) {
-  if (a.type != b.type) return false;
-  switch (a.type) {
-  case VAL_NIL:
-    return true;
-  case VAL_BOOL:
-    return AS_BOOL(a) == AS_BOOL(b);
-  case VAL_NUMBER:
+  if (IS_NUMBER(a) && IS_NUMBER(b)) {
     return AS_NUMBER(a) == AS_NUMBER(b);
-  case VAL_OBJ: {
+  }
+#if NAN_BOXING
+  if (a == b) return true;
+#endif
+  if (IS_OBJ(a) && IS_OBJ(b)) {
     ObjString *aStr = AS_STRING(a);
     ObjString *bStr = AS_STRING(b);
     if (aStr == bStr) return true;
     return aStr->length == bStr->length &&
            memcmp(aStr->chars, bStr->chars, (size_t)aStr->length) == 0;
   }
+#if !NAN_BOXING
+  if (a.type != b.type) return false;
+  switch (a.type) {
+  case VAL_NIL:
+    return true;
+  case VAL_BOOL:
+    return AS_BOOL(a) == AS_BOOL(b);
+  default:
+    return false;
   }
+#else
   return false;
+#endif
 }
 
 static int findEntry(Map *map, Value key, uint32_t hash, int *previous) {

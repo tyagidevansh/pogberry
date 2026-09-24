@@ -1080,6 +1080,18 @@ static InterpretResult run(int stopFrameCount) {
       Value b = POP();
       Value a = stackTop[-1];
       bool equal = false;
+#if NAN_BOXING
+      if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        equal = (AS_NUMBER(a) == AS_NUMBER(b));
+      } else if (a == b) {
+        equal = true;
+      } else if (IS_OBJ(a) && IS_OBJ(b)) {
+        STORE_FRAME();
+        equal = valuesEqual(a, b);
+        LOAD_FRAME();
+        if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+      }
+#else
       if (a.type == b.type) {
         if (a.type == VAL_NUMBER) {
           equal = (a.as.number == b.as.number);
@@ -1096,6 +1108,7 @@ static InterpretResult run(int stopFrameCount) {
           if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
         }
       }
+#endif
       stackTop[-1] = BOOL_VAL(equal);
       DISPATCH();
     }
@@ -1248,6 +1261,18 @@ static InterpretResult run(int stopFrameCount) {
       Value a = stackTop[-2];
       stackTop -= 2;
       bool equal = false;
+#if NAN_BOXING
+      if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        equal = (AS_NUMBER(a) == AS_NUMBER(b));
+      } else if (a == b) {
+        equal = true;
+      } else if (IS_OBJ(a) && IS_OBJ(b)) {
+        STORE_FRAME();
+        equal = valuesEqual(a, b);
+        LOAD_FRAME();
+        if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+      }
+#else
       if (a.type == b.type) {
         if (a.type == VAL_NUMBER) {
           equal = (a.as.number == b.as.number);
@@ -1264,6 +1289,7 @@ static InterpretResult run(int stopFrameCount) {
           if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
         }
       }
+#endif
       if (!equal) {
         ip += offset;
       }

@@ -95,15 +95,16 @@ Value listSortNative(int argCount, Value *args) {
     return NIL_VAL;
   }
 
-  ValueType elementType = list->items.values[0].type;
-  if (elementType != VAL_NUMBER && !(elementType == VAL_OBJ && IS_STRING(list->items.values[0]))) {
+  bool isNumber = IS_NUMBER(list->items.values[0]);
+  bool isString = IS_STRING(list->items.values[0]);
+  if (!isNumber && !isString) {
     runtimeError("sort() only supports lists of numbers or strings.");
     return NIL_VAL;
   }
 
   for (int i = 1; i < list->items.count; i++) {
     Value element = list->items.values[i];
-    if (element.type != elementType || (elementType == VAL_OBJ && !IS_STRING(element))) {
+    if ((isNumber && !IS_NUMBER(element)) || (isString && !IS_STRING(element))) {
       runtimeError("sort() requires values of one supported type.");
       return NIL_VAL;
     }
