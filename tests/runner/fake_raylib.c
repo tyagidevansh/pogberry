@@ -357,3 +357,33 @@ RAYLIB_EXPORT bool isMusicStreamPlaying(int id) {
   (void)id;
   return true;
 }
+
+/* Shaders + script-level log level (Phase 1 headless stubs). */
+static int fakeTraceLogLevel = 5;
+
+RAYLIB_EXPORT int loadShader(const char *vsPath, const char *fsPath) {
+  bool vsMissing = vsPath == NULL || vsPath[0] == '\0';
+  bool fsMissing = fsPath == NULL || fsPath[0] == '\0';
+  if (vsMissing && fsMissing) return 0;
+  return 1;
+}
+
+RAYLIB_EXPORT void unloadShader(int id) { (void)id; }
+RAYLIB_EXPORT void beginShaderMode(int id) { (void)id; }
+RAYLIB_EXPORT void endShaderMode(void) {}
+
+RAYLIB_EXPORT void setShaderFloat(int id, const char *uniformName, float value) {
+  (void)id;
+  (void)uniformName;
+  (void)value;
+}
+
+RAYLIB_EXPORT void setShaderVec2(int id, const char *uniformName, float x, float y) {
+  (void)id;
+  (void)uniformName;
+  (void)x;
+  (void)y;
+}
+
+RAYLIB_EXPORT void setTraceLogLevel(int level) { fakeTraceLogLevel = level; }
+RAYLIB_EXPORT void setDebugMode(int level) { fakeTraceLogLevel = level; }

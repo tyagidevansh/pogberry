@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include <raylib.h>
 
 #define MAX_TEXTURES 512
@@ -15,11 +16,30 @@ static Music musics[MAX_MUSIC];
 static bool musicActive[MAX_MUSIC];
 static bool audioInitialized = false;
 
+/* Pogberry script-level log level (see gui.setTraceLogLevel). Default
+ * mirrors the historical hardcoded behavior: errors only. */
+static int traceLevel = LOG_ERROR;
+
+#define MAX_SHADERS 64
+static Shader shaders[MAX_SHADERS];
+static bool shaderActive[MAX_SHADERS];
+
 void initWindow(int width, int height, const char *title) {
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-  SetTraceLogLevel(LOG_ERROR);
+  SetTraceLogLevel(traceLevel);
   InitWindow(width, height, title);
 }
+
+void setTraceLogLevel(int level) {
+  if (level < LOG_ALL) level = LOG_ALL;
+  if (level > LOG_NONE) level = LOG_NONE;
+  traceLevel = level;
+  SetTraceLogLevel(level);
+}
+
+/* Alias so the `gui.setDebugMode` script name resolves to its own backend
+ * symbol (the bridge passes LOG_ALL / LOG_ERROR through). */
+void setDebugMode(int level) { setTraceLogLevel(level); }
 
 void initAudio(void) {
   if (!audioInitialized) {
@@ -78,6 +98,12 @@ void closeWindow(void) {
     if (textureActive[i]) {
       UnloadTexture(textures[i]);
       textureActive[i] = false;
+    }
+  }
+  for (int i = 0; i < MAX_SHADERS; i++) {
+    if (shaderActive[i]) {
+      UnloadShader(shaders[i]);
+      shaderActive[i] = false;
     }
   }
   virtualScalingActive = false;
@@ -465,4 +491,66 @@ bool isMusicStreamPlaying(int id) {
     return IsMusicStreamPlaying(musics[index]);
   }
   return false;
+}
+
+/* Shaders (Phase 1). NULL or empty paths select Raylib's default pipeline
+ * for that stage. Returns 0 when no slot is free or the program is invalid
+ * (IsShaderValid check); the host bridge turns 0 into a script error. */
+int loadShader(const char *vsPath, const char *fsPath) {
+  if (!IsWindowReady()) return 0;
+  const char *vs = (vsPath != NULL && vsPath[0] != '\0') ? vsPath : NULL;
+  const char *fs = (fsPath != NULL && fsPath[0] != '\0') ? fsPath : NULL;
+  if (vs == NULL && fs == NULL) return 0;
+  for (int i = 0; i < MAX_SHADERS; i++) {
+    if (!shaderActive[i]) {
+      Shader shader = LoadShader(vs, fs);
+      if (!IsShaderValid(shader)) return 0;
+      shaders[i] = shader;
+      shaderActive[i] = true;
+      return i + 1;
+    }
+  }
+  return 0;
+}
+
+void unloadShader(int id) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_SHADERS && shaderActive[index]) {
+    UnloadShader(shaders[index]);
+    shaderActive[index] = false;
+  }
+}
+
+void beginShaderMode(int id) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_SHADERS && shaderActive[index]) {
+    BeginShaderMode(shaders[index]);
+  } else {
+    TraceLog(LOG_WARNING, "PBGUI: beginShaderMode(%d) with invalid shader id.", id);
+  }
+}
+
+void endShaderMode(void) { EndShaderMode(); }
+
+void setShaderFloat(int id, const char *uniformName, float value) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_SHADERS || !shaderActive[index] || uniformName == NULL) return;
+  int loc = GetShaderLocation(shaders[index], uniformName);
+  if (loc == -1) {
+    TraceLog(LOG_WARNING, "PBGUI: shader uniform '%s' not found.", uniformName);
+    return;
+  }
+  SetShaderValue(shaders[index], loc, &value, SHADER_UNIFORM_FLOAT);
+}
+
+void setShaderVec2(int id, const char *uniformName, float x, float y) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_SHADERS || !shaderActive[index] || uniformName == NULL) return;
+  int loc = GetShaderLocation(shaders[index], uniformName);
+  if (loc == -1) {
+    TraceLog(LOG_WARNING, "PBGUI: shader uniform '%s' not found.", uniformName);
+    return;
+  }
+  float vec[2] = {x, y};
+  SetShaderValue(shaders[index], loc, vec, SHADER_UNIFORM_VEC2);
 }

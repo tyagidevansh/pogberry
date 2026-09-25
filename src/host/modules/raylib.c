@@ -108,6 +108,16 @@ typedef void (*SetVirtualResolutionFn)(int, int);
 typedef int (*GetRenderWidthFn)(void);
 typedef int (*GetRenderHeightFn)(void);
 
+/* Shaders + script-level log level (Phase 1). Backend returns int handles;
+ * loadShader returns 0 on failure so the bridge can raise a script error. */
+typedef int (*LoadShaderFn)(const char *, const char *);
+typedef void (*UnloadShaderFn)(int);
+typedef void (*BeginShaderModeFn)(int);
+typedef void (*EndShaderModeFn)(void);
+typedef void (*SetShaderFloatFn)(int, const char *, float);
+typedef void (*SetShaderVec2Fn)(int, const char *, float, float);
+typedef void (*SetTraceLogLevelFn)(int);
+
 #define RAYLIB_BASE_FUNCTIONS(X) \
   X(initWindow, InitWindowFn, "initWindow", guiInitWindow) \
   X(closeWindow, CloseWindowFn, "closeWindow", guiCloseWindow) \
@@ -198,7 +208,15 @@ typedef int (*GetRenderHeightFn)(void);
   X(isMusicStreamPlaying, IsMusicStreamPlayingFn, "isMusicStreamPlaying", guiIsMusicStreamPlaying) \
   X(setVirtualResolution, SetVirtualResolutionFn, "setVirtualResolution", guiSetVirtualResolution) \
   X(getRenderWidth, GetRenderWidthFn, "getRenderWidth", guiGetRenderWidth) \
-  X(getRenderHeight, GetRenderHeightFn, "getRenderHeight", guiGetRenderHeight)
+  X(getRenderHeight, GetRenderHeightFn, "getRenderHeight", guiGetRenderHeight) \
+  X(loadShader, LoadShaderFn, "loadShader", guiLoadShader) \
+  X(unloadShader, UnloadShaderFn, "unloadShader", guiUnloadShader) \
+  X(beginShaderMode, BeginShaderModeFn, "beginShaderMode", guiBeginShaderMode) \
+  X(endShaderMode, EndShaderModeFn, "endShaderMode", guiEndShaderMode) \
+  X(setShaderFloat, SetShaderFloatFn, "setShaderFloat", guiSetShaderFloat) \
+  X(setShaderVec2, SetShaderVec2Fn, "setShaderVec2", guiSetShaderVec2) \
+  X(setTraceLogLevel, SetTraceLogLevelFn, "setTraceLogLevel", guiSetTraceLogLevel) \
+  X(setDebugMode, SetTraceLogLevelFn, "setDebugMode", guiSetDebugMode)
 
 #define RAYLIB_FUNCTIONS(X) \
   RAYLIB_BASE_FUNCTIONS(X) \
@@ -1161,6 +1179,111 @@ static PbValue guiGetRenderHeight(PbVM *vm, int argCount, const PbValue *args, v
   if (argCount != 0) return guiError(vm, "getRenderHeight() takes no arguments.");
   if (raylib.getRenderHeight == NULL) return missingRaylibFunction(vm, "getRenderHeight");
   return pbNumberValue(raylib.getRenderHeight());
+}
+
+/* Shaders + script-level log level (Phase 1). */
+
+static const char *shaderPathOrNull(const PbValue *value, bool *ok) {
+  if (value->type == PB_VALUE_NIL) return NULL;
+  if (value->type == PB_VALUE_STRING) {
+    if (value->as.string.chars[0] == '\0') return NULL;
+    return value->as.string.chars;
+  }
+  *ok = false;
+  return NULL;
+}
+
+static PbValue guiLoadShader(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2) return guiError(vm, "loadShader(vsPath, fsPath) expected (nil selects the default).");
+  bool ok = true;
+  const char *vs = shaderPathOrNull(&args[0], &ok);
+  const char *fs = shaderPathOrNull(&args[1], &ok);
+  if (!ok) return guiError(vm, "loadShader(vsPath, fsPath) expected (nil selects the default).");
+  if (raylib.loadShader == NULL) return missingRaylibFunction(vm, "loadShader");
+  int id = raylib.loadShader(vs, fs);
+  if (id <= 0) {
+    char message[512];
+    snprintf(message, sizeof(message),
+             "loadShader() failed for vs=\"%s\" fs=\"%s\". Check the paths and GLSL, or call "
+             "gui.setDebugMode(true) for Raylib shader logs.",
+             vs != NULL ? vs : "(default)", fs != NULL ? fs : "(default)");
+    return guiError(vm, message);
+  }
+  return pbNumberValue(id);
+}
+
+static PbValue guiUnloadShader(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "unloadShader(id) expected.");
+  if (raylib.unloadShader == NULL) return missingRaylibFunction(vm, "unloadShader");
+  raylib.unloadShader((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiBeginShaderMode(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "beginShaderMode(id) expected.");
+  if (raylib.beginShaderMode == NULL) return missingRaylibFunction(vm, "beginShaderMode");
+  raylib.beginShaderMode((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiEndShaderMode(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "endShaderMode() takes no arguments.");
+  if (raylib.endShaderMode == NULL) return missingRaylibFunction(vm, "endShaderMode");
+  raylib.endShaderMode();
+  return pbNilValue();
+}
+
+static PbValue guiSetShaderFloat(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 3 || !numbersFitInt(args, 1) || args[1].type != PB_VALUE_STRING ||
+      args[1].as.string.chars[0] == '\0' || !numberFitsFloat(args[2]))
+    return guiError(vm, "setShaderFloat(id, uniformName, value) expected.");
+  if (raylib.setShaderFloat == NULL) return missingRaylibFunction(vm, "setShaderFloat");
+  raylib.setShaderFloat((int)args[0].as.number, args[1].as.string.chars, (float)args[2].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetShaderVec2(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 4 || !numbersFitInt(args, 1) || args[1].type != PB_VALUE_STRING ||
+      args[1].as.string.chars[0] == '\0' || !numberFitsFloat(args[2]) || !numberFitsFloat(args[3]))
+    return guiError(vm, "setShaderVec2(id, uniformName, x, y) expected.");
+  if (raylib.setShaderVec2 == NULL) return missingRaylibFunction(vm, "setShaderVec2");
+  raylib.setShaderVec2((int)args[0].as.number, args[1].as.string.chars, (float)args[2].as.number,
+                       (float)args[3].as.number);
+  return pbNilValue();
+}
+
+/* Raylib log levels, mirrored so scripts use the same names. */
+static const NameCode traceLogLevels[] = {
+    {"ALL", 0}, {"TRACE", 1}, {"DEBUG", 2}, {"INFO", 3},
+    {"WARNING", 4}, {"WARN", 4}, {"ERROR", 5}, {"FATAL", 6}, {"NONE", 7},
+};
+
+static PbValue guiSetTraceLogLevel(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING)
+    return guiError(vm, "setTraceLogLevel(level) expected one of ALL, TRACE, DEBUG, INFO, WARNING, ERROR, FATAL, NONE.");
+  int level = findCode(traceLogLevels, sizeof(traceLogLevels) / sizeof(traceLogLevels[0]), args[0].as.string.chars);
+  if (level < 0)
+    return guiError(vm, "setTraceLogLevel(level) expected one of ALL, TRACE, DEBUG, INFO, WARNING, ERROR, FATAL, NONE.");
+  if (raylib.setTraceLogLevel == NULL) return missingRaylibFunction(vm, "setTraceLogLevel");
+  raylib.setTraceLogLevel(level);
+  return pbNilValue();
+}
+
+static PbValue guiSetDebugMode(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_BOOL)
+    return guiError(vm, "setDebugMode(enabled) expected a boolean.");
+  if (raylib.setDebugMode == NULL) return missingRaylibFunction(vm, "setDebugMode");
+  raylib.setDebugMode(args[0].as.boolean ? 0 /* ALL */ : 5 /* ERROR */);
+  return pbNilValue();
 }
 
 static bool openRaylibLibrary(void) {
