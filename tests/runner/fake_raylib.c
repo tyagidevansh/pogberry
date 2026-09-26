@@ -358,7 +358,6 @@ RAYLIB_EXPORT bool isMusicStreamPlaying(int id) {
   return true;
 }
 
-/* Shaders + script-level log level (Phase 1 headless stubs). */
 static int fakeTraceLogLevel = 5;
 
 RAYLIB_EXPORT int loadShader(const char *vsPath, const char *fsPath) {
@@ -387,3 +386,28 @@ RAYLIB_EXPORT void setShaderVec2(int id, const char *uniformName, float x, float
 
 RAYLIB_EXPORT void setTraceLogLevel(int level) { fakeTraceLogLevel = level; }
 RAYLIB_EXPORT void setDebugMode(int level) { fakeTraceLogLevel = level; }
+
+RAYLIB_EXPORT int loadRenderTexture(int width, int height) {
+  if (width <= 0 || height <= 0 || width > 16384 || height > 16384) return 0;
+  return 1;
+}
+
+RAYLIB_EXPORT void unloadRenderTexture(int id) { (void)id; }
+RAYLIB_EXPORT void beginTextureMode(int id) { (void)id; }
+RAYLIB_EXPORT void endTextureMode(void) {}
+
+RAYLIB_EXPORT void drawRenderTexture(int id, int x, int y) {
+  (void)id;
+  (void)x;
+  (void)y;
+}
+
+RAYLIB_EXPORT void drawRenderTextureRec(int id, float sx, float sy, float sw, float sh, float dx, float dy) {
+  (void)id;
+  (void)sx;
+  (void)sy;
+  (void)sw;
+  (void)sh;
+  (void)dx;
+  (void)dy;
+}

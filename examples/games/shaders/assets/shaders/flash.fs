@@ -1,6 +1,3 @@
-// White hit-flash. u_flash 0 = normal sprite, 1 = fully white.
-// NOTE: the effect applies AFTER texel * fragColor. Untextured shapes
-// sample a 1x1 white texture, so grading texel.rgb alone is a no-op on them.
 varying vec2 fragTexCoord;
 varying vec4 fragColor;
 

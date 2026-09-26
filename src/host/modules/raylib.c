@@ -107,9 +107,6 @@ typedef bool (*IsMusicStreamPlayingFn)(int);
 typedef void (*SetVirtualResolutionFn)(int, int);
 typedef int (*GetRenderWidthFn)(void);
 typedef int (*GetRenderHeightFn)(void);
-
-/* Shaders + script-level log level (Phase 1). Backend returns int handles;
- * loadShader returns 0 on failure so the bridge can raise a script error. */
 typedef int (*LoadShaderFn)(const char *, const char *);
 typedef void (*UnloadShaderFn)(int);
 typedef void (*BeginShaderModeFn)(int);
@@ -117,6 +114,12 @@ typedef void (*EndShaderModeFn)(void);
 typedef void (*SetShaderFloatFn)(int, const char *, float);
 typedef void (*SetShaderVec2Fn)(int, const char *, float, float);
 typedef void (*SetTraceLogLevelFn)(int);
+typedef int (*LoadRenderTextureFn)(int, int);
+typedef void (*UnloadRenderTextureFn)(int);
+typedef void (*BeginTextureModeFn)(int);
+typedef void (*EndTextureModeFn)(void);
+typedef void (*DrawRenderTextureFn)(int, int, int);
+typedef void (*DrawRenderTextureRecFn)(int, float, float, float, float, float, float);
 
 #define RAYLIB_BASE_FUNCTIONS(X) \
   X(initWindow, InitWindowFn, "initWindow", guiInitWindow) \
@@ -216,7 +219,13 @@ typedef void (*SetTraceLogLevelFn)(int);
   X(setShaderFloat, SetShaderFloatFn, "setShaderFloat", guiSetShaderFloat) \
   X(setShaderVec2, SetShaderVec2Fn, "setShaderVec2", guiSetShaderVec2) \
   X(setTraceLogLevel, SetTraceLogLevelFn, "setTraceLogLevel", guiSetTraceLogLevel) \
-  X(setDebugMode, SetTraceLogLevelFn, "setDebugMode", guiSetDebugMode)
+  X(setDebugMode, SetTraceLogLevelFn, "setDebugMode", guiSetDebugMode) \
+  X(loadRenderTexture, LoadRenderTextureFn, "loadRenderTexture", guiLoadRenderTexture) \
+  X(unloadRenderTexture, UnloadRenderTextureFn, "unloadRenderTexture", guiUnloadRenderTexture) \
+  X(beginTextureMode, BeginTextureModeFn, "beginTextureMode", guiBeginTextureMode) \
+  X(endTextureMode, EndTextureModeFn, "endTextureMode", guiEndTextureMode) \
+  X(drawRenderTexture, DrawRenderTextureFn, "drawRenderTexture", guiDrawRenderTexture) \
+  X(drawRenderTextureRec, DrawRenderTextureRecFn, "drawRenderTextureRec", guiDrawRenderTextureRec)
 
 #define RAYLIB_FUNCTIONS(X) \
   RAYLIB_BASE_FUNCTIONS(X) \
@@ -1181,8 +1190,6 @@ static PbValue guiGetRenderHeight(PbVM *vm, int argCount, const PbValue *args, v
   return pbNumberValue(raylib.getRenderHeight());
 }
 
-/* Shaders + script-level log level (Phase 1). */
-
 static const char *shaderPathOrNull(const PbValue *value, bool *ok) {
   if (value->type == PB_VALUE_NIL) return NULL;
   if (value->type == PB_VALUE_STRING) {
@@ -1259,7 +1266,6 @@ static PbValue guiSetShaderVec2(PbVM *vm, int argCount, const PbValue *args, voi
   return pbNilValue();
 }
 
-/* Raylib log levels, mirrored so scripts use the same names. */
 static const NameCode traceLogLevels[] = {
     {"ALL", 0}, {"TRACE", 1}, {"DEBUG", 2}, {"INFO", 3},
     {"WARNING", 4}, {"WARN", 4}, {"ERROR", 5}, {"FATAL", 6}, {"NONE", 7},
@@ -1283,6 +1289,67 @@ static PbValue guiSetDebugMode(PbVM *vm, int argCount, const PbValue *args, void
     return guiError(vm, "setDebugMode(enabled) expected a boolean.");
   if (raylib.setDebugMode == NULL) return missingRaylibFunction(vm, "setDebugMode");
   raylib.setDebugMode(args[0].as.boolean ? 0 /* ALL */ : 5 /* ERROR */);
+  return pbNilValue();
+}
+
+static PbValue guiLoadRenderTexture(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || !numbersFitInt(args, 2) || args[0].as.number <= 0 || args[1].as.number <= 0)
+    return guiError(vm, "loadRenderTexture(width, height) expected positive integers.");
+  if (raylib.loadRenderTexture == NULL) return missingRaylibFunction(vm, "loadRenderTexture");
+  int id = raylib.loadRenderTexture((int)args[0].as.number, (int)args[1].as.number);
+  if (id <= 0) {
+    char message[512];
+    snprintf(message, sizeof(message),
+             "loadRenderTexture(%d, %d) failed. Lower the size or call gui.setDebugMode(true) for Raylib logs.",
+             (int)args[0].as.number, (int)args[1].as.number);
+    return guiError(vm, message);
+  }
+  return pbNumberValue(id);
+}
+
+static PbValue guiUnloadRenderTexture(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "unloadRenderTexture(id) expected.");
+  if (raylib.unloadRenderTexture == NULL) return missingRaylibFunction(vm, "unloadRenderTexture");
+  raylib.unloadRenderTexture((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiBeginTextureMode(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "beginTextureMode(id) expected.");
+  if (raylib.beginTextureMode == NULL) return missingRaylibFunction(vm, "beginTextureMode");
+  raylib.beginTextureMode((int)args[0].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiEndTextureMode(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "endTextureMode() takes no arguments.");
+  if (raylib.endTextureMode == NULL) return missingRaylibFunction(vm, "endTextureMode");
+  raylib.endTextureMode();
+  return pbNilValue();
+}
+
+static PbValue guiDrawRenderTexture(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 3 || !numbersFitInt(args, 1) || !numbersFitCoord(args + 1, 2))
+    return guiError(vm, "drawRenderTexture(id, x, y) expected.");
+  if (raylib.drawRenderTexture == NULL) return missingRaylibFunction(vm, "drawRenderTexture");
+  raylib.drawRenderTexture((int)args[0].as.number, (int)args[1].as.number, (int)args[2].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawRenderTextureRec(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 7 || !numbersFitInt(args, 1) || !numbersFitFloat(args + 1, 6))
+    return guiError(vm, "drawRenderTextureRec(id, sourceX, sourceY, sourceW, sourceH, destX, destY) expected.");
+  if (raylib.drawRenderTextureRec == NULL) return missingRaylibFunction(vm, "drawRenderTextureRec");
+  raylib.drawRenderTextureRec((int)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                              (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
+                              (float)args[6].as.number);
   return pbNilValue();
 }
 

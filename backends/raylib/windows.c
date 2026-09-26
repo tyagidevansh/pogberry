@@ -42,13 +42,16 @@ static Music musics[MAX_MUSIC];
 static bool musicActive[MAX_MUSIC];
 static bool audioInitialized = false;
 
-/* Pogberry script-level log level (see gui.setTraceLogLevel). Default
- * mirrors the historical hardcoded behavior: errors only. */
 static int traceLevel = LOG_ERROR;
 
 #define MAX_SHADERS 64
 static Shader shaders[MAX_SHADERS];
 static bool shaderActive[MAX_SHADERS];
+
+#define MAX_RENDER_TEXTURES 32
+static RenderTexture2D renderTargets[MAX_RENDER_TEXTURES];
+static bool renderTargetActive[MAX_RENDER_TEXTURES];
+static bool inTextureMode = false;
 
 __declspec(dllexport) void initWindow(int width, int height, const char *title) {
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -63,8 +66,6 @@ __declspec(dllexport) void setTraceLogLevel(int level) {
   SetTraceLogLevel(level);
 }
 
-/* Alias so the `gui.setDebugMode` script name resolves to its own backend
- * symbol (the bridge passes LOG_ALL / LOG_ERROR through). */
 __declspec(dllexport) void setDebugMode(int level) { setTraceLogLevel(level); }
 
 __declspec(dllexport) void initAudio(void) {
@@ -131,6 +132,13 @@ __declspec(dllexport) void closeWindow(void) {
       shaderActive[i] = false;
     }
   }
+  for (int i = 0; i < MAX_RENDER_TEXTURES; i++) {
+    if (renderTargetActive[i]) {
+      UnloadRenderTexture(renderTargets[i]);
+      renderTargetActive[i] = false;
+    }
+  }
+  inTextureMode = false;
   closeAudio();
   virtualScalingActive = false;
   virtualWidth = 0;
@@ -170,7 +178,7 @@ __declspec(dllexport) void clearBackground(int r, int g, int b) {
 
 __declspec(dllexport) void beginDrawing(void) {
   BeginDrawing();
-  if (virtualScalingActive && virtualWidth > 0 && virtualHeight > 0) {
+  if (!inTextureMode && virtualScalingActive && virtualWidth > 0 && virtualHeight > 0) {
     int winW = GetScreenWidth();
     int winH = GetScreenHeight();
     float scaleX = (float)winW / (float)virtualWidth;
@@ -191,7 +199,7 @@ __declspec(dllexport) void beginDrawing(void) {
 }
 
 __declspec(dllexport) void endDrawing(void) {
-  if (virtualScalingActive && virtualWidth > 0 && virtualHeight > 0) {
+  if (!inTextureMode && virtualScalingActive && virtualWidth > 0 && virtualHeight > 0) {
     EndMode2D();
     int winW = GetScreenWidth();
     int winH = GetScreenHeight();
@@ -527,9 +535,6 @@ __declspec(dllexport) bool isMusicStreamPlaying(int id) {
   return false;
 }
 
-/* Shaders (Phase 1). NULL or empty paths select Raylib's default pipeline
- * for that stage. Returns 0 when no slot is free or the program is invalid
- * (IsShaderValid check); the host bridge turns 0 into a script error. */
 __declspec(dllexport) int loadShader(const char *vsPath, const char *fsPath) {
   if (!IsWindowReady()) return 0;
   const char *vs = (vsPath != NULL && vsPath[0] != '\0') ? vsPath : NULL;
@@ -587,4 +592,57 @@ __declspec(dllexport) void setShaderVec2(int id, const char *uniformName, float 
   }
   float vec[2] = {x, y};
   SetShaderValue(shaders[index], loc, vec, SHADER_UNIFORM_VEC2);
+}
+
+__declspec(dllexport) int loadRenderTexture(int width, int height) {
+  if (!IsWindowReady()) return 0;
+  for (int i = 0; i < MAX_RENDER_TEXTURES; i++) {
+    if (!renderTargetActive[i]) {
+      RenderTexture2D target = LoadRenderTexture(width, height);
+      if (!IsRenderTextureValid(target)) return 0;
+      renderTargets[i] = target;
+      renderTargetActive[i] = true;
+      return i + 1;
+    }
+  }
+  return 0;
+}
+
+__declspec(dllexport) void unloadRenderTexture(int id) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_RENDER_TEXTURES && renderTargetActive[index]) {
+    UnloadRenderTexture(renderTargets[index]);
+    renderTargetActive[index] = false;
+  }
+}
+
+__declspec(dllexport) void beginTextureMode(int id) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_RENDER_TEXTURES && renderTargetActive[index]) {
+    inTextureMode = true;
+    BeginTextureMode(renderTargets[index]);
+  } else {
+    TraceLog(LOG_WARNING, "PBGUI: beginTextureMode(%d) with invalid render texture id.", id);
+  }
+}
+
+__declspec(dllexport) void endTextureMode(void) {
+  EndTextureMode();
+  inTextureMode = false;
+}
+
+__declspec(dllexport) void drawRenderTexture(int id, int x, int y) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_RENDER_TEXTURES || !renderTargetActive[index]) return;
+  Texture2D texture = renderTargets[index].texture;
+  DrawTextureRec(texture, (Rectangle){0, 0, (float)texture.width, -(float)texture.height},
+                 (Vector2){(float)x, (float)y}, WHITE);
+}
+
+__declspec(dllexport) void drawRenderTextureRec(int id, float sx, float sy, float sw, float sh, float dx, float dy) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_RENDER_TEXTURES || !renderTargetActive[index]) return;
+  float textureHeight = (float)renderTargets[index].texture.height;
+  DrawTextureRec(renderTargets[index].texture, (Rectangle){sx, textureHeight - sy - sh, sw, -sh},
+                 (Vector2){dx, dy}, WHITE);
 }
