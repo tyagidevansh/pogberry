@@ -646,3 +646,52 @@ __declspec(dllexport) void drawRenderTextureRec(int id, float sx, float sy, floa
   DrawTextureRec(renderTargets[index].texture, (Rectangle){sx, textureHeight - sy - sh, sw, -sh},
                  (Vector2){dx, dy}, WHITE);
 }
+
+__declspec(dllexport) void setShaderVec3(int id, const char *uniformName, float x, float y, float z) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_SHADERS || !shaderActive[index] || uniformName == NULL) return;
+  int loc = GetShaderLocation(shaders[index], uniformName);
+  if (loc == -1) {
+    TraceLog(LOG_WARNING, "PBGUI: shader uniform '%s' not found.", uniformName);
+    return;
+  }
+  float vec[3] = {x, y, z};
+  SetShaderValue(shaders[index], loc, vec, SHADER_UNIFORM_VEC3);
+}
+
+__declspec(dllexport) void setShaderVec4(int id, const char *uniformName, float x, float y, float z, float w) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_SHADERS || !shaderActive[index] || uniformName == NULL) return;
+  int loc = GetShaderLocation(shaders[index], uniformName);
+  if (loc == -1) {
+    TraceLog(LOG_WARNING, "PBGUI: shader uniform '%s' not found.", uniformName);
+    return;
+  }
+  float vec[4] = {x, y, z, w};
+  SetShaderValue(shaders[index], loc, vec, SHADER_UNIFORM_VEC4);
+}
+
+__declspec(dllexport) void setShaderColor(int id, const char *uniformName, float r, float g, float b, float a) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_SHADERS || !shaderActive[index] || uniformName == NULL) return;
+  int loc = GetShaderLocation(shaders[index], uniformName);
+  if (loc == -1) {
+    TraceLog(LOG_WARNING, "PBGUI: shader uniform '%s' not found.", uniformName);
+    return;
+  }
+  float vec[4] = {r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+  SetShaderValue(shaders[index], loc, vec, SHADER_UNIFORM_VEC4);
+}
+
+__declspec(dllexport) void setShaderTexture(int id, const char *uniformName, int textureId) {
+  int index = id - 1;
+  int texIndex = textureId - 1;
+  if (index < 0 || index >= MAX_SHADERS || !shaderActive[index] || uniformName == NULL) return;
+  if (texIndex < 0 || texIndex >= MAX_TEXTURES || !textureActive[texIndex]) return;
+  int loc = GetShaderLocation(shaders[index], uniformName);
+  if (loc == -1) {
+    TraceLog(LOG_WARNING, "PBGUI: shader uniform '%s' not found.", uniformName);
+    return;
+  }
+  SetShaderValueTexture(shaders[index], loc, textures[texIndex]);
+}

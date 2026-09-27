@@ -411,3 +411,35 @@ RAYLIB_EXPORT void drawRenderTextureRec(int id, float sx, float sy, float sw, fl
   (void)dx;
   (void)dy;
 }
+
+RAYLIB_EXPORT void setShaderVec3(int id, const char *uniformName, float x, float y, float z) {
+  (void)id;
+  (void)uniformName;
+  (void)x;
+  (void)y;
+  (void)z;
+}
+
+RAYLIB_EXPORT void setShaderVec4(int id, const char *uniformName, float x, float y, float z, float w) {
+  (void)id;
+  (void)uniformName;
+  (void)x;
+  (void)y;
+  (void)z;
+  (void)w;
+}
+
+RAYLIB_EXPORT void setShaderColor(int id, const char *uniformName, float r, float g, float b, float a) {
+  (void)id;
+  (void)uniformName;
+  (void)r;
+  (void)g;
+  (void)b;
+  (void)a;
+}
+
+RAYLIB_EXPORT void setShaderTexture(int id, const char *uniformName, int textureId) {
+  (void)id;
+  (void)uniformName;
+  (void)textureId;
+}

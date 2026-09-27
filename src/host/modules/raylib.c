@@ -120,6 +120,10 @@ typedef void (*BeginTextureModeFn)(int);
 typedef void (*EndTextureModeFn)(void);
 typedef void (*DrawRenderTextureFn)(int, int, int);
 typedef void (*DrawRenderTextureRecFn)(int, float, float, float, float, float, float);
+typedef void (*SetShaderVec3Fn)(int, const char *, float, float, float);
+typedef void (*SetShaderVec4Fn)(int, const char *, float, float, float, float);
+typedef void (*SetShaderColorFn)(int, const char *, float, float, float, float);
+typedef void (*SetShaderTextureFn)(int, const char *, int);
 
 #define RAYLIB_BASE_FUNCTIONS(X) \
   X(initWindow, InitWindowFn, "initWindow", guiInitWindow) \
@@ -225,7 +229,11 @@ typedef void (*DrawRenderTextureRecFn)(int, float, float, float, float, float, f
   X(beginTextureMode, BeginTextureModeFn, "beginTextureMode", guiBeginTextureMode) \
   X(endTextureMode, EndTextureModeFn, "endTextureMode", guiEndTextureMode) \
   X(drawRenderTexture, DrawRenderTextureFn, "drawRenderTexture", guiDrawRenderTexture) \
-  X(drawRenderTextureRec, DrawRenderTextureRecFn, "drawRenderTextureRec", guiDrawRenderTextureRec)
+  X(drawRenderTextureRec, DrawRenderTextureRecFn, "drawRenderTextureRec", guiDrawRenderTextureRec) \
+  X(setShaderVec3, SetShaderVec3Fn, "setShaderVec3", guiSetShaderVec3) \
+  X(setShaderVec4, SetShaderVec4Fn, "setShaderVec4", guiSetShaderVec4) \
+  X(setShaderColor, SetShaderColorFn, "setShaderColor", guiSetShaderColor) \
+  X(setShaderTexture, SetShaderTextureFn, "setShaderTexture", guiSetShaderTexture)
 
 #define RAYLIB_FUNCTIONS(X) \
   RAYLIB_BASE_FUNCTIONS(X) \
@@ -1350,6 +1358,49 @@ static PbValue guiDrawRenderTextureRec(PbVM *vm, int argCount, const PbValue *ar
   raylib.drawRenderTextureRec((int)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
                               (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
                               (float)args[6].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetShaderVec3(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 5 || !numbersFitInt(args, 1) || args[1].type != PB_VALUE_STRING ||
+      args[1].as.string.chars[0] == '\0' || !numbersFitFloat(args + 2, 3))
+    return guiError(vm, "setShaderVec3(id, uniformName, x, y, z) expected.");
+  if (raylib.setShaderVec3 == NULL) return missingRaylibFunction(vm, "setShaderVec3");
+  raylib.setShaderVec3((int)args[0].as.number, args[1].as.string.chars, (float)args[2].as.number,
+                       (float)args[3].as.number, (float)args[4].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetShaderVec4(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 6 || !numbersFitInt(args, 1) || args[1].type != PB_VALUE_STRING ||
+      args[1].as.string.chars[0] == '\0' || !numbersFitFloat(args + 2, 4))
+    return guiError(vm, "setShaderVec4(id, uniformName, x, y, z, w) expected.");
+  if (raylib.setShaderVec4 == NULL) return missingRaylibFunction(vm, "setShaderVec4");
+  raylib.setShaderVec4((int)args[0].as.number, args[1].as.string.chars, (float)args[2].as.number,
+                       (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetShaderColor(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 6 || !numbersFitInt(args, 1) || args[1].type != PB_VALUE_STRING ||
+      args[1].as.string.chars[0] == '\0' || !validColorAlpha(args + 2))
+    return guiError(vm, "setShaderColor(id, uniformName, r, g, b, a) expected (0-255).");
+  if (raylib.setShaderColor == NULL) return missingRaylibFunction(vm, "setShaderColor");
+  raylib.setShaderColor((int)args[0].as.number, args[1].as.string.chars, (float)args[2].as.number,
+                        (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiSetShaderTexture(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 3 || !numbersFitInt(args, 1) || args[1].type != PB_VALUE_STRING ||
+      args[1].as.string.chars[0] == '\0' || !numbersFitInt(args + 2, 1))
+    return guiError(vm, "setShaderTexture(id, uniformName, textureId) expected.");
+  if (raylib.setShaderTexture == NULL) return missingRaylibFunction(vm, "setShaderTexture");
+  raylib.setShaderTexture((int)args[0].as.number, args[1].as.string.chars, (int)args[2].as.number);
   return pbNilValue();
 }
 
