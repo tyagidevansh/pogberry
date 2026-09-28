@@ -369,6 +369,19 @@ static void appendValue(StringBuilder *builder, Value value) {
     return;
   }
 
+  if (object->type == OBJ_RESOURCE) {
+    ObjResource *resource = AS_RESOURCE(value);
+    char id[32];
+    int len = formatNumberString(id, sizeof(id), (double)resource->backendId);
+    if (len < 0) len = 0;
+    appendCString(builder, "<");
+    appendChars(builder, resource->typeName, strlen(resource->typeName));
+    appendCString(builder, " ");
+    appendChars(builder, id, len);
+    appendCString(builder, ">");
+    return;
+  }
+
   ObjBoundMethod *method = AS_BOUND_METHOD(value);
   appendCString(builder, "<fn ");
   appendChars(builder, method->method->function->name->chars, method->method->function->name->length);

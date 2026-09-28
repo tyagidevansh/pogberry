@@ -14,5 +14,5 @@ gui.endDrawing();
 gui.unloadRenderTexture(target);
 // EXPECTED STATUS: 0
 // EXPECTED OUTPUT:
-//|1
+//|<render texture 1>
 // END EXPECTED OUTPUT

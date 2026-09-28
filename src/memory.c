@@ -128,6 +128,8 @@ static void blackenObject(Obj *object) {
     markTable(&module->exports);
     break;
   }
+  case OBJ_RESOURCE:
+    break;
   }
 }
 
@@ -219,6 +221,14 @@ static void freeObject(Obj *object) {
     freeTable(&module->globals);
     freeTable(&module->exports);
     FREE(ObjModule, object);
+    break;
+  }
+  case OBJ_RESOURCE: {
+    ObjResource *resource = (ObjResource *)object;
+    if (!resource->closed && resource->finalizer != NULL) {
+      resource->finalizer(resource->backendId, resource->ctx);
+    }
+    FREE(ObjResource, object);
     break;
   }
   }

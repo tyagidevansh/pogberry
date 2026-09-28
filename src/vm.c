@@ -2058,6 +2058,37 @@ PB_API PbValue pbStringValueN(const char *string, size_t length) {
 
 PB_API PbValue pbStringValue(const char *string) { return pbStringValueN(string, string != NULL ? strlen(string) : 0); }
 
+PB_API PbValue pbNewResource(PbVM *instance, const char *typeName, int tag, int backendId,
+                             PbResourceFinalizer finalizer, void *ctx) {
+  PbValue value = pbNilValue();
+  if (instance == NULL || typeName == NULL) return value;
+  VM *previous = activateVM(instance);
+  ObjResource *resource = newResource(typeName, tag, backendId, finalizer, ctx);
+  value.type = PB_VALUE_OBJECT;
+  value.as.object = resource;
+  activeVM = previous;
+  return value;
+}
+
+PB_API bool pbResourceInfo(PbValue value, const char **typeName, int *tag, int *backendId, bool *closed) {
+  if (value.type != PB_VALUE_OBJECT || value.as.object == NULL) return false;
+  Obj *object = (Obj *)value.as.object;
+  if (object->type != OBJ_RESOURCE) return false;
+  ObjResource *resource = (ObjResource *)object;
+  if (typeName != NULL) *typeName = resource->typeName;
+  if (tag != NULL) *tag = resource->tag;
+  if (backendId != NULL) *backendId = resource->backendId;
+  if (closed != NULL) *closed = resource->closed;
+  return true;
+}
+
+PB_API void pbResourceClose(PbValue value) {
+  if (value.type != PB_VALUE_OBJECT || value.as.object == NULL) return;
+  Obj *object = (Obj *)value.as.object;
+  if (object->type != OBJ_RESOURCE) return;
+  ((ObjResource *)object)->closed = true;
+}
+
 PB_API void ext_initVM(void) { initVM(); }
 
 PB_API InterpretResult ext_interpret(const char *source) { return interpret(source); }

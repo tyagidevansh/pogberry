@@ -20,6 +20,7 @@
 #define IS_INSTANCE(value) isObjType(value, OBJ_INSTANCE)
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 #define IS_MODULE(value) isObjType(value, OBJ_MODULE)
+#define IS_RESOURCE(value) isObjType(value, OBJ_RESOURCE)
 
 #define AS_FUNCTION(value) ((ObjFunction *)AS_OBJ(value))
 #define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
@@ -32,6 +33,7 @@
 #define AS_INSTANCE(value) ((ObjInstance *)AS_OBJ(value))
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
 #define AS_MODULE(value) ((ObjModule *)AS_OBJ(value))
+#define AS_RESOURCE(value) ((ObjResource *)AS_OBJ(value))
 
 typedef enum {
   OBJ_FUNCTION,
@@ -45,6 +47,7 @@ typedef enum {
   OBJ_INSTANCE,
   OBJ_BOUND_METHOD,
   OBJ_MODULE,
+  OBJ_RESOURCE,
 } ObjType;
 
 struct Obj {
@@ -135,6 +138,16 @@ struct ObjModule {
   bool isLoading;
 };
 
+typedef struct {
+  Obj obj;
+  const char *typeName;
+  int tag;
+  int backendId;
+  bool closed;
+  PbResourceFinalizer finalizer;
+  void *ctx;
+} ObjResource;
+
 ObjFunction *newFunction();
 ObjClosure *newClosure(ObjFunction *function);
 ObjUpvalue *newUpvalue(Value *slot);
@@ -150,6 +163,7 @@ ObjClass *newClass(ObjString *name);
 ObjInstance *newInstance(ObjClass *klass);
 ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
 ObjModule *newModule(ObjString *name);
+ObjResource *newResource(const char *typeName, int tag, int backendId, PbResourceFinalizer finalizer, void *ctx);
 void printObject(Value value);
 
 // function rather than just putting it in the macro coz this uses a value twice, that would cause the macro to be

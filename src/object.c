@@ -160,6 +160,17 @@ ObjModule *newModule(ObjString *name) {
   return module;
 }
 
+ObjResource *newResource(const char *typeName, int tag, int backendId, PbResourceFinalizer finalizer, void *ctx) {
+  ObjResource *resource = ALLOCATE_OBJ(ObjResource, OBJ_RESOURCE);
+  resource->typeName = typeName;
+  resource->tag = tag;
+  resource->backendId = backendId;
+  resource->closed = false;
+  resource->finalizer = finalizer;
+  resource->ctx = ctx;
+  return resource;
+}
+
 static void printFunction(ObjFunction *function) {
   if (function->name == NULL) {
     printf("<script>");
@@ -228,5 +239,10 @@ void printObject(Value value) {
   case OBJ_MODULE:
     printf("<module %s>", AS_MODULE(value)->name->chars);
     break;
+  case OBJ_RESOURCE: {
+    ObjResource *resource = AS_RESOURCE(value);
+    printf("<%s %d>", resource->typeName, resource->backendId);
+    break;
+  }
   }
 }

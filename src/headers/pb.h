@@ -10,7 +10,7 @@
 #define PB_API
 #endif
 
-#define PB_HOST_API_VERSION 3u
+#define PB_HOST_API_VERSION 4u
 
 typedef struct PbVM PbVM;
 
@@ -41,6 +41,7 @@ typedef void (*PbWriteFn)(PbVM *vm, const char *text, size_t length, void *userD
 typedef void (*PbDiagnosticFn)(PbVM *vm, PbDiagnosticKind kind, const char *message, void *userData);
 typedef bool (*PbCapabilityResolverFn)(PbVM *vm, const char *capability, void *userData);
 typedef PbValue (*PbNativeFn)(PbVM *vm, int argCount, const PbValue *args, void *userData);
+typedef void (*PbResourceFinalizer)(int backendId, void *ctx);
 
 typedef struct {
   PbWriteFn write;
@@ -70,6 +71,10 @@ PB_API PbValue pbBoolValue(bool value);
 PB_API PbValue pbNumberValue(double value);
 PB_API PbValue pbStringValue(const char *value);
 PB_API PbValue pbStringValueN(const char *value, size_t length);
+PB_API PbValue pbNewResource(PbVM *vm, const char *typeName, int tag, int backendId, PbResourceFinalizer finalizer,
+                             void *ctx);
+PB_API bool pbResourceInfo(PbValue value, const char **typeName, int *tag, int *backendId, bool *closed);
+PB_API void pbResourceClose(PbValue value);
 
 /* Compatibility API used by the existing compiler stub. */
 PB_API void ext_initVM(void);

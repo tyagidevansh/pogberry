@@ -12,6 +12,6 @@ gui.unloadShader(shader);
 gui.unloadTexture(tex);
 // EXPECTED STATUS: 0
 // EXPECTED OUTPUT:
-//|1
+//|<shader 1>
 //|1
 // END EXPECTED OUTPUT

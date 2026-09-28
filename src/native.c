@@ -455,6 +455,8 @@ Value typeNative(int argCount, Value *args) {
     name = "instance";
   else if (IS_MODULE(args[0]))
     name = "module";
+  else if (IS_RESOURCE(args[0]))
+    name = AS_RESOURCE(args[0])->typeName;
   else
     name = "bound_method";
 

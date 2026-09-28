@@ -1,7 +1,7 @@
 use "pb_gui" as gui;
-gui.setShaderVec3(1, "u_pos", 1.0, 2.0);
+gui.beginTextureMode(1);
 // EXPECTED STATUS: 70
 // EXPECTED OUTPUT:
-//|setShaderVec3(shader, uniformName, x, y, z) expected.
+//|beginTextureMode(target) expected a render texture.
 //|[line 2] in script
 // END EXPECTED OUTPUT
