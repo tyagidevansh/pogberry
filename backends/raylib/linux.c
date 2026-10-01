@@ -1,5 +1,7 @@
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <raylib.h>
 
 #define MAX_TEXTURES 512
@@ -27,8 +29,39 @@ static RenderTexture2D renderTargets[MAX_RENDER_TEXTURES];
 static bool renderTargetActive[MAX_RENDER_TEXTURES];
 static bool inTextureMode = false;
 
+static void traceLogCallback(int logLevel, const char *text, va_list args) {
+  const char *prefix = "";
+  switch (logLevel) {
+  case LOG_TRACE:
+    prefix = "TRACE";
+    break;
+  case LOG_DEBUG:
+    prefix = "DEBUG";
+    break;
+  case LOG_INFO:
+    prefix = "INFO";
+    break;
+  case LOG_WARNING:
+    prefix = "WARNING";
+    break;
+  case LOG_ERROR:
+    prefix = "ERROR";
+    break;
+  case LOG_FATAL:
+    prefix = "FATAL";
+    break;
+  default:
+    break;
+  }
+  if (prefix[0] != '\0') fprintf(stderr, "%s: ", prefix);
+  vfprintf(stderr, text, args);
+  fprintf(stderr, "\n");
+  fflush(stderr);
+}
+
 void initWindow(int width, int height, const char *title) {
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  SetTraceLogCallback(traceLogCallback);
   SetTraceLogLevel(traceLevel);
   InitWindow(width, height, title);
 }
@@ -38,6 +71,8 @@ void setTraceLogLevel(int level) {
   if (level > LOG_NONE) level = LOG_NONE;
   traceLevel = level;
   SetTraceLogLevel(level);
+  fprintf(stderr, "INFO: PBGUI: trace log level updated\n");
+  fflush(stderr);
 }
 
 void setDebugMode(int level) { setTraceLogLevel(level); }

@@ -15,12 +15,12 @@ while (!gui.windowShouldClose())
 {
   let time = gui.getTime();
   let pulse = (math.sin(time * 2.0) + 1.0) / 2.0;
+  let sweep = time * 0.3;
+  let burn = sweep - math.floor(sweep);
 
   gui.setShaderColor(tint, "u_tint", 255, 130 + 125 * pulse, 200, 255);
   gui.setShaderVec3(tint, "u_glow", pulse, 0.3 * pulse, 0.0);
   gui.setShaderVec4(tint, "u_rect", 0.25 + 0.2 * math.sin(time * 0.7), 0.2, 0.3, 0.6);
-  gui.setShaderTexture(dissolve, "u_noise", sprite);
-  gui.setShaderFloat(dissolve, "u_burn", pulse);
 
   gui.beginDrawing();
   gui.clearBackground(12, 12, 18);
@@ -31,6 +31,8 @@ while (!gui.windowShouldClose())
   gui.endShaderMode();
 
   gui.beginShaderMode(dissolve);
+  gui.setShaderTexture(dissolve, "u_noise", sprite);
+  gui.setShaderFloat(dissolve, "u_burn", burn);
   gui.drawTextureRec(sprite, 0, 0, 128, 128, 540, 120);
   gui.endShaderMode();
 
