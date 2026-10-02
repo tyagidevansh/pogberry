@@ -3,6 +3,6 @@
 
 #include "headers/pb.h"
 
-bool registerMathModule(PbVM *vm, const char *name);
+bool registerMathModule(PbVM *vm, const char *name, const char *projectRoot);
 
 #endif

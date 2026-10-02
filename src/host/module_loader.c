@@ -16,10 +16,11 @@
 #endif
 
 #include "host/module_loader.h"
+#include "host/modules/file.h"
 #include "host/modules/math.h"
 #include "host/modules/raylib.h"
 
-typedef bool (*ModuleProviderLoadFn)(PbVM *vm, const char *name);
+typedef bool (*ModuleProviderLoadFn)(PbVM *vm, const char *name, const char *projectRoot);
 typedef void (*ModuleProviderUnloadFn)(void);
 
 typedef struct {
@@ -31,6 +32,7 @@ typedef struct {
 static const ModuleProvider providers[] = {
     {"pb_gui", registerRaylibModule, releaseRaylibModule},
     {"pb.math", registerMathModule, NULL},
+    {"pb_file", registerFileModule, NULL},
 };
 
 static char *copyText(const char *text, size_t length) {
@@ -166,7 +168,7 @@ static bool loadProvidedModule(ModuleLoader *loader, PbVM *vm, const char *name,
   for (size_t i = 0; i < loader->providerCount; i++) {
     if (strcmp(providers[i].name, name) != 0) continue;
     *matched = true;
-    if (!providers[i].load(vm, name)) return false;
+    if (!providers[i].load(vm, name, loader->root)) return false;
     loader->loadedProviders[i] = true;
     return true;
   }
@@ -174,7 +176,7 @@ static bool loadProvidedModule(ModuleLoader *loader, PbVM *vm, const char *name,
   return false;
 }
 
-static bool validModuleName(const char *name) {
+bool validProjectPath(const char *name) {
   if (name == NULL || name[0] == '\0' || name[0] == '/' || name[0] == '\\') return false;
 
   const char *segment = name;
@@ -195,7 +197,7 @@ static bool validModuleName(const char *name) {
 }
 
 static char *modulePath(const char *root, PbVM *vm, const char *name) {
-  if (!validModuleName(name)) {
+  if (!validProjectPath(name)) {
     char message[512];
     snprintf(message, sizeof(message), "Invalid module name '%s'.", name != NULL ? name : "");
     pbRuntimeError(vm, message);

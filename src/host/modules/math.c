@@ -110,7 +110,8 @@ static PbValue mathPow(PbVM *vm, int argCount, const PbValue *args, void *userDa
   return pbNumberValue(pow(args[0].as.number, args[1].as.number));
 }
 
-bool registerMathModule(PbVM *vm, const char *name) {
+bool registerMathModule(PbVM *vm, const char *name, const char *projectRoot) {
+  (void)projectRoot;
   const PbNativeDefinition definitions[] = {
       {"floor", mathFloor, NULL},
       {"ceil", mathCeil, NULL},

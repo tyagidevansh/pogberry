@@ -1590,7 +1590,8 @@ static bool loadRaylib(PbVM *vm) {
 static const PbNativeDefinition raylibFunctions[] = {RAYLIB_FUNCTIONS(RAYLIB_NATIVE)};
 #undef RAYLIB_NATIVE
 
-bool registerRaylibModule(PbVM *vm, const char *name) {
+bool registerRaylibModule(PbVM *vm, const char *name, const char *projectRoot) {
+  (void)projectRoot;
   if (!loadRaylib(vm)) return false;
 
   size_t count = sizeof(raylibFunctions) / sizeof(raylibFunctions[0]);

@@ -2058,6 +2058,17 @@ PB_API PbValue pbStringValueN(const char *string, size_t length) {
 
 PB_API PbValue pbStringValue(const char *string) { return pbStringValueN(string, string != NULL ? strlen(string) : 0); }
 
+PB_API PbValue pbStringCopyN(PbVM *instance, const char *chars, size_t length) {
+  PbValue value = pbNilValue();
+  if (instance == NULL || (chars == NULL && length != 0) || length > INT_MAX) return value;
+  VM *previous = activateVM(instance);
+  ObjString *string = copyString(chars != NULL ? chars : "", (int)length);
+  value.type = PB_VALUE_OBJECT;
+  value.as.object = string;
+  activeVM = previous;
+  return value;
+}
+
 PB_API PbValue pbNewResource(PbVM *instance, const char *typeName, int tag, int backendId,
                              PbResourceFinalizer finalizer, void *ctx) {
   PbValue value = pbNilValue();

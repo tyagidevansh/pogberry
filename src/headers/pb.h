@@ -10,7 +10,7 @@
 #define PB_API
 #endif
 
-#define PB_HOST_API_VERSION 4u
+#define PB_HOST_API_VERSION 5u
 
 typedef struct PbVM PbVM;
 
@@ -71,6 +71,7 @@ PB_API PbValue pbBoolValue(bool value);
 PB_API PbValue pbNumberValue(double value);
 PB_API PbValue pbStringValue(const char *value);
 PB_API PbValue pbStringValueN(const char *value, size_t length);
+PB_API PbValue pbStringCopyN(PbVM *vm, const char *chars, size_t length);
 PB_API PbValue pbNewResource(PbVM *vm, const char *typeName, int tag, int backendId, PbResourceFinalizer finalizer,
                              void *ctx);
 PB_API bool pbResourceInfo(PbValue value, const char **typeName, int *tag, int *backendId, bool *closed);

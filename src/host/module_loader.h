@@ -13,5 +13,6 @@ typedef struct {
 bool initModuleLoader(ModuleLoader *loader, const char *entryPath);
 void freeModuleLoader(ModuleLoader *loader);
 bool resolveModuleFromHost(PbVM *vm, const char *name, void *userData);
+bool validProjectPath(const char *path);
 
 #endif

@@ -3,7 +3,7 @@
 
 #include "headers/pb.h"
 
-bool registerRaylibModule(PbVM *vm, const char *name);
+bool registerRaylibModule(PbVM *vm, const char *name, const char *projectRoot);
 void releaseRaylibModule(void);
 
 #endif
