@@ -1,8 +1,20 @@
+#ifndef _WIN32
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#include <windows.h>
+#else
+#include <dirent.h>
+#include <unistd.h>
+#endif
 
 #include "headers/pb.h"
 #include "host/module_loader.h"
@@ -313,6 +325,233 @@ static PbValue fileClose(PbVM *vm, int argCount, const PbValue *args, void *user
   return pbNilValue();
 }
 
+static PbValue fileReadBytes(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING) return fileError(vm, "readBytes(path) expected.");
+  const char *name = args[0].as.string.chars;
+  char *path = filePath(vm, name);
+  if (path == NULL) return pbNilValue();
+  errno = 0;
+  FILE *file = fopen(path, "rb");
+  free(path);
+  if (file == NULL) {
+    if (errno == ENOENT) return pbNilValue();
+    char message[512];
+    snprintf(message, sizeof(message), "Could not open file '%s'.", name);
+    return fileError(vm, message);
+  }
+  if (fseek(file, 0, SEEK_END) != 0) {
+    fclose(file);
+    char message[512];
+    snprintf(message, sizeof(message), "Could not measure file '%s'.", name);
+    return fileError(vm, message);
+  }
+  long length = ftell(file);
+  if (length < 0 || (unsigned long)length > FILE_READ_CAP || fseek(file, 0, SEEK_SET) != 0) {
+    fclose(file);
+    char message[512];
+    snprintf(message, sizeof(message), "Could not measure file '%s'.", name);
+    return fileError(vm, message);
+  }
+  unsigned char *bytes = NULL;
+  if (length > 0) {
+    bytes = (unsigned char *)malloc((size_t)length);
+    if (bytes == NULL) {
+      fclose(file);
+      return fileError(vm, "Could not allocate file contents.");
+    }
+  }
+  size_t bytesRead = length > 0 ? fread(bytes, 1, (size_t)length, file) : 0;
+  fclose(file);
+  if (bytesRead != (size_t)length) {
+    free(bytes);
+    char message[512];
+    snprintf(message, sizeof(message), "Could not read file '%s'.", name);
+    return fileError(vm, message);
+  }
+  PbValue list = pbNewList(vm);
+  for (size_t i = 0; i < bytesRead; i++) {
+    if (!pbListAppend(vm, list, pbNumberValue((double)bytes[i]))) {
+      free(bytes);
+      return pbNilValue();
+    }
+  }
+  free(bytes);
+  return list;
+}
+
+static PbValue fileWriteBytes(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || args[0].type != PB_VALUE_STRING)
+    return fileError(vm, "writeBytes(path, bytes) expected a path and a byte list.");
+  const char *name = args[0].as.string.chars;
+  char *path = filePath(vm, name);
+  if (path == NULL) return pbNilValue();
+  uint8_t *bytes = NULL;
+  size_t length = 0;
+  if (!pbListToBytes(vm, args[1], &bytes, &length)) {
+    free(path);
+    return pbNilValue();
+  }
+  FILE *file = fopen(path, "wb");
+  free(path);
+  if (file == NULL) {
+    free(bytes);
+    char message[512];
+    snprintf(message, sizeof(message), "Could not open file '%s'.", name);
+    return fileError(vm, message);
+  }
+  size_t written = length > 0 ? fwrite(bytes, 1, length, file) : 0;
+  free(bytes);
+  if (written != length || fclose(file) != 0) {
+    char message[512];
+    snprintf(message, sizeof(message), "Could not write file '%s'.", name);
+    return fileError(vm, message);
+  }
+  return pbNilValue();
+}
+
+static int compareNames(const void *left, const void *right) {
+  return strcmp(*(const char *const *)left, *(const char *const *)right);
+}
+
+static PbValue fileListFiles(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING) return fileError(vm, "listFiles(dir) expected.");
+  const char *name = args[0].as.string.chars;
+  char *path = filePath(vm, name);
+  if (path == NULL) return pbNilValue();
+  char **names = NULL;
+  size_t count = 0;
+  size_t capacity = 0;
+  bool failed = false;
+#ifdef _WIN32
+  char pattern[4096];
+  snprintf(pattern, sizeof(pattern), "%s/*", path);
+  WIN32_FIND_DATAA entry;
+  HANDLE search = FindFirstFileA(pattern, &entry);
+  if (search == INVALID_HANDLE_VALUE) {
+    DWORD error = GetLastError();
+    free(path);
+    if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) return pbNilValue();
+    char message[512];
+    snprintf(message, sizeof(message), "Could not list directory '%s'.", name);
+    return fileError(vm, message);
+  }
+  do {
+    if (strcmp(entry.cFileName, ".") == 0 || strcmp(entry.cFileName, "..") == 0) continue;
+    if (count >= capacity) {
+      size_t next = capacity == 0 ? 16 : capacity * 2;
+      char **grown = (char **)realloc(names, next * sizeof(char *));
+      if (grown == NULL) {
+        failed = true;
+        break;
+      }
+      names = grown;
+      capacity = next;
+    }
+    names[count] = _strdup(entry.cFileName);
+    if (names[count] == NULL) {
+      failed = true;
+      break;
+    }
+    count++;
+  } while (FindNextFileA(search, &entry) != 0);
+  FindClose(search);
+#else
+  DIR *dir = opendir(path);
+  if (dir == NULL) {
+    int error = errno;
+    free(path);
+    if (error == ENOENT) return pbNilValue();
+    char message[512];
+    snprintf(message, sizeof(message), "Could not list directory '%s'.", name);
+    return fileError(vm, message);
+  }
+  struct dirent *entry = NULL;
+  while ((entry = readdir(dir)) != NULL) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+    if (count >= capacity) {
+      size_t next = capacity == 0 ? 16 : capacity * 2;
+      char **grown = (char **)realloc(names, next * sizeof(char *));
+      if (grown == NULL) {
+        failed = true;
+        break;
+      }
+      names = grown;
+      capacity = next;
+    }
+    names[count] = strdup(entry->d_name);
+    if (names[count] == NULL) {
+      failed = true;
+      break;
+    }
+    count++;
+  }
+  closedir(dir);
+#endif
+  free(path);
+  if (failed) {
+    for (size_t i = 0; i < count; i++) free(names[i]);
+    free(names);
+    return fileError(vm, "Could not list directory contents.");
+  }
+  qsort(names, count, sizeof(char *), compareNames);
+  PbValue list = pbNewList(vm);
+  for (size_t i = 0; i < count; i++) {
+    PbValue entry = pbStringCopyN(vm, names[i], strlen(names[i]));
+    free(names[i]);
+    if (!pbListAppend(vm, list, entry)) {
+      free(names);
+      return pbNilValue();
+    }
+  }
+  free(names);
+  return list;
+}
+
+static PbValue fileMakeDir(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING) return fileError(vm, "makeDir(path) expected.");
+  const char *name = args[0].as.string.chars;
+  char *path = filePath(vm, name);
+  if (path == NULL) return pbNilValue();
+  int result = 0;
+#ifdef _WIN32
+  result = _mkdir(path);
+#else
+  result = mkdir(path, 0755);
+#endif
+  free(path);
+  if (result != 0 && errno != EEXIST) {
+    char message[512];
+    snprintf(message, sizeof(message), "Could not create directory '%s'.", name);
+    return fileError(vm, message);
+  }
+  return pbNilValue();
+}
+
+static PbValue fileRemoveDir(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1 || args[0].type != PB_VALUE_STRING) return fileError(vm, "removeDir(path) expected.");
+  const char *name = args[0].as.string.chars;
+  char *path = filePath(vm, name);
+  if (path == NULL) return pbNilValue();
+  int result = 0;
+#ifdef _WIN32
+  result = _rmdir(path);
+#else
+  result = rmdir(path);
+#endif
+  free(path);
+  if (result != 0) {
+    char message[512];
+    snprintf(message, sizeof(message), "Could not remove directory '%s'.", name);
+    return fileError(vm, message);
+  }
+  return pbNilValue();
+}
+
 bool registerFileModule(PbVM *vm, const char *name, const char *projectRoot) {
   fileRoot = projectRoot != NULL && projectRoot[0] != '\0' ? projectRoot : ".";
   const PbNativeDefinition definitions[] = {
@@ -325,6 +564,11 @@ bool registerFileModule(PbVM *vm, const char *name, const char *projectRoot) {
       {"read", fileRead, NULL},
       {"write", fileWrite, NULL},
       {"close", fileClose, NULL},
+      {"readBytes", fileReadBytes, NULL},
+      {"writeBytes", fileWriteBytes, NULL},
+      {"listFiles", fileListFiles, NULL},
+      {"makeDir", fileMakeDir, NULL},
+      {"removeDir", fileRemoveDir, NULL},
   };
   return pbRegisterCapability(vm, name, definitions, sizeof(definitions) / sizeof(definitions[0]));
 }

@@ -54,3 +54,28 @@ export fun delete(path)
 {
   return native.delete(path);
 }
+
+export fun readBytes(path)
+{
+  return native.readBytes(path);
+}
+
+export fun writeBytes(path, bytes)
+{
+  return native.writeBytes(path, bytes);
+}
+
+export fun listFiles(dir)
+{
+  return native.listFiles(dir);
+}
+
+export fun makeDir(path)
+{
+  return native.makeDir(path);
+}
+
+export fun removeDir(path)
+{
+  return native.removeDir(path);
+}

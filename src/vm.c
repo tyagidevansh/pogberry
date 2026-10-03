@@ -2103,6 +2103,85 @@ PB_API PbValue pbStringCopyN(PbVM *instance, const char *chars, size_t length) {
   return value;
 }
 
+PB_API PbValue pbNewList(PbVM *instance) {
+  PbValue value = pbNilValue();
+  if (instance == NULL) return value;
+  VM *previous = activateVM(instance);
+  ObjList *list = newList();
+  value.type = PB_VALUE_OBJECT;
+  value.as.object = list;
+  activeVM = previous;
+  return value;
+}
+
+PB_API bool pbListAppend(PbVM *instance, PbValue list, PbValue item) {
+  if (instance == NULL) return false;
+  VM *previous = activateVM(instance);
+  bool ok = false;
+  if (list.type == PB_VALUE_OBJECT && list.as.object != NULL &&
+      ((Obj *)list.as.object)->type == OBJ_LIST) {
+    ObjList *target = (ObjList *)list.as.object;
+    if (push(OBJ_VAL(target))) {
+      Value element;
+      if (hostToValue(item, &element)) {
+        writeValueArray(&target->items, element);
+        ok = true;
+      }
+      pop();
+    }
+  } else {
+    runtimeError("pbListAppend() expected a list.");
+  }
+  activeVM = previous;
+  return ok;
+}
+
+PB_API bool pbListToBytes(PbVM *instance, PbValue list, uint8_t **outBytes, size_t *outLength) {
+  if (outBytes != NULL) *outBytes = NULL;
+  if (outLength != NULL) *outLength = 0;
+  if (instance == NULL || outBytes == NULL || outLength == NULL) return false;
+  VM *previous = activateVM(instance);
+  bool ok = false;
+  if (list.type == PB_VALUE_OBJECT && list.as.object != NULL &&
+      ((Obj *)list.as.object)->type == OBJ_LIST) {
+    ObjList *source = (ObjList *)list.as.object;
+    uint8_t *bytes = NULL;
+    if (source->items.count > 0) {
+      bytes = (uint8_t *)malloc((size_t)source->items.count);
+      if (bytes == NULL) {
+        runtimeError("Could not allocate byte contents.");
+        activeVM = previous;
+        return false;
+      }
+    }
+    ok = true;
+    for (int i = 0; i < source->items.count; i++) {
+      Value element = source->items.values[i];
+      if (!IS_NUMBER(element)) {
+        ok = false;
+        break;
+      }
+      double number = AS_NUMBER(element);
+      if (!isfinite(number) || floor(number) != number || number < 0 || number > 255) {
+        ok = false;
+        break;
+      }
+      bytes[i] = (uint8_t)number;
+    }
+    if (ok) {
+      *outBytes = bytes;
+      *outLength = (size_t)source->items.count;
+    } else {
+      free(bytes);
+      runtimeError("writeBytes() bytes must be integers from 0 to 255.");
+    }
+  } else {
+    runtimeError("writeBytes(path, bytes) expected a path and a byte list.");
+  }
+  activeVM = previous;
+  return ok;
+}
+
 PB_API PbValue pbNewResource(PbVM *instance, const char *typeName, int tag, int backendId,
                              PbResourceFinalizer finalizer, void *ctx) {
   PbValue value = pbNilValue();
