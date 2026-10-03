@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 #include <math.h>
 #include <limits.h>
@@ -358,6 +359,92 @@ Value listReverseNative(int argCount, Value *args) {
   return NIL_VAL;
 }
 
+Value stringSplitNative(int argCount, Value *args) {
+  if (argCount != 2 || !IS_STRING(args[1])) {
+    runtimeError("split() expects a separator string.");
+    return NIL_VAL;
+  }
+
+  ObjString *source = AS_STRING(args[0]);
+  ObjString *separator = AS_STRING(args[1]);
+  if (separator->length == 0) {
+    runtimeError("split() separator must not be empty.");
+    return NIL_VAL;
+  }
+
+  ObjList *parts = newList();
+  push(OBJ_VAL(parts));
+  int begin = 0;
+  for (int i = 0; i <= source->length - separator->length; i++) {
+    if (memcmp(source->chars + i, separator->chars, (size_t)separator->length) == 0) {
+      ObjString *part = copyString(source->chars + begin, i - begin);
+      push(OBJ_VAL(part));
+      writeValueArray(&parts->items, OBJ_VAL(part));
+      pop();
+      begin = i + separator->length;
+      i = begin - 1;
+    }
+  }
+  ObjString *tail = copyString(source->chars + begin, source->length - begin);
+  push(OBJ_VAL(tail));
+  writeValueArray(&parts->items, OBJ_VAL(tail));
+  pop();
+  return pop();
+}
+
+Value stringFindNative(int argCount, Value *args) {
+  if (argCount != 2 || !IS_STRING(args[1])) {
+    runtimeError("find() expects a string to find.");
+    return NIL_VAL;
+  }
+
+  ObjString *source = AS_STRING(args[0]);
+  ObjString *needle = AS_STRING(args[1]);
+  for (int i = 0; i <= source->length - needle->length; i++) {
+    if (memcmp(source->chars + i, needle->chars, (size_t)needle->length) == 0) return NUMBER_VAL(i);
+  }
+  return NUMBER_VAL(-1);
+}
+
+Value stringSubstrNative(int argCount, Value *args) {
+  if ((argCount != 2 && argCount != 3) || !IS_NUMBER(args[1]) || (argCount == 3 && !IS_NUMBER(args[2]))) {
+    runtimeError("substr() expects a start index and an optional length.");
+    return NIL_VAL;
+  }
+
+  ObjString *source = AS_STRING(args[0]);
+  double start = AS_NUMBER(args[1]);
+  if (!isfinite(start) || floor(start) != start || start < 0 || start > source->length) {
+    runtimeError("substr() start out of bounds.");
+    return NIL_VAL;
+  }
+
+  int count = source->length - (int)start;
+  if (argCount == 3) {
+    double length = AS_NUMBER(args[2]);
+    if (!isfinite(length) || floor(length) != length || length < 0) {
+      runtimeError("substr() length must be a non-negative finite integer.");
+      return NIL_VAL;
+    }
+    if (length < count) count = (int)length;
+  }
+  return OBJ_VAL(copyString(source->chars + (int)start, count));
+}
+
+Value stringTrimNative(int argCount, Value *args) {
+  if (argCount != 1) {
+    runtimeError("trim() expects no arguments.");
+    return NIL_VAL;
+  }
+
+  ObjString *source = AS_STRING(args[0]);
+  int begin = 0;
+  int end = source->length;
+  while (begin < end && isspace((unsigned char)source->chars[begin])) begin++;
+  while (end > begin && isspace((unsigned char)source->chars[end - 1])) end--;
+  return OBJ_VAL(copyString(source->chars + begin, end - begin));
+}
+
 Value mapHasNative(int argCount, Value *args) {
   if (argCount != 2 || !IS_HASHMAP(args[0])) {
     runtimeError("has() expects a map and a key.");
@@ -470,6 +557,24 @@ Value strNative(int argCount, Value *args) {
   }
 
   return OBJ_VAL(valueToString(args[0]));
+}
+
+Value numNative(int argCount, Value *args) {
+  if (argCount != 1 || !IS_STRING(args[0])) {
+    runtimeError("num() expects one string.");
+    return NIL_VAL;
+  }
+
+  ObjString *source = AS_STRING(args[0]);
+  char *end = NULL;
+  double value = strtod(source->chars, &end);
+  const char *rest = end;
+  while (*rest != '\0' && isspace((unsigned char)*rest)) rest++;
+  if (end == source->chars || *rest != '\0' || !isfinite(value)) {
+    runtimeError("num() could not parse '%s'.", source->chars);
+    return NIL_VAL;
+  }
+  return NUMBER_VAL(value);
 }
 
 Value joinNative(int argCount, Value *args) {

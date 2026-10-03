@@ -8,7 +8,11 @@ save.write("level=3\n");
 save.close();
 
 print("Loading progress...");
-print(file.readText("savegame.txt"));
+let data = file.readText("savegame.txt");
+print(data);
+let health = num(data.split("\n")[1].split("=")[1]);
+print(health);
+print(health > 80);
 
 print("Logging adventure...");
 file.writeText("adventure_log.txt", "Entered the dark cave.\n");

@@ -118,6 +118,7 @@ static void initialiseActiveVM(const PbConfig *config) {
   defineNative("len", lenNative);
   defineNative("type", typeNative);
   defineNative("str", strNative);
+  defineNative("num", numNative);
   defineNative("join", joinNative);
   tableAddAll(&vm.globals, &vm.prelude);
 }
@@ -380,6 +381,35 @@ static bool invokeListMethod(ObjString *name, int argCount) {
   return true;
 }
 
+static bool invokeStringMethod(ObjString *name, int argCount) {
+  NativeFn method = NULL;
+
+  switch (name->length) {
+  case 4:
+    if (memcmp(name->chars, "find", 4) == 0) method = stringFindNative;
+    else if (memcmp(name->chars, "trim", 4) == 0) method = stringTrimNative;
+    break;
+  case 5:
+    if (memcmp(name->chars, "split", 5) == 0) method = stringSplitNative;
+    break;
+  case 6:
+    if (memcmp(name->chars, "substr", 6) == 0) method = stringSubstrNative;
+    break;
+  }
+
+  if (method == NULL) {
+    runtimeError("Strings do not have a method named '%s'.", name->chars);
+    return false;
+  }
+
+  Value result = method(argCount + 1, vm.stackTop - argCount - 1);
+  if (vm.hadRuntimeError) return false;
+
+  vm.stackTop -= argCount + 1;
+  push(result);
+  return true;
+}
+
 static bool invokeMapMethod(ObjString *name, int argCount) {
   if (name->length == 3 && memcmp(name->chars, "has", 3) == 0) {
     if (argCount != 1) {
@@ -472,6 +502,10 @@ static bool invoke(ObjString *name, int argCount) {
 
   if (IS_HASHMAP(receiver)) {
     return invokeMapMethod(name, argCount);
+  }
+
+  if (IS_STRING(receiver)) {
+    return invokeStringMethod(name, argCount);
   }
 
   if (!IS_INSTANCE(receiver)) {
