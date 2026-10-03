@@ -1,4 +1,4 @@
-use "pb_file" as file;
+use "std.file" as file;
 
 print(file.exists("file_text_tmp.txt"));
 print(file.readText("file_text_tmp.txt"));
