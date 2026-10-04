@@ -1,18 +1,17 @@
 use "std.file" as file;
+use "std.json" as json;
 
 print("Saving progress...");
-let save = file.open("savegame.txt", "w");
-save.write("name=Mira\n");
-save.write("health=85\n");
-save.write("level=3\n");
-save.close();
+let out = file.open("savegame.txt", "w");
+out.write('{"name": "Mira", "health": 85, "level": 3}');
+out.close();
 
 print("Loading progress...");
 let data = file.readText("savegame.txt");
 print(data);
-let health = num(data.split("\n")[1].split("=")[1]);
-print(health);
-print(health > 80);
+let save = json.parse(data);
+print(save["health"]);
+print(save["health"] > 80);
 
 print("Logging adventure...");
 file.writeText("adventure_log.txt", "Entered the dark cave.\n");

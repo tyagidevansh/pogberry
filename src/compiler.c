@@ -1309,6 +1309,9 @@ static ObjString *decodeStringToken(Token token) {
     case '"':
       chars[length++] = '"';
       break;
+    case '\'':
+      chars[length++] = '\'';
+      break;
     case 'n':
       chars[length++] = '\n';
       break;

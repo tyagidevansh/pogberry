@@ -141,6 +141,7 @@ install: $(TARGET)
 	$(INSTALL) -m 644 "lib/pb_raylib_runtime_linux.so" "$(DESTDIR)$(RUNTIME_DIR)/pb_raylib_runtime_linux.so"
 	$(INSTALL) -m 644 "stdlib/std.math.pb" "$(DESTDIR)$(STDLIB_DIR)/std.math.pb"
 	$(INSTALL) -m 644 "stdlib/std.file.pb" "$(DESTDIR)$(STDLIB_DIR)/std.file.pb"
+	$(INSTALL) -m 644 "stdlib/std.json.pb" "$(DESTDIR)$(STDLIB_DIR)/std.json.pb"
 endif
 
 $(RAYLIB_TEST_LIBRARY): tests/runner/fake_raylib.c | $(BUILD_DIR)

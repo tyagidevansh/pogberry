@@ -222,16 +222,17 @@ static Token number() {
   return makeToken(TOKEN_NUMBER);
 }
 
-static Token string() {
-  while (peek() != '"' && !isAtEnd()) {
+static Token string(char delimiter) {
+  while (peek() != delimiter && !isAtEnd()) {
     if (peek() == '\\') {
       advance();
       if (isAtEnd()) return errorToken("Unterminated string escape.");
       char escaped = peek();
-      if (escaped != '\\' && escaped != '"' && escaped != 'n' && escaped != 'r' && escaped != 't') {
+      if (escaped != '\\' && escaped != '"' && escaped != '\'' && escaped != 'n' && escaped != 'r' &&
+          escaped != 't') {
         advance();
         int errorColumn = scanner.column;
-        while (peek() != '"' && !isAtEnd()) advance();
+        while (peek() != delimiter && !isAtEnd()) advance();
         if (!isAtEnd()) advance();
         Token token = errorToken("Unknown string escape.");
         token.column = errorColumn;
@@ -308,7 +309,9 @@ Token scanToken() {
   case '>':
     return makeToken(match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
   case '"':
-    return string();
+    return string('"');
+  case '\'':
+    return string('\'');
   }
 
   return errorToken("Unexpected character.");

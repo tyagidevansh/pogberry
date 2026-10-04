@@ -15,6 +15,10 @@
       "name": "string.quoted.double.pogberry"
     },
     {
+      "match": "'(?:\\\\.|[^'])*'",
+      "name": "string.quoted.single.pogberry"
+    },
+    {
       "match": "//.*$",
       "name": "comment.line.double-slash.pogberry"
     },
