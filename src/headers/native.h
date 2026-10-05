@@ -7,6 +7,8 @@
 // ordinary C native function implementations
 Value clockNative(int argCount, Value *args);
 Value randNative(int argCount, Value *args);
+Value seedNative(int argCount, Value *args);
+Value timeNative(int argCount, Value *args);
 Value strInputNative(int argCount, Value *args);
 Value listSortNative(int argCount, Value *args);
 Value listPushNative(int argCount, Value *args);

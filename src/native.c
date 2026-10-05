@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
@@ -45,6 +46,33 @@ Value randNative(int argCount, Value *args) {
   }
 
   return NUMBER_VAL(nextRandom() % (uint32_t)bound);
+}
+
+Value seedNative(int argCount, Value *args) {
+  if (argCount != 1 || !IS_NUMBER(args[0])) {
+    runtimeError("seed() expects one non-negative integer.");
+    return NIL_VAL;
+  }
+
+  double seed = AS_NUMBER(args[0]);
+  if (!isfinite(seed) || floor(seed) != seed || seed < 0 || seed > UINT32_MAX) {
+    runtimeError("seed() expects one non-negative integer.");
+    return NIL_VAL;
+  }
+
+  vm.randomState = (uint32_t)seed;
+  if (vm.randomState == 0) vm.randomState = 0x9e3779b9u;
+  return NIL_VAL;
+}
+
+Value timeNative(int argCount, Value *args) {
+  (void)args;
+  if (argCount != 0) {
+    runtimeError("time() accepts no arguments.");
+    return NIL_VAL;
+  }
+
+  return NUMBER_VAL((double)time(NULL));
 }
 
 Value strInputNative(int argCount, Value *args) {

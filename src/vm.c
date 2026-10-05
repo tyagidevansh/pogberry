@@ -113,6 +113,8 @@ static void initialiseActiveVM(const PbConfig *config) {
   if (vm.randomState == 0) vm.randomState = 0x9e3779b9u;
   defineNative("clock", clockNative);
   defineNative("rand", randNative);
+  defineNative("seed", seedNative);
+  defineNative("time", timeNative);
   defineNative("strInput", strInputNative);
   defineNative("getTime", getTime);
   defineNative("len", lenNative);
