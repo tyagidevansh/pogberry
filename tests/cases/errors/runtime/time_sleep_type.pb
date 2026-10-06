@@ -1,7 +1,7 @@
 use "pb.time" as time;
-time.unix(1);
+time.sleep("soon");
 // EXPECTED STATUS: 70
 // EXPECTED OUTPUT:
-//|unix() expects no arguments.
+//|sleep() expects a non-negative number of seconds.
 //|[line 2] in script
 // END EXPECTED OUTPUT

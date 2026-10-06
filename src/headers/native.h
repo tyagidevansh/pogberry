@@ -5,10 +5,8 @@
 #include "object.h"
 
 // ordinary C native function implementations
-Value clockNative(int argCount, Value *args);
 Value randNative(int argCount, Value *args);
 Value seedNative(int argCount, Value *args);
-Value timeNative(int argCount, Value *args);
 Value strInputNative(int argCount, Value *args);
 Value listSortNative(int argCount, Value *args);
 Value listPushNative(int argCount, Value *args);
@@ -35,7 +33,6 @@ Value lenNative(int argCount, Value *args);
 Value typeNative(int argCount, Value *args);
 Value strNative(int argCount, Value *args);
 Value joinNative(int argCount, Value *args);
-Value getTime(int argCount, Value *args);
 
 void defineNative(const char *name, NativeFn function);
 void defineHostNative(const char *name, PbNativeFn function, void *userData);

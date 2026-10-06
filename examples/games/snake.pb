@@ -118,11 +118,11 @@ fun drawGame() {
 fun main() {
     gui.initWindow(BLOCK_SIZE * GRID_WIDTH, BLOCK_SIZE * GRID_HEIGHT, "Snake");
 
-    let lastTime = getTime();
+    let lastTime = gui.getTime();
     resetGame();
 
     while (!gui.windowShouldClose()) {
-        let now = getTime();
+        let now = gui.getTime();
 
         updateInput();
 

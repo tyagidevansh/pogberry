@@ -12,15 +12,6 @@
 #include "headers/object.h"
 #include "headers/vm.h"
 
-Value clockNative(int argCount, Value *args) {
-  (void)args;
-  if (argCount > 0) {
-    runtimeError("Clock does not accept any arguments");
-    return NIL_VAL;
-  }
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
-
 static uint32_t nextRandom(void) {
   uint32_t state = vm.randomState;
   state ^= state << 13;
@@ -63,16 +54,6 @@ Value seedNative(int argCount, Value *args) {
   vm.randomState = (uint32_t)seed;
   if (vm.randomState == 0) vm.randomState = 0x9e3779b9u;
   return NIL_VAL;
-}
-
-Value timeNative(int argCount, Value *args) {
-  (void)args;
-  if (argCount != 0) {
-    runtimeError("time() accepts no arguments.");
-    return NIL_VAL;
-  }
-
-  return NUMBER_VAL((double)time(NULL));
 }
 
 Value strInputNative(int argCount, Value *args) {
@@ -658,16 +639,6 @@ Value joinNative(int argCount, Value *args) {
   FREE_ARRAY(ObjString *, elementStrings, itemCount);
 
   return OBJ_VAL(takeString(chars, totalLength));
-}
-
-Value getTime(int argCount, Value *args) {
-  (void)args;
-  if (argCount != 0) {
-    runtimeError("getTime() accepts no arguments");
-    return NIL_VAL;
-  }
-
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
 void defineNative(const char *name, NativeFn function) {

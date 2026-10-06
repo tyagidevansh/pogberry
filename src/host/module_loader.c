@@ -19,6 +19,7 @@
 #include "host/modules/file.h"
 #include "host/modules/math.h"
 #include "host/modules/raylib.h"
+#include "host/modules/time.h"
 
 typedef bool (*ModuleProviderLoadFn)(PbVM *vm, const char *name, const char *projectRoot);
 typedef void (*ModuleProviderUnloadFn)(void);
@@ -33,6 +34,7 @@ static const ModuleProvider providers[] = {
     {"pb_gui", registerRaylibModule, releaseRaylibModule},
     {"pb.math", registerMathModule, NULL},
     {"pb_file", registerFileModule, NULL},
+    {"pb.time", registerTimeModule, NULL},
 };
 
 static char *copyText(const char *text, size_t length) {
