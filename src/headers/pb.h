@@ -11,7 +11,7 @@
 #define PB_API
 #endif
 
-#define PB_HOST_API_VERSION 6u
+#define PB_HOST_API_VERSION 7u
 
 typedef struct PbVM PbVM;
 
@@ -76,6 +76,9 @@ PB_API PbValue pbStringCopyN(PbVM *vm, const char *chars, size_t length);
 PB_API PbValue pbNewList(PbVM *vm);
 PB_API bool pbListAppend(PbVM *vm, PbValue list, PbValue item);
 PB_API bool pbListToBytes(PbVM *vm, PbValue list, uint8_t **outBytes, size_t *outLength);
+PB_API PbValue pbNewMap(PbVM *vm);
+PB_API bool pbMapSet(PbVM *vm, PbValue map, PbValue key, PbValue value);
+PB_API bool pbMapGet(PbVM *vm, PbValue map, PbValue key, PbValue *result);
 PB_API PbValue pbNewResource(PbVM *vm, const char *typeName, int tag, int backendId, PbResourceFinalizer finalizer,
                              void *ctx);
 PB_API bool pbResourceInfo(PbValue value, const char **typeName, int *tag, int *backendId, bool *closed);

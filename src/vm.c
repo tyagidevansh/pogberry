@@ -2181,6 +2181,66 @@ PB_API bool pbListToBytes(PbVM *instance, PbValue list, uint8_t **outBytes, size
   return ok;
 }
 
+PB_API PbValue pbNewMap(PbVM *instance) {
+  PbValue value = pbNilValue();
+  if (instance == NULL) return value;
+  VM *previous = activateVM(instance);
+  ObjHashmap *map = newHashmap();
+  value.type = PB_VALUE_OBJECT;
+  value.as.object = map;
+  activeVM = previous;
+  return value;
+}
+
+PB_API bool pbMapSet(PbVM *instance, PbValue map, PbValue key, PbValue value) {
+  if (instance == NULL) return false;
+  VM *previous = activateVM(instance);
+  bool ok = false;
+  if (map.type == PB_VALUE_OBJECT && map.as.object != NULL && ((Obj *)map.as.object)->type == OBJ_HASHMAP) {
+    ObjHashmap *target = (ObjHashmap *)map.as.object;
+    if (push(OBJ_VAL(target))) {
+      Value hostKey;
+      Value hostValue;
+      if (hostToValue(key, &hostKey) && hostToValue(value, &hostValue)) {
+        if (!mapKeyIsValid(hostKey)) {
+          runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+        } else {
+          ok = mapSet(&target->items, hostKey, hostValue, NULL);
+        }
+      }
+      pop();
+    }
+  } else {
+    runtimeError("pbMapSet() expected a map.");
+  }
+  activeVM = previous;
+  return ok;
+}
+
+PB_API bool pbMapGet(PbVM *instance, PbValue map, PbValue key, PbValue *result) {
+  if (result != NULL) *result = pbNilValue();
+  if (instance == NULL || result == NULL) return false;
+  VM *previous = activateVM(instance);
+  bool ok = false;
+  if (map.type == PB_VALUE_OBJECT && map.as.object != NULL && ((Obj *)map.as.object)->type == OBJ_HASHMAP) {
+    ObjHashmap *source = (ObjHashmap *)map.as.object;
+    Value hostKey;
+    if (hostToValue(key, &hostKey)) {
+      if (!mapKeyIsValid(hostKey)) {
+        runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
+      } else {
+        Value found;
+        if (mapGet(&source->items, hostKey, &found)) *result = valueToHost(found);
+        ok = true;
+      }
+    }
+  } else {
+    runtimeError("pbMapGet() expected a map.");
+  }
+  activeVM = previous;
+  return ok;
+}
+
 PB_API PbValue pbNewResource(PbVM *instance, const char *typeName, int tag, int backendId,
                              PbResourceFinalizer finalizer, void *ctx) {
   PbValue value = pbNilValue();
