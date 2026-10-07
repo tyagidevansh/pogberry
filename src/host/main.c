@@ -15,6 +15,9 @@
 #ifdef DEBUG_OPCODE_STATS
 void printOpcodeStats(void);
 #endif
+#ifdef GC_TIMING_STATS
+void printGcStats(void);
+#endif
 
 static void printUsage(FILE *stream) {
   fprintf(stream, "Usage:\n"
@@ -203,6 +206,12 @@ int main(int argc, const char *argv[]) {
 #else
   if (showOpcodes) {
     fprintf(stderr, "Note: rebuild with 'make opcodes' or 'make OPCODES=1' to collect opcode statistics.\n");
+  }
+#endif
+
+#ifdef GC_TIMING_STATS
+  if (getenv("PB_GC_STATS") != NULL) {
+    printGcStats();
   }
 #endif
 

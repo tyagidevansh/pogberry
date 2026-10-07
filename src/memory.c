@@ -9,6 +9,20 @@
 #include "headers/debug.h"
 #endif
 
+#ifdef GC_TIMING_STATS
+#include <stdio.h>
+#include <time.h>
+static double gcTotalSeconds = 0;
+static double gcWorstSeconds = 0;
+static unsigned long gcCollections = 0;
+
+void printGcStats(void) {
+  double average = gcCollections > 0 ? gcTotalSeconds / (double)gcCollections * 1000.0 : 0.0;
+  fprintf(stderr, "gc: %lu collections, total %.3fms, average %.3fms, worst %.3fms\n", gcCollections,
+          gcTotalSeconds * 1000.0, average, gcWorstSeconds * 1000.0);
+}
+#endif
+
 #define GC_HEAP_GROW_FACTOR 2
 
 void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
@@ -142,6 +156,9 @@ void collectGarbage() {
   printf("--gc begin\n");
   size_t before = vm.bytesAllocated;
 #endif
+#ifdef GC_TIMING_STATS
+  clock_t gcStart = clock();
+#endif
 
   markRoots();
   traceReferences();
@@ -150,6 +167,12 @@ void collectGarbage() {
 
   vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
 
+#ifdef GC_TIMING_STATS
+  double seconds = (double)(clock() - gcStart) / CLOCKS_PER_SEC;
+  gcTotalSeconds += seconds;
+  if (seconds > gcWorstSeconds) gcWorstSeconds = seconds;
+  gcCollections++;
+#endif
 #ifdef DEBUG_LOG_GC
   printf("--gc end\n");
   printf("   collected %zu bytes (from %zu to %zu) next at %zu\n", before - vm.bytesAllocated, before,

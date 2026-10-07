@@ -16,4 +16,10 @@ static inline void printOpcodeStats(void) {}
 static inline void resetOpcodeStats(void) {}
 #endif
 
+#ifdef GC_TIMING_STATS
+void printGcStats(void);
+#else
+static inline void printGcStats(void) {}
+#endif
+
 #endif // !clox_debug_h
