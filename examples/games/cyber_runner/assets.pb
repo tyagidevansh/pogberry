@@ -5,6 +5,7 @@ export let texBgBuildings = 0;
 export let texBgForeground = 0;
 export let texScarfy = 0;
 export let texExplosion = 0;
+export let fontTitle = nil;
 
 export let sndJump = 0;
 export let sndCoin = 0;
@@ -20,6 +21,24 @@ fun loadTextureFile(filename)
   if (t == 0)
     t = gui.loadTexture("assets/" + filename);
   return t;
+}
+
+fun loadFontFile(filename, size)
+{
+  let f = gui.loadFont("examples/games/cyber_runner/assets/" + filename, size);
+  if (f == nil)
+    f = gui.loadFont("assets/" + filename, size);
+  return f;
+}
+
+export fun fontWidth(text, size, spacing)
+{
+  return gui.measureTextFont(fontTitle, text, size, spacing);
+}
+
+export fun fontText(text, x, y, size, spacing, r, g, b)
+{
+  gui.drawTextFont(fontTitle, text, x, y, size, spacing, r, g, b);
 }
 
 fun loadSoundFile(filename)
@@ -45,6 +64,7 @@ export fun init()
   texBgForeground = loadTextureFile("cyberpunk_street_foreground.png");
   texScarfy = loadTextureFile("scarfy.png");
   texExplosion = loadTextureFile("explosion.png");
+  fontTitle = loadFontFile("Isometra-Regular.ttf", 64);
 
   gui.initAudio();
   sndJump = loadSoundFile("spring.wav");
@@ -144,6 +164,7 @@ export fun cleanup()
   if (texBgForeground != 0) gui.unloadTexture(texBgForeground);
   if (texScarfy != 0) gui.unloadTexture(texScarfy);
   if (texExplosion != 0) gui.unloadTexture(texExplosion);
+  if (fontTitle != nil) gui.unloadFont(fontTitle);
 
   gui.closeAudio();
 }

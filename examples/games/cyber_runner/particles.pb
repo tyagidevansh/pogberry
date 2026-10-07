@@ -1,5 +1,6 @@
 use "pb_gui" as gui;
 use "config";
+use "assets";
 
 export class Particle
 {
@@ -61,7 +62,7 @@ export class PopupText
   draw()
   {
     if (this.life <= 0) return;
-    gui.drawText(this.text, this.x, this.y, 16, this.r, this.g, this.b);
+    assets.fontText(this.text, this.x, this.y, 16, 1, this.r, this.g, this.b);
   }
 }
 

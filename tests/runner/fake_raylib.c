@@ -443,3 +443,32 @@ RAYLIB_EXPORT void setShaderTexture(int id, const char *uniformName, int texture
   (void)uniformName;
   (void)textureId;
 }
+
+RAYLIB_EXPORT int loadFont(const char *path, int size) {
+  if (path == NULL || path[0] == '\0' || size <= 0) return 0;
+  if (size > 4096) return -1;
+  if (strcmp(path, "missing.ttf") == 0) return 0;
+  return 1;
+}
+
+RAYLIB_EXPORT void unloadFont(int id) { (void)id; }
+
+RAYLIB_EXPORT void drawTextFont(int id, const char *text, int x, int y, float size, float spacing, int r, int g,
+                                int b) {
+  (void)id;
+  (void)text;
+  (void)x;
+  (void)y;
+  (void)size;
+  (void)spacing;
+  (void)r;
+  (void)g;
+  (void)b;
+}
+
+RAYLIB_EXPORT float measureTextFont(int id, const char *text, float size, float spacing) {
+  (void)id;
+  (void)spacing;
+  if (text == NULL || size <= 0) return 0;
+  return (float)strlen(text) * size;
+}

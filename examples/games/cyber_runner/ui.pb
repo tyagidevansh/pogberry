@@ -31,18 +31,18 @@ export class UI
     // Glowing main title
     let title = "CYBER RUNNER";
     let titleSize = 48;
-    let tw = gui.measureText(title, titleSize);
+    let tw = assets.fontWidth(title, titleSize, 2);
     let tx = (screenW - tw) / 2;
 
     // Shadow & glow
-    gui.drawText(title, tx + 3, 113, titleSize, 20, 20, 40);
-    gui.drawText(title, tx - 2, 108, titleSize, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
-    gui.drawText(title, tx, 110, titleSize, config.colorCyanR, config.colorCyanG, config.colorCyanB);
+    assets.fontText(title, tx + 3, 113, titleSize, 2, 20, 20, 40);
+    assets.fontText(title, tx - 2, 108, titleSize, 2, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
+    assets.fontText(title, tx, 110, titleSize, 2, config.colorCyanR, config.colorCyanG, config.colorCyanB);
 
     let sub = "CHROME HORIZON // POGBERRY SHOWCASE";
     let subSize = 16;
-    let sw = gui.measureText(sub, subSize);
-    gui.drawText(sub, (screenW - sw) / 2, 170, subSize, 180, 200, 230);
+    let sw = assets.fontWidth(sub, subSize, 1);
+    assets.fontText(sub, (screenW - sw) / 2, 170, subSize, 1, 180, 200, 230);
 
     // Controls box
     let boxW = 360;
@@ -52,19 +52,19 @@ export class UI
     gui.drawRectangleRounded(boxX, boxY, boxW, boxH, 0.15, 8, 16, 20, 32);
     gui.drawRectangleLines(boxX, boxY, boxW, boxH, 0, 180, 255);
 
-    gui.drawText("MISSION DIRECTIVES:", boxX + 20, boxY + 14, 16, config.colorYellowR, config.colorYellowG, config.colorYellowB);
-    gui.drawText("* SPACE / W : Jump & Double Jump", boxX + 24, boxY + 40, 15, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
-    gui.drawText("* S / DOWN  : Slide under drones", boxX + 24, boxY + 62, 15, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
-    gui.drawText("* LAND ON DRONES to stomp & bounce!", boxX + 24, boxY + 84, 15, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
-    gui.drawText("* P : Pause  |  M : Mute  |  F11 : Fullscreen", boxX + 24, boxY + 106, 14, 150, 170, 200);
+    assets.fontText("MISSION DIRECTIVES:", boxX + 20, boxY + 14, 16, 1, config.colorYellowR, config.colorYellowG, config.colorYellowB);
+    assets.fontText("* SPACE / W : Jump & Double Jump", boxX + 24, boxY + 40, 15, 1, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
+    assets.fontText("* S / DOWN  : Slide under drones", boxX + 24, boxY + 62, 15, 1, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
+    assets.fontText("* LAND ON DRONES to stomp & bounce!", boxX + 24, boxY + 84, 15, 1, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
+    assets.fontText("* P : Pause  |  M : Mute  |  F11 : Fullscreen", boxX + 24, boxY + 106, 14, 1, 150, 170, 200);
 
     // Blinking start prompt
     if (this.blinkTimer < 0.65)
     {
       let prompt = ">> PRESS SPACE OR ENTER TO RUN <<";
       let psize = 20;
-      let pw = gui.measureText(prompt, psize);
-      gui.drawText(prompt, (screenW - pw) / 2, 380, psize, config.colorCyanR, config.colorCyanG, config.colorCyanB);
+      let pw = assets.fontWidth(prompt, psize, 1);
+      assets.fontText(prompt, (screenW - pw) / 2, 380, psize, 1, config.colorCyanR, config.colorCyanG, config.colorCyanB);
     }
   }
 
@@ -79,34 +79,34 @@ export class UI
 
     // Distance
     let distMeters = math.floor(world.distance / 20.0);
-    gui.drawText("DIST: " + str(distMeters) + "m", 20, 13, 18, config.colorCyanR, config.colorCyanG, config.colorCyanB);
+    assets.fontText("DIST: " + str(distMeters) + "m", 20, 13, 18, 1, config.colorCyanR, config.colorCyanG, config.colorCyanB);
 
     // Score
     let scoreVal = math.floor(world.score);
-    gui.drawText("SCORE: " + str(scoreVal), 190, 13, 18, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
+    assets.fontText("SCORE: " + str(scoreVal), 190, 13, 18, 1, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
 
     // Coins
     gui.drawCircle(390, 22, 7.0, config.colorYellowR, config.colorYellowG, config.colorYellowB);
-    gui.drawText("x " + str(world.coins), 405, 13, 18, config.colorYellowR, config.colorYellowG, config.colorYellowB);
+    assets.fontText("x " + str(world.coins), 405, 13, 18, 1, config.colorYellowR, config.colorYellowG, config.colorYellowB);
 
     // Shield status
     if (player.shieldActive)
     {
-      gui.drawText("[SHIELD ONLINE]", 510, 13, 16, config.colorGreenR, config.colorGreenG, config.colorGreenB);
+      assets.fontText("[SHIELD ONLINE]", 510, 13, 16, 1, config.colorGreenR, config.colorGreenG, config.colorGreenB);
     }
     else
     {
-      gui.drawText("[SHIELD OFF]", 510, 13, 16, 120, 130, 150);
+      assets.fontText("[SHIELD OFF]", 510, 13, 16, 1, 120, 130, 150);
     }
 
     // Audio status
     if (assets.isMuted)
     {
-      gui.drawText("MUTED (M)", screenW - 140, 13, 14, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
+      assets.fontText("MUTED (M)", screenW - 140, 13, 14, 1, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
     }
     else
     {
-      gui.drawText("AUDIO ON (M)", screenW - 140, 13, 14, 130, 160, 190);
+      assets.fontText("AUDIO ON (M)", screenW - 140, 13, 14, 1, 130, 160, 190);
     }
 
     // FPS in corner
@@ -123,13 +123,13 @@ export class UI
 
     let title = "PAUSED";
     let size = 44;
-    let tw = gui.measureText(title, size);
-    gui.drawText(title, (screenW - tw) / 2, 190, size, config.colorCyanR, config.colorCyanG, config.colorCyanB);
+    let tw = assets.fontWidth(title, size, 2);
+    assets.fontText(title, (screenW - tw) / 2, 190, size, 2, config.colorCyanR, config.colorCyanG, config.colorCyanB);
 
     let sub = "Press P or ESC to resume";
     let subSize = 18;
-    let sw = gui.measureText(sub, subSize);
-    gui.drawText(sub, (screenW - sw) / 2, 250, subSize, 200, 210, 230);
+    let sw = assets.fontWidth(sub, subSize, 1);
+    assets.fontText(sub, (screenW - sw) / 2, 250, subSize, 1, 200, 210, 230);
   }
 
   drawGameOver(world)
@@ -142,10 +142,10 @@ export class UI
 
     let title = "SYSTEM CRASH";
     let size = 42;
-    let tw = gui.measureText(title, size);
+    let tw = assets.fontWidth(title, size, 2);
     let tx = (screenW - tw) / 2;
-    gui.drawText(title, tx + 2, 102, size, 30, 10, 10);
-    gui.drawText(title, tx, 100, size, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
+    assets.fontText(title, tx + 2, 102, size, 2, 30, 10, 10);
+    assets.fontText(title, tx, 100, size, 2, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
 
     let distMeters = math.floor(world.distance / 20.0);
     let finalScore = math.floor(world.score);
@@ -165,14 +165,14 @@ export class UI
     gui.drawRectangleRounded(bx, by, bw, bh, 0.15, 8, 16, 18, 28);
     gui.drawRectangleLines(bx, by, bw, bh, 255, 40, 100);
 
-    gui.drawText("Distance Run: " + str(distMeters) + " m", bx + 30, by + 25, 18, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
-    gui.drawText("Data Orbs: " + str(world.coins), bx + 30, by + 55, 18, config.colorYellowR, config.colorYellowG, config.colorYellowB);
-    gui.drawText("Final Score: " + str(finalScore), bx + 30, by + 85, 20, config.colorCyanR, config.colorCyanG, config.colorCyanB);
-    gui.drawText("Best Score: " + str(this.highScore), bx + 30, by + 115, 18, 180, 190, 210);
+    assets.fontText("Distance Run: " + str(distMeters) + " m", bx + 30, by + 25, 18, 1, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
+    assets.fontText("Data Orbs: " + str(world.coins), bx + 30, by + 55, 18, 1, config.colorYellowR, config.colorYellowG, config.colorYellowB);
+    assets.fontText("Final Score: " + str(finalScore), bx + 30, by + 85, 20, 1, config.colorCyanR, config.colorCyanG, config.colorCyanB);
+    assets.fontText("Best Score: " + str(this.highScore), bx + 30, by + 115, 18, 1, 180, 190, 210);
 
     if (isNewHigh and finalScore > 0)
     {
-      gui.drawText("NEW RECORD!", bx + 175, by + 87, 14, config.colorYellowR, config.colorYellowG, config.colorYellowB);
+      assets.fontText("NEW RECORD!", bx + 175, by + 87, 14, 1, config.colorYellowR, config.colorYellowG, config.colorYellowB);
     }
 
     // Restart prompt
@@ -180,8 +180,8 @@ export class UI
     {
       let prompt = ">> PRESS SPACE TO REBOOT <<";
       let psize = 20;
-      let pw = gui.measureText(prompt, psize);
-      gui.drawText(prompt, (screenW - pw) / 2, 375, psize, config.colorCyanR, config.colorCyanG, config.colorCyanB);
+      let pw = assets.fontWidth(prompt, psize, 1);
+      assets.fontText(prompt, (screenW - pw) / 2, 375, psize, 1, config.colorCyanR, config.colorCyanG, config.colorCyanB);
     }
   }
 }

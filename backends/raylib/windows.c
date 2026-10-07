@@ -56,6 +56,10 @@ static RenderTexture2D renderTargets[MAX_RENDER_TEXTURES];
 static bool renderTargetActive[MAX_RENDER_TEXTURES];
 static bool inTextureMode = false;
 
+#define MAX_FONTS 32
+static Font fonts[MAX_FONTS];
+static bool fontActive[MAX_FONTS];
+
 static void traceLogCallback(int logLevel, const char *text, va_list args) {
   const char *prefix = "";
   switch (logLevel) {
@@ -172,6 +176,12 @@ __declspec(dllexport) void closeWindow(void) {
     if (renderTargetActive[i]) {
       UnloadRenderTexture(renderTargets[i]);
       renderTargetActive[i] = false;
+    }
+  }
+  for (int i = 0; i < MAX_FONTS; i++) {
+    if (fontActive[i]) {
+      UnloadFont(fonts[i]);
+      fontActive[i] = false;
     }
   }
   inTextureMode = false;
@@ -681,6 +691,45 @@ __declspec(dllexport) void drawRenderTextureRec(int id, float sx, float sy, floa
   float textureHeight = (float)renderTargets[index].texture.height;
   DrawTextureRec(renderTargets[index].texture, (Rectangle){sx, textureHeight - sy - sh, sw, -sh},
                  (Vector2){dx, dy}, WHITE);
+}
+
+__declspec(dllexport) int loadFont(const char *path, int size) {
+  if (!IsWindowReady()) return 0;
+  if (path == NULL || path[0] == '\0' || size <= 0) return 0;
+  FILE *probe = fopen(path, "rb");
+  if (probe == NULL) return 0;
+  fclose(probe);
+  for (int i = 0; i < MAX_FONTS; i++) {
+    if (!fontActive[i]) {
+      Font font = LoadFontEx(path, size, NULL, 0);
+      if (!IsFontValid(font)) return -1;
+      fonts[i] = font;
+      fontActive[i] = true;
+      return i + 1;
+    }
+  }
+  return -1;
+}
+
+__declspec(dllexport) void unloadFont(int id) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_FONTS && fontActive[index]) {
+    UnloadFont(fonts[index]);
+    fontActive[index] = false;
+  }
+}
+
+__declspec(dllexport) void drawTextFont(int id, const char *text, int x, int y, float size, float spacing, int r, int g,
+                                        int b) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_FONTS || !fontActive[index] || text == NULL) return;
+  DrawTextEx(fonts[index], text, (Vector2){(float)x, (float)y}, size, spacing, (Color){r, g, b, 255});
+}
+
+__declspec(dllexport) float measureTextFont(int id, const char *text, float size, float spacing) {
+  int index = id - 1;
+  if (index < 0 || index >= MAX_FONTS || !fontActive[index] || text == NULL) return 0;
+  return MeasureTextEx(fonts[index], text, size, spacing).x;
 }
 
 __declspec(dllexport) void setShaderVec3(int id, const char *uniformName, float x, float y, float z) {

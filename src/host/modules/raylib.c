@@ -120,6 +120,10 @@ typedef void (*BeginTextureModeFn)(int);
 typedef void (*EndTextureModeFn)(void);
 typedef void (*DrawRenderTextureFn)(int, int, int);
 typedef void (*DrawRenderTextureRecFn)(int, float, float, float, float, float, float);
+typedef int (*LoadFontFn)(const char *, int);
+typedef void (*UnloadFontFn)(int);
+typedef void (*DrawTextFontFn)(int, const char *, int, int, float, float, int, int, int);
+typedef float (*MeasureTextFontFn)(int, const char *, float, float);
 typedef void (*SetShaderVec3Fn)(int, const char *, float, float, float);
 typedef void (*SetShaderVec4Fn)(int, const char *, float, float, float, float);
 typedef void (*SetShaderColorFn)(int, const char *, float, float, float, float);
@@ -230,6 +234,10 @@ typedef void (*SetShaderTextureFn)(int, const char *, int);
   X(endTextureMode, EndTextureModeFn, "endTextureMode", guiEndTextureMode) \
   X(drawRenderTexture, DrawRenderTextureFn, "drawRenderTexture", guiDrawRenderTexture) \
   X(drawRenderTextureRec, DrawRenderTextureRecFn, "drawRenderTextureRec", guiDrawRenderTextureRec) \
+  X(loadFont, LoadFontFn, "loadFont", guiLoadFont) \
+  X(unloadFont, UnloadFontFn, "unloadFont", guiUnloadFont) \
+  X(drawTextFont, DrawTextFontFn, "drawTextFont", guiDrawTextFont) \
+  X(measureTextFont, MeasureTextFontFn, "measureTextFont", guiMeasureTextFont) \
   X(setShaderVec3, SetShaderVec3Fn, "setShaderVec3", guiSetShaderVec3) \
   X(setShaderVec4, SetShaderVec4Fn, "setShaderVec4", guiSetShaderVec4) \
   X(setShaderColor, SetShaderColorFn, "setShaderColor", guiSetShaderColor) \
@@ -452,6 +460,7 @@ static PbValue missingRaylibFunction(PbVM *vm, const char *name) {
 typedef enum {
   GUI_RESOURCE_SHADER = 1,
   GUI_RESOURCE_RENDER_TEXTURE = 2,
+  GUI_RESOURCE_FONT = 3,
 } GuiResourceKind;
 
 static void unloadShaderFinalizer(int backendId, void *ctx) {
@@ -464,6 +473,12 @@ static void unloadRenderTextureFinalizer(int backendId, void *ctx) {
   (void)ctx;
   if (!raylibLoaded || raylib.unloadRenderTexture == NULL) return;
   raylib.unloadRenderTexture(backendId);
+}
+
+static void unloadFontFinalizer(int backendId, void *ctx) {
+  (void)ctx;
+  if (!raylibLoaded || raylib.unloadFont == NULL) return;
+  raylib.unloadFont(backendId);
 }
 
 static bool shaderId(PbVM *vm, PbValue value, int *id, const char *usage) {
@@ -492,6 +507,22 @@ static bool renderTextureId(PbVM *vm, PbValue value, int *id, const char *usage)
   }
   if (closed) {
     guiError(vm, "render texture has been unloaded.");
+    return false;
+  }
+  *id = backendId;
+  return true;
+}
+
+static bool fontId(PbVM *vm, PbValue value, int *id, const char *usage) {
+  int tag = 0;
+  int backendId = 0;
+  bool closed = false;
+  if (!pbResourceInfo(value, NULL, &tag, &backendId, &closed) || tag != GUI_RESOURCE_FONT) {
+    guiError(vm, usage);
+    return false;
+  }
+  if (closed) {
+    guiError(vm, "font has been unloaded.");
     return false;
   }
   *id = backendId;
@@ -1430,6 +1461,63 @@ static PbValue guiDrawRenderTextureRec(PbVM *vm, int argCount, const PbValue *ar
   raylib.drawRenderTextureRec(id, (float)args[1].as.number, (float)args[2].as.number, (float)args[3].as.number,
                               (float)args[4].as.number, (float)args[5].as.number, (float)args[6].as.number);
   return pbNilValue();
+}
+
+static PbValue guiLoadFont(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 2 || args[0].type != PB_VALUE_STRING || args[0].as.string.chars[0] == '\0' ||
+      !numbersFitInt(args + 1, 1) || args[1].as.number <= 0)
+    return guiError(vm, "loadFont(path, size) expected a path and a positive size.");
+  if (raylib.loadFont == NULL) return missingRaylibFunction(vm, "loadFont");
+  int id = raylib.loadFont(args[0].as.string.chars, (int)args[1].as.number);
+  if (id == 0) return pbNilValue();
+  if (id < 0) {
+    char message[512];
+    snprintf(message, sizeof(message), "loadFont() failed for \"%s\". Check the file or call gui.setDebugMode(true).",
+             args[0].as.string.chars);
+    return guiError(vm, message);
+  }
+  return pbNewResource(vm, "font", GUI_RESOURCE_FONT, id, unloadFontFinalizer, NULL);
+}
+
+static PbValue guiUnloadFont(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 1) return guiError(vm, "unloadFont(font) expected a font.");
+  int tag = 0;
+  int backendId = 0;
+  if (!pbResourceInfo(args[0], NULL, &tag, &backendId, NULL) || tag != GUI_RESOURCE_FONT)
+    return guiError(vm, "unloadFont(font) expected a font.");
+  if (raylib.unloadFont == NULL) return missingRaylibFunction(vm, "unloadFont");
+  raylib.unloadFont(backendId);
+  pbResourceClose(args[0]);
+  return pbNilValue();
+}
+
+static PbValue guiDrawTextFont(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 9 || args[1].type != PB_VALUE_STRING || !numbersFitCoord(args + 2, 2) ||
+      !numberFitsFloat(args[4]) || args[4].as.number <= 0 || !numberFitsFloat(args[5]) || !validColor(args + 6))
+    return guiError(vm, "drawTextFont(font, text, x, y, size, spacing, r, g, b) expected.");
+  int id = 0;
+  if (!fontId(vm, args[0], &id, "drawTextFont(font, text, x, y, size, spacing, r, g, b) expected."))
+    return pbNilValue();
+  if (raylib.drawTextFont == NULL) return missingRaylibFunction(vm, "drawTextFont");
+  raylib.drawTextFont(id, args[1].as.string.chars, (int)args[2].as.number, (int)args[3].as.number,
+                      (float)args[4].as.number, (float)args[5].as.number, (int)args[6].as.number,
+                      (int)args[7].as.number, (int)args[8].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiMeasureTextFont(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 4 || args[1].type != PB_VALUE_STRING || !numberFitsFloat(args[2]) || args[2].as.number <= 0 ||
+      !numberFitsFloat(args[3]))
+    return guiError(vm, "measureTextFont(font, text, size, spacing) expected.");
+  int id = 0;
+  if (!fontId(vm, args[0], &id, "measureTextFont(font, text, size, spacing) expected.")) return pbNilValue();
+  if (raylib.measureTextFont == NULL) return missingRaylibFunction(vm, "measureTextFont");
+  return pbNumberValue(raylib.measureTextFont(id, args[1].as.string.chars, (float)args[2].as.number,
+                                              (float)args[3].as.number));
 }
 
 static PbValue guiSetShaderVec3(PbVM *vm, int argCount, const PbValue *args, void *userData) {
