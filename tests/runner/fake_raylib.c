@@ -472,3 +472,5 @@ RAYLIB_EXPORT float measureTextFont(int id, const char *text, float size, float 
   if (text == NULL || size <= 0) return 0;
   return (float)strlen(text) * size;
 }
+
+RAYLIB_EXPORT int readChar(void) { return 65; }

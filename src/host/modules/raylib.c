@@ -124,6 +124,7 @@ typedef int (*LoadFontFn)(const char *, int);
 typedef void (*UnloadFontFn)(int);
 typedef void (*DrawTextFontFn)(int, const char *, int, int, float, float, int, int, int);
 typedef float (*MeasureTextFontFn)(int, const char *, float, float);
+typedef int (*ReadCharFn)(void);
 typedef void (*SetShaderVec3Fn)(int, const char *, float, float, float);
 typedef void (*SetShaderVec4Fn)(int, const char *, float, float, float, float);
 typedef void (*SetShaderColorFn)(int, const char *, float, float, float, float);
@@ -238,6 +239,7 @@ typedef void (*SetShaderTextureFn)(int, const char *, int);
   X(unloadFont, UnloadFontFn, "unloadFont", guiUnloadFont) \
   X(drawTextFont, DrawTextFontFn, "drawTextFont", guiDrawTextFont) \
   X(measureTextFont, MeasureTextFontFn, "measureTextFont", guiMeasureTextFont) \
+  X(readChar, ReadCharFn, "readChar", guiReadChar) \
   X(setShaderVec3, SetShaderVec3Fn, "setShaderVec3", guiSetShaderVec3) \
   X(setShaderVec4, SetShaderVec4Fn, "setShaderVec4", guiSetShaderVec4) \
   X(setShaderColor, SetShaderColorFn, "setShaderColor", guiSetShaderColor) \
@@ -1518,6 +1520,40 @@ static PbValue guiMeasureTextFont(PbVM *vm, int argCount, const PbValue *args, v
   if (raylib.measureTextFont == NULL) return missingRaylibFunction(vm, "measureTextFont");
   return pbNumberValue(raylib.measureTextFont(id, args[1].as.string.chars, (float)args[2].as.number,
                                               (float)args[3].as.number));
+}
+
+static PbValue guiReadChar(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "readChar() takes no arguments.");
+  if (raylib.readChar == NULL) return missingRaylibFunction(vm, "readChar");
+  int code = raylib.readChar();
+  if (code <= 0) return pbStringCopyN(vm, "", 0);
+  char text[5];
+  int length = 0;
+  if (code < 0x80) {
+    text[0] = (char)code;
+    length = 1;
+  } else if (code < 0x800) {
+    text[0] = (char)(0xC0 | (code >> 6));
+    text[1] = (char)(0x80 | (code & 0x3F));
+    length = 2;
+  } else if (code < 0x10000) {
+    text[0] = (char)(0xE0 | (code >> 12));
+    text[1] = (char)(0x80 | ((code >> 6) & 0x3F));
+    text[2] = (char)(0x80 | (code & 0x3F));
+    length = 3;
+  } else if (code <= 0x10FFFF) {
+    text[0] = (char)(0xF0 | (code >> 18));
+    text[1] = (char)(0x80 | ((code >> 12) & 0x3F));
+    text[2] = (char)(0x80 | ((code >> 6) & 0x3F));
+    text[3] = (char)(0x80 | (code & 0x3F));
+    length = 4;
+  } else {
+    return pbStringCopyN(vm, "", 0);
+  }
+  text[length] = '\0';
+  return pbStringCopyN(vm, text, (size_t)length);
 }
 
 static PbValue guiSetShaderVec3(PbVM *vm, int argCount, const PbValue *args, void *userData) {

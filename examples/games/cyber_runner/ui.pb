@@ -1,5 +1,6 @@
 use "pb_gui" as gui;
 use "std.math" as math;
+use "std.ui" as widgets;
 use "config";
 use "assets";
 
@@ -9,6 +10,9 @@ export class UI
   {
     this.highScore = 0;
     this.blinkTimer = 0.0;
+    this.playerName = "";
+    this.nameField = nil;
+    this.naming = false;
   }
 
   update(dt)
@@ -132,6 +136,21 @@ export class UI
     assets.fontText(sub, (screenW - sw) / 2, 250, subSize, 1, 200, 210, 230);
   }
 
+  beginGameOver(world)
+  {
+    let finalScore = math.floor(world.score);
+    if (finalScore > this.highScore and finalScore > 0)
+    {
+      this.nameField = widgets.TextField(12);
+      this.nameField.focused = true;
+      this.naming = true;
+    }
+    else
+    {
+      this.naming = false;
+    }
+  }
+
   drawGameOver(world)
   {
     let screenW = gui.getScreenWidth();
@@ -146,6 +165,27 @@ export class UI
     let tx = (screenW - tw) / 2;
     assets.fontText(title, tx + 2, 102, size, 2, 30, 10, 10);
     assets.fontText(title, tx, 100, size, 2, config.colorMagentaR, config.colorMagentaG, config.colorMagentaB);
+
+    if (this.naming)
+    {
+      let bw = 420;
+      let bh = 150;
+      let bx = (screenW - bw) / 2;
+      let by = 180;
+      gui.drawRectangleRounded(bx, by, bw, bh, 0.15, 8, 16, 18, 28);
+      gui.drawRectangleLines(bx, by, bw, bh, 255, 40, 100);
+      assets.fontText("NEW RECORD! ENTER PILOT NAME:", bx + 30, by + 16, 18, 1, config.colorYellowR, config.colorYellowG, config.colorYellowB);
+      gui.drawRectangleLines(bx + 30, by + 48, bw - 60, 30, 0, 180, 255);
+      assets.fontText(this.nameField.text, bx + 38, by + 52, 18, 1, config.colorWhiteR, config.colorWhiteG, config.colorWhiteB);
+      if (this.blinkTimer < 0.5)
+      {
+        let before = this.nameField.text.substr(0, this.nameField.cursor);
+        let cx = bx + 38 + assets.fontWidth(before, 18, 1);
+        gui.drawRectangle(cx, by + 52, 2, 24, config.colorCyanR, config.colorCyanG, config.colorCyanB);
+      }
+      assets.fontText("ENTER ok   ESC skip", bx + 30, by + 96, 14, 1, 150, 170, 200);
+      return;
+    }
 
     let distMeters = math.floor(world.distance / 20.0);
     let finalScore = math.floor(world.score);
@@ -169,6 +209,10 @@ export class UI
     assets.fontText("Data Orbs: " + str(world.coins), bx + 30, by + 55, 18, 1, config.colorYellowR, config.colorYellowG, config.colorYellowB);
     assets.fontText("Final Score: " + str(finalScore), bx + 30, by + 85, 20, 1, config.colorCyanR, config.colorCyanG, config.colorCyanB);
     assets.fontText("Best Score: " + str(this.highScore), bx + 30, by + 115, 18, 1, 180, 190, 210);
+    if (this.playerName != "")
+    {
+      assets.fontText("Pilot: " + this.playerName, bx + 30, by + 145, 18, 1, config.colorGreenR, config.colorGreenG, config.colorGreenB);
+    }
 
     if (isNewHigh and finalScore > 0)
     {

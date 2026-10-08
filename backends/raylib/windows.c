@@ -732,6 +732,8 @@ __declspec(dllexport) float measureTextFont(int id, const char *text, float size
   return MeasureTextEx(fonts[index], text, size, spacing).x;
 }
 
+__declspec(dllexport) int readChar(void) { return GetCharPressed(); }
+
 __declspec(dllexport) void setShaderVec3(int id, const char *uniformName, float x, float y, float z) {
   int index = id - 1;
   if (index < 0 || index >= MAX_SHADERS || !shaderActive[index] || uniformName == NULL) return;

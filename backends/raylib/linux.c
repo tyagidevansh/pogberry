@@ -696,6 +696,8 @@ float measureTextFont(int id, const char *text, float size, float spacing) {
   return MeasureTextEx(fonts[index], text, size, spacing).x;
 }
 
+int readChar(void) { return GetCharPressed(); }
+
 void setShaderVec3(int id, const char *uniformName, float x, float y, float z) {
   int index = id - 1;
   if (index < 0 || index >= MAX_SHADERS || !shaderActive[index] || uniformName == NULL) return;

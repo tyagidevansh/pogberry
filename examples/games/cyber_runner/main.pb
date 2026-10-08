@@ -93,6 +93,7 @@ while (!gui.windowShouldClose())
       if (!playerObj.isAlive)
       {
         gameState = STATE_GAMEOVER;
+        uiObj.beginGameOver(worldObj);
       }
     }
   }
@@ -109,7 +110,20 @@ while (!gui.windowShouldClose())
     particleSys.update(dt);
     uiObj.update(dt);
 
-    if (gui.isKeyPressed("KEY_SPACE") or gui.isKeyPressed("KEY_ENTER"))
+    if (uiObj.naming)
+    {
+      uiObj.nameField.update(dt);
+      if (uiObj.nameField.submitted)
+      {
+        uiObj.playerName = uiObj.nameField.text;
+        uiObj.naming = false;
+      }
+      else if (uiObj.nameField.cancelled)
+      {
+        uiObj.naming = false;
+      }
+    }
+    else if (gui.isKeyPressed("KEY_SPACE") or gui.isKeyPressed("KEY_ENTER"))
     {
       gameState = STATE_PLAYING;
       playerObj.reset();
