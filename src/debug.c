@@ -294,6 +294,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return byteInstruction("OP_SET_UPVALUE_POP", chunk, offset);
   case OP_SET_INDEX_POP:
     return simpleInstruction("OP_SET_INDEX_POP", offset);
+  case OP_PUSH_HANDLER:
+    return jumpInstruction("OP_PUSH_HANDLER", 1, chunk, offset);
+  case OP_POP_HANDLER:
+    return simpleInstruction("OP_POP_HANDLER", offset);
+  case OP_THROW:
+    return simpleInstruction("OP_THROW", offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;
@@ -392,6 +398,9 @@ static const char *opcodeNames[256] = {
     [OP_SET_GLOBAL_POP] = "OP_SET_GLOBAL_POP",
     [OP_SET_UPVALUE_POP] = "OP_SET_UPVALUE_POP",
     [OP_SET_INDEX_POP] = "OP_SET_INDEX_POP",
+    [OP_PUSH_HANDLER] = "OP_PUSH_HANDLER",
+    [OP_POP_HANDLER] = "OP_POP_HANDLER",
+    [OP_THROW] = "OP_THROW",
 };
 
 typedef struct {

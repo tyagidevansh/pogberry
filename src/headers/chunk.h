@@ -109,6 +109,9 @@ typedef enum {
   OP_SET_GLOBAL_POP,
   OP_SET_UPVALUE_POP,
   OP_SET_INDEX_POP,
+  OP_PUSH_HANDLER,
+  OP_POP_HANDLER,
+  OP_THROW,
 } OpCode;
 
 typedef struct {

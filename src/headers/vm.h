@@ -16,6 +16,12 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
+  int frameIndex;
+  Value *slotTop;
+  int catchAddress;
+} ErrorHandler;
+
+typedef struct {
   char *name;
   PbNativeDefinition *definitions;
   size_t definitionCount;
@@ -47,6 +53,12 @@ struct PbVM {
   int grayCount;
   int grayCapacity;
   Obj **grayStack;
+
+  ErrorHandler *handlers;
+  int handlerCount;
+  int handlerCapacity;
+  Value errorMessage;
+  Value thrownValue;
 
   PbConfig config;
   HostCapability *capabilities;

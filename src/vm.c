@@ -29,6 +29,9 @@ static void resetStack() {
   vm.stackTop = vm.stack;
   vm.frameCount = 0;
   vm.openUpvalues = NULL;
+  vm.handlerCount = 0;
+  vm.errorMessage = NIL_VAL;
+  vm.thrownValue = NIL_VAL;
 }
 
 void runtimeError(const char *format, ...) {
@@ -42,34 +45,109 @@ void runtimeError(const char *format, ...) {
   int length = vsnprintf(NULL, 0, format, argsCopy);
   va_end(argsCopy);
 
+  char *message = NULL;
   if (length >= 0) {
-    char *message = (char *)malloc((size_t)length + 1);
-    if (message != NULL) {
-      vsnprintf(message, (size_t)length + 1, format, args);
-      reportDiagnostic(PB_DIAGNOSTIC_RUNTIME, message);
-      free(message);
-    }
+    message = (char *)malloc((size_t)length + 1);
+    if (message != NULL) vsnprintf(message, (size_t)length + 1, format, args);
   }
   va_end(args);
 
+  if (message != NULL) {
+    vm.errorMessage = OBJ_VAL(copyString(message, length));
+    free(message);
+  } else {
+    vm.errorMessage = OBJ_VAL(copyString("Runtime error.", 14));
+  }
+  vm.thrownValue = NIL_VAL;
+}
+
+static void pushHandler(int frameIndex, Value *slotTop, int catchAddress) {
+  if (vm.handlerCount == vm.handlerCapacity) {
+    int oldCapacity = vm.handlerCapacity;
+    vm.handlerCapacity = GROW_CAPACITY(oldCapacity);
+    vm.handlers = GROW_ARRAY(ErrorHandler, vm.handlers, oldCapacity, vm.handlerCapacity);
+  }
+  ErrorHandler *handler = &vm.handlers[vm.handlerCount++];
+  handler->frameIndex = frameIndex;
+  handler->slotTop = slotTop;
+  handler->catchAddress = catchAddress;
+}
+
+static ObjList *buildTraceList(void) {
+  ObjList *trace = newList();
+  push(OBJ_VAL(trace));
   for (int i = vm.frameCount - 1; i >= 0; i--) {
     CallFrame *frame = &vm.frames[i];
     ObjFunction *function = frame->closure->function;
-    size_t instruction = frame->ip - function->chunk.code - 1;
-    char trace[256];
+    size_t instruction = (size_t)(frame->ip - function->chunk.code - 1);
+    char entry[256];
     if (function->sourceName != NULL && function->name == NULL) {
-      snprintf(trace, sizeof(trace), "[%s line %d] in module", function->sourceName->chars,
+      snprintf(entry, sizeof(entry), "[%s line %d] in module", function->sourceName->chars,
                function->chunk.lines[instruction]);
     } else if (function->sourceName != NULL) {
-      snprintf(trace, sizeof(trace), "[%s line %d] in %s()", function->sourceName->chars,
+      snprintf(entry, sizeof(entry), "[%s line %d] in %s()", function->sourceName->chars,
                function->chunk.lines[instruction], function->name->chars);
     } else if (function->name == NULL) {
-      snprintf(trace, sizeof(trace), "[line %d] in script", function->chunk.lines[instruction]);
+      snprintf(entry, sizeof(entry), "[line %d] in script", function->chunk.lines[instruction]);
     } else {
-      snprintf(trace, sizeof(trace), "[line %d] in %s()", function->chunk.lines[instruction], function->name->chars);
+      snprintf(entry, sizeof(entry), "[line %d] in %s()", function->chunk.lines[instruction],
+               function->name->chars);
     }
-    reportDiagnostic(PB_DIAGNOSTIC_RUNTIME, trace);
+    ObjString *line = copyString(entry, (int)strlen(entry));
+    push(OBJ_VAL(line));
+    writeValueArray(&trace->items, OBJ_VAL(line));
+    pop();
   }
+  return trace;
+}
+
+static bool unwindToHandler(int stopFrameCount, uint8_t **resumeIp) {
+  int index = vm.handlerCount - 1;
+  while (index >= 0 && vm.handlers[index].frameIndex < stopFrameCount) index--;
+  if (index < 0) return false;
+  ErrorHandler handler = vm.handlers[index];
+  vm.handlerCount = index;
+
+  ObjHashmap *error = newHashmap();
+  push(OBJ_VAL(error));
+  ObjString *messageKey = copyString("message", 7);
+  push(OBJ_VAL(messageKey));
+  ObjString *traceKey = copyString("trace", 5);
+  push(OBJ_VAL(traceKey));
+  ObjString *valueKey = copyString("value", 5);
+  push(OBJ_VAL(valueKey));
+  ObjList *trace = buildTraceList();
+  push(OBJ_VAL(trace));
+  bool complete = mapSet(&error->items, OBJ_VAL(messageKey), vm.errorMessage, NULL);
+  if (complete) complete = mapSet(&error->items, OBJ_VAL(traceKey), OBJ_VAL(trace), NULL);
+  if (complete) complete = mapSet(&error->items, OBJ_VAL(valueKey), vm.thrownValue, NULL);
+  pop();
+  pop();
+  pop();
+  pop();
+  pop();
+  if (!complete) return false;
+
+  closeUpvalues(handler.slotTop);
+  vm.frameCount = handler.frameIndex + 1;
+  vm.stackTop = handler.slotTop;
+  push(OBJ_VAL(error));
+  vm.hadRuntimeError = false;
+  vm.errorMessage = NIL_VAL;
+  vm.thrownValue = NIL_VAL;
+  *resumeIp = vm.frames[handler.frameIndex].closure->function->chunk.code + handler.catchAddress;
+  return true;
+}
+
+static void flushPendingError(void) {
+  if (!vm.hadRuntimeError || !IS_STRING(vm.errorMessage)) return;
+  reportDiagnostic(PB_DIAGNOSTIC_RUNTIME, AS_CSTRING(vm.errorMessage));
+  ObjList *trace = buildTraceList();
+  push(OBJ_VAL(trace));
+  for (int i = 0; i < trace->items.count; i++) {
+    reportDiagnostic(PB_DIAGNOSTIC_RUNTIME, AS_CSTRING(trace->items.values[i]));
+  }
+  pop();
   closeUpvalues(vm.stack);
   resetStack();
 }
@@ -144,6 +222,10 @@ static void freeActiveVM(void) {
   vm.initString = NULL;
   freeObjects();
   freeCapabilities();
+  FREE_ARRAY(ErrorHandler, vm.handlers, vm.handlerCapacity);
+  vm.handlers = NULL;
+  vm.handlerCount = 0;
+  vm.handlerCapacity = 0;
 }
 
 void initVM(void) {
@@ -698,7 +780,7 @@ static InterpretResult run(int stopFrameCount) {
     if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) { \
       STORE_FRAME(); \
       runtimeError("Operands must be numbers."); \
-      return INTERPRET_RUNTIME_ERROR; \
+      goto runtime_error; \
     } \
     double b = AS_NUMBER(stackTop[-1]); \
     double a = AS_NUMBER(stackTop[-2]); \
@@ -797,6 +879,9 @@ static InterpretResult run(int stopFrameCount) {
     [OP_SET_GLOBAL_POP] = &&target_OP_SET_GLOBAL_POP,
     [OP_SET_UPVALUE_POP] = &&target_OP_SET_UPVALUE_POP,
     [OP_SET_INDEX_POP] = &&target_OP_SET_INDEX_POP,
+    [OP_PUSH_HANDLER] = &&target_OP_PUSH_HANDLER,
+    [OP_POP_HANDLER] = &&target_OP_POP_HANDLER,
+    [OP_THROW] = &&target_OP_THROW,
   };
 
   uint8_t instruction;
@@ -939,7 +1024,7 @@ static InterpretResult run(int stopFrameCount) {
       if (entry == NULL) {
         STORE_FRAME();
         runtimeError("Undefined variable '%s'.", name->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       cache->valuePtr = &entry->value;
       cache->version = globals->version;
@@ -959,7 +1044,7 @@ static InterpretResult run(int stopFrameCount) {
       if (entry == NULL) {
         STORE_FRAME();
         runtimeError("Undefined variable '%s'.", name->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       cache->valuePtr = &entry->value;
       cache->version = globals->version;
@@ -981,7 +1066,7 @@ static InterpretResult run(int stopFrameCount) {
         tableDelete(globals, name);
         STORE_FRAME();
         runtimeError("Undefined variable '%s'.", name->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       ObjModule *module = frame->closure->module;
       Value previousExport;
@@ -996,7 +1081,7 @@ static InterpretResult run(int stopFrameCount) {
         tableDelete(globals, name);
         STORE_FRAME();
         runtimeError("Undefined variable '%s'.", name->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       ObjModule *module = frame->closure->module;
       Value previousExport;
@@ -1015,7 +1100,7 @@ static InterpretResult run(int stopFrameCount) {
         if (!tableGet(&module->exports, name, &exported)) {
           STORE_FRAME();
           runtimeError("Module '%s' does not export '%s'.", module->name->chars, name->chars);
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
         stackTop[-1] = exported;
         DISPATCH();
@@ -1025,7 +1110,7 @@ static InterpretResult run(int stopFrameCount) {
         if (strcmp(name->chars, "length") != 0) {
           STORE_FRAME();
           runtimeError("Maps do not have a property named '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         ObjHashmap *map = AS_HASHMAP(POP());
@@ -1036,7 +1121,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_INSTANCE(PEEK(0))) {
         STORE_FRAME();
         runtimeError("Only instances have properties.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       ObjInstance *instance = AS_INSTANCE(PEEK(0));
@@ -1049,7 +1134,7 @@ static InterpretResult run(int stopFrameCount) {
 
       STORE_FRAME();
       if (!bindMethod(instance->klass, name)) {
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       LOAD_FRAME();
       DISPATCH();
@@ -1059,12 +1144,12 @@ static InterpretResult run(int stopFrameCount) {
       if (IS_MODULE(PEEK(1))) {
         STORE_FRAME();
         runtimeError("Module exports are read-only.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       if (!IS_INSTANCE(PEEK(1))) {
         STORE_FRAME();
         runtimeError("Only instances have fields.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       ObjInstance *instance = AS_INSTANCE(PEEK(1));
@@ -1080,7 +1165,7 @@ static InterpretResult run(int stopFrameCount) {
       int argCount = READ_BYTE();
       STORE_FRAME();
       if (!invoke(method, argCount)) {
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       LOAD_FRAME();
       DISPATCH();
@@ -1092,7 +1177,7 @@ static InterpretResult run(int stopFrameCount) {
       ObjClass *superclass = AS_CLASS(POP());
       STORE_FRAME();
       if (!invokeFromClass(superclass, method, argCount)) {
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       LOAD_FRAME();
       DISPATCH();
@@ -1104,7 +1189,7 @@ static InterpretResult run(int stopFrameCount) {
 
       STORE_FRAME();
       if (!bindMethod(superclass, name)) {
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       LOAD_FRAME();
       DISPATCH();
@@ -1122,7 +1207,7 @@ static InterpretResult run(int stopFrameCount) {
         STORE_FRAME();
         equal = valuesEqual(a, b);
         LOAD_FRAME();
-        if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+        if (vm.hadRuntimeError) goto runtime_error;
       }
 #else
       if (a.type == b.type) {
@@ -1138,7 +1223,7 @@ static InterpretResult run(int stopFrameCount) {
           STORE_FRAME();
           equal = valuesEqual(a, b);
           LOAD_FRAME();
-          if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+          if (vm.hadRuntimeError) goto runtime_error;
         }
       }
 #endif
@@ -1164,7 +1249,7 @@ static InterpretResult run(int stopFrameCount) {
       } else {
         STORE_FRAME();
         runtimeError("Operands must be two numbers or two strings.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       DISPATCH();
     }
@@ -1178,7 +1263,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       double divisor = AS_NUMBER(stackTop[-1]);
@@ -1186,7 +1271,7 @@ static InterpretResult run(int stopFrameCount) {
       if (divisor == 0) {
         STORE_FRAME();
         runtimeError("Division by zero.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       stackTop[-2] = NUMBER_VAL(dividend / divisor);
@@ -1197,7 +1282,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       double b = AS_NUMBER(stackTop[-1]);
@@ -1206,13 +1291,13 @@ static InterpretResult run(int stopFrameCount) {
       if (b == 0) {
         STORE_FRAME();
         runtimeError("Modulo by zero.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       if (!isfinite(a) || !isfinite(b) || floor(b) != b || floor(a) != a) {
         STORE_FRAME();
         runtimeError("Modulo only accepts finite integer operands.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       stackTop[-2] = NUMBER_VAL(fmod(a, b));
@@ -1225,7 +1310,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_NUMBER(PEEK(0))) {
         STORE_FRAME();
         runtimeError("Operand must be a number.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       stackTop[-1] = NUMBER_VAL(-AS_NUMBER(stackTop[-1]));
       DISPATCH();
@@ -1263,7 +1348,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       double b = AS_NUMBER(stackTop[-1]);
       double a = AS_NUMBER(stackTop[-2]);
@@ -1278,7 +1363,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       double b = AS_NUMBER(stackTop[-1]);
       double a = AS_NUMBER(stackTop[-2]);
@@ -1303,7 +1388,7 @@ static InterpretResult run(int stopFrameCount) {
         STORE_FRAME();
         equal = valuesEqual(a, b);
         LOAD_FRAME();
-        if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+        if (vm.hadRuntimeError) goto runtime_error;
       }
 #else
       if (a.type == b.type) {
@@ -1319,7 +1404,7 @@ static InterpretResult run(int stopFrameCount) {
           STORE_FRAME();
           equal = valuesEqual(a, b);
           LOAD_FRAME();
-          if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+          if (vm.hadRuntimeError) goto runtime_error;
         }
       }
 #endif
@@ -1360,12 +1445,12 @@ static InterpretResult run(int stopFrameCount) {
         if (argCount != function->arity) {
           STORE_FRAME();
           runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
         if (vm.frameCount == FRAMES_MAX) {
           STORE_FRAME();
           runtimeError("Stack overflow.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
         frame->ip = ip;
         frame = &vm.frames[vm.frameCount++];
@@ -1378,7 +1463,7 @@ static InterpretResult run(int stopFrameCount) {
       }
       STORE_FRAME();
       if (!callValue(callee, argCount)) {
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       LOAD_FRAME();
       DISPATCH();
@@ -1393,7 +1478,7 @@ static InterpretResult run(int stopFrameCount) {
 
         STORE_FRAME();
         if (!normalizeListIndex(index, list->items.count, &listIndex)) {
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         Value result = list->items.values[listIndex];
@@ -1403,21 +1488,21 @@ static InterpretResult run(int stopFrameCount) {
         if (!IS_NUMBER(index)) {
           STORE_FRAME();
           runtimeError("String index must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         double stringIndex = AS_NUMBER(index);
         if (!isfinite(stringIndex) || floor(stringIndex) != stringIndex) {
           STORE_FRAME();
           runtimeError("String index must be a finite integer.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         ObjString *string = AS_STRING(container);
         if (stringIndex < 0 || stringIndex >= string->length) {
           STORE_FRAME();
           runtimeError("String index out of bounds.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         unsigned char ch = (unsigned char)string->chars[(int)stringIndex];
@@ -1429,7 +1514,7 @@ static InterpretResult run(int stopFrameCount) {
         if (!mapKeyIsValid(index)) {
           STORE_FRAME();
           runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         Value result = NIL_VAL;
@@ -1440,7 +1525,7 @@ static InterpretResult run(int stopFrameCount) {
       } else {
         STORE_FRAME();
         runtimeError("Can only index into lists, strings, and hashmaps.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       DISPATCH();
@@ -1457,7 +1542,7 @@ static InterpretResult run(int stopFrameCount) {
 
         STORE_FRAME();
         if (!normalizeListIndex(key, list->items.count, &index)) {
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         list->items.values[index] = value;
@@ -1468,13 +1553,13 @@ static InterpretResult run(int stopFrameCount) {
         if (!mapKeyIsValid(key)) {
           STORE_FRAME();
           runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         STORE_FRAME();
         if (!mapSet(&AS_HASHMAP(container)->items, key, value, NULL)) {
           runtimeError("Map key is invalid.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         stackTop -= 2;
@@ -1482,7 +1567,7 @@ static InterpretResult run(int stopFrameCount) {
       } else {
         STORE_FRAME();
         runtimeError("Can only assign through a list or hashmap index.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       DISPATCH();
@@ -1499,7 +1584,7 @@ static InterpretResult run(int stopFrameCount) {
 
         STORE_FRAME();
         if (!normalizeListIndex(key, list->items.count, &index)) {
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         list->items.values[index] = value;
@@ -1508,20 +1593,20 @@ static InterpretResult run(int stopFrameCount) {
         if (!mapKeyIsValid(key)) {
           STORE_FRAME();
           runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         STORE_FRAME();
         if (!mapSet(&AS_HASHMAP(container)->items, key, value, NULL)) {
           runtimeError("Map key is invalid.");
-          return INTERPRET_RUNTIME_ERROR;
+          goto runtime_error;
         }
 
         stackTop -= 3;
       } else {
         STORE_FRAME();
         runtimeError("Can only assign through a list or hashmap index.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       DISPATCH();
@@ -1539,7 +1624,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_LIST(listVal)) {
         STORE_FRAME();
         runtimeError("Can only append to a list.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       ObjList *list = AS_LIST(listVal);
@@ -1562,7 +1647,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_HASHMAP(hashmapVal)) {
         STORE_FRAME();
         runtimeError("Expect a hashmap.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       ObjHashmap *hashmap = AS_HASHMAP(hashmapVal);
@@ -1570,13 +1655,13 @@ static InterpretResult run(int stopFrameCount) {
       if (!mapKeyIsValid(keyVal)) {
         STORE_FRAME();
         runtimeError("Map keys must be nil, booleans, finite numbers, or strings.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       STORE_FRAME();
       if (!mapSet(&hashmap->items, keyVal, value, NULL)) {
         runtimeError("Map key is invalid.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       stackTop -= 2;
@@ -1602,6 +1687,26 @@ static InterpretResult run(int stopFrameCount) {
       closeUpvalues(stackTop - 1);
       DROP();
       DISPATCH();
+    TARGET(OP_PUSH_HANDLER) {
+      uint16_t offset = READ_SHORT();
+      STORE_FRAME();
+      pushHandler(vm.frameCount - 1, stackTop, (int)((ip - frame->closure->function->chunk.code) + offset));
+      DISPATCH();
+    }
+    TARGET(OP_POP_HANDLER) {
+      if (vm.handlerCount > 0) vm.handlerCount--;
+      DISPATCH();
+    }
+    TARGET(OP_THROW) {
+      STORE_FRAME();
+      Value thrown = PEEK(0);
+      ObjString *text = valueToString(thrown);
+      push(OBJ_VAL(text));
+      vm.errorMessage = OBJ_VAL(text);
+      vm.thrownValue = thrown;
+      vm.hadRuntimeError = true;
+      goto runtime_error;
+    }
     TARGET(OP_RETURN) {
       Value result = POP();
       if (vm.openUpvalues != NULL) {
@@ -1609,6 +1714,9 @@ static InterpretResult run(int stopFrameCount) {
       }
       Value *calleeSlots = frame->slots;
       vm.frameCount--;
+      while (vm.handlerCount > 0 && vm.handlers[vm.handlerCount - 1].frameIndex >= vm.frameCount) {
+        vm.handlerCount--;
+      }
       if (vm.frameCount == 0) {
         vm.lastReturnValue = result;
         vm.hasLastReturnValue = true;
@@ -1639,7 +1747,7 @@ static InterpretResult run(int stopFrameCount) {
       if (!IS_CLASS(superclass)) {
         STORE_FRAME();
         runtimeError("Superclass must be a class.");
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       ObjClass *subclass = AS_CLASS(PEEK(0));
       tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
@@ -1663,7 +1771,7 @@ static InterpretResult run(int stopFrameCount) {
       if (tableGet(globals, alias, &existing)) {
         STORE_FRAME();
         runtimeError("Import alias '%s' is already defined.", alias->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
 
       Value module;
@@ -1682,7 +1790,7 @@ static InterpretResult run(int stopFrameCount) {
       if (module == NULL || !tableGet(&module->globals, name, &exported)) {
         STORE_FRAME();
         runtimeError("Could not export '%s'.", name->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        goto runtime_error;
       }
       tableSet(&module->exports, name, exported);
       DISPATCH();
@@ -1694,10 +1802,29 @@ static InterpretResult run(int stopFrameCount) {
 #endif
       STORE_FRAME();
       runtimeError("Unknown opcode %d.", instruction);
-      return INTERPRET_RUNTIME_ERROR;
+      goto runtime_error;
+    runtime_error:
+      if (!vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+      vm.stackTop = stackTop;
+      {
+        uint8_t *catchIp = NULL;
+        if (!unwindToHandler(stopFrameCount, &catchIp)) {
+          flushPendingError();
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        frame = &vm.frames[vm.frameCount - 1];
+        ip = catchIp;
+        stackTop = vm.stackTop;
+        slots = frame->slots;
+#if USE_COMPUTED_GOTO
+        DISPATCH();
+#else
+        continue;
+#endif
+      }
 #if !USE_COMPUTED_GOTO
     }
-    if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+    if (vm.hadRuntimeError) goto runtime_error;
   }
 #endif
 #undef PUSH
@@ -1797,7 +1924,10 @@ static InterpretResult circularImportError(const char *name) {
 
 InterpretResult resolveModule(const char *name, Value *result) {
   ObjString *moduleName = copyString(name, (int)strlen(name));
-  if (!push(OBJ_VAL(moduleName))) return INTERPRET_RUNTIME_ERROR;
+  if (!push(OBJ_VAL(moduleName))) {
+    flushPendingError();
+    return INTERPRET_RUNTIME_ERROR;
+  }
 
   if (tableGet(&vm.modules, moduleName, result)) {
     if (AS_MODULE(*result)->isLoading) return circularImportError(name);
@@ -1808,17 +1938,24 @@ InterpretResult resolveModule(const char *name, Value *result) {
   HostCapability *capability = findCapability(name);
   if (capability == NULL && vm.config.resolveCapability != NULL) {
     vm.config.resolveCapability(activeVM, name, vm.config.userData);
-    if (vm.hadRuntimeError) return INTERPRET_RUNTIME_ERROR;
+    if (vm.hadRuntimeError) {
+      flushPendingError();
+      return INTERPRET_RUNTIME_ERROR;
+    }
     capability = findCapability(name);
   }
 
   if (capability == NULL) {
     runtimeError("Host does not provide module '%s'.", name);
+    flushPendingError();
     return INTERPRET_RUNTIME_ERROR;
   }
 
   ObjModule *module = newModule(moduleName);
-  if (!push(OBJ_VAL(module))) return INTERPRET_RUNTIME_ERROR;
+  if (!push(OBJ_VAL(module))) {
+    flushPendingError();
+    return INTERPRET_RUNTIME_ERROR;
+  }
   tableAddAll(&vm.prelude, &module->globals);
 
   if (capability->source != NULL) {
@@ -1832,16 +1969,23 @@ InterpretResult resolveModule(const char *name, Value *result) {
       return INTERPRET_COMPILE_ERROR;
     }
 
-    if (!push(OBJ_VAL(function))) return INTERPRET_RUNTIME_ERROR;
+    if (!push(OBJ_VAL(function))) {
+      flushPendingError();
+      return INTERPRET_RUNTIME_ERROR;
+    }
     ObjClosure *closure = newClosure(function);
     closure->module = module;
     pop();
-    if (!push(OBJ_VAL(closure)) || !call(closure, 0)) return INTERPRET_RUNTIME_ERROR;
+    if (!push(OBJ_VAL(closure)) || !call(closure, 0)) {
+      flushPendingError();
+      return INTERPRET_RUNTIME_ERROR;
+    }
 
     int enclosingFrameCount = vm.frameCount - 1;
     InterpretResult moduleResult = run(enclosingFrameCount);
     if (moduleResult != INTERPRET_OK) {
       tableDelete(&vm.modules, moduleName);
+      flushPendingError();
       return moduleResult;
     }
     pop();
@@ -1850,9 +1994,15 @@ InterpretResult resolveModule(const char *name, Value *result) {
     for (size_t i = 0; i < capability->definitionCount; i++) {
       PbNativeDefinition *definition = &capability->definitions[i];
       ObjString *exportName = copyString(definition->name, (int)strlen(definition->name));
-      if (!push(OBJ_VAL(exportName))) return INTERPRET_RUNTIME_ERROR;
+      if (!push(OBJ_VAL(exportName))) {
+        flushPendingError();
+        return INTERPRET_RUNTIME_ERROR;
+      }
       ObjNative *native = newHostNative(definition->function, definition->userData);
-      if (!push(OBJ_VAL(native))) return INTERPRET_RUNTIME_ERROR;
+      if (!push(OBJ_VAL(native))) {
+        flushPendingError();
+        return INTERPRET_RUNTIME_ERROR;
+      }
       tableSet(&module->exports, exportName, OBJ_VAL(native));
       pop();
       pop();

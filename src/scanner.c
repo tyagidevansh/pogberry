@@ -130,6 +130,9 @@ static TokenType identifierType() {
       case 'l':
         return checkKeyword(1, 4, "lass", TOKEN_CLASS);
       case 'a':
+        if (scanner.current - scanner.start > 2 && scanner.start[2] == 't') {
+          return checkKeyword(1, 4, "atch", TOKEN_CATCH);
+        }
         return checkKeyword(1, 3, "ase", TOKEN_CASE);
       case 'o':
         return checkKeyword(2, 6, "ntinue", TOKEN_CONTINUE);
@@ -187,8 +190,14 @@ static TokenType identifierType() {
     if (scanner.current - scanner.start > 1) {
       switch (scanner.start[1]) {
       case 'h':
+        if (scanner.current - scanner.start > 2 && scanner.start[2] == 'r') {
+          return checkKeyword(2, 3, "row", TOKEN_THROW);
+        }
         return checkKeyword(2, 2, "is", TOKEN_THIS);
       case 'r':
+        if (scanner.current - scanner.start > 2 && scanner.start[2] == 'y') {
+          return checkKeyword(2, 1, "y", TOKEN_TRY);
+        }
         return checkKeyword(2, 2, "ue", TOKEN_TRUE);
       }
     }

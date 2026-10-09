@@ -69,6 +69,7 @@ typedef struct Compiler {
   Upvalue upvalues[UINT8_COUNT];
   int localCount;
   int scopeDepth;
+  int tryDepth;
   int lastAssignmentOpOffset;
   int lastComparisonOpOffset;
 } Compiler;
@@ -86,6 +87,7 @@ typedef struct LoopCompiler {
   int scopeDepth;
   int continueTarget;
   int bodyScopeDepth;
+  int tryDepth;
 } LoopCompiler;
 
 static LoopCompiler *currentLoop = NULL;
@@ -393,6 +395,7 @@ static void initCompiler(Compiler *compiler, FunctionType type) {
   compiler->type = type;
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+  compiler->tryDepth = 0;
   compiler->lastAssignmentOpOffset = -1;
   compiler->lastComparisonOpOffset = -1;
   compiler->function = newFunction();
@@ -878,6 +881,7 @@ static void forStatement() {
   loopCompiler.breakCount = 0;
   loopCompiler.breakCapacity = 0;
   loopCompiler.scopeDepth = current->scopeDepth;
+  loopCompiler.tryDepth = current->tryDepth;
   currentLoop = &loopCompiler;
 
   beginScope(); // wrap the whole statement in a block for proper scoping for variables
@@ -991,6 +995,9 @@ static void returnStatement() {
   }
 
   if (match(TOKEN_SEMICOLON)) {
+    for (int i = 0; i < current->tryDepth; i++) {
+      emitByte(OP_POP_HANDLER);
+    }
     emitReturn();
   } else {
     if (current->type == TYPE_INITIALIZER) {
@@ -999,8 +1006,40 @@ static void returnStatement() {
 
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+    for (int i = 0; i < current->tryDepth; i++) {
+      emitByte(OP_POP_HANDLER);
+    }
     emitByte(OP_RETURN);
   }
+}
+
+static void tryStatement() {
+  consume(TOKEN_LEFT_BRACE, "Expect '{' after 'try'.");
+  current->tryDepth++;
+  beginScope();
+  int handlerOffset = emitJump(OP_PUSH_HANDLER);
+  block();
+  endScope();
+  current->tryDepth--;
+  emitByte(OP_POP_HANDLER);
+  int catchJump = emitJump(OP_JUMP);
+  patchJump(handlerOffset);
+  consume(TOKEN_CATCH, "Expect 'catch' after try block.");
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'catch'.");
+  beginScope();
+  ConstantIndex constant = parseVariable("Expect catch parameter name.");
+  defineVariable(constant);
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after catch parameter.");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' after catch parameter.");
+  block();
+  endScope();
+  patchJump(catchJump);
+}
+
+static void throwStatement() {
+  expression();
+  consume(TOKEN_SEMICOLON, "Expect ';' after throw value.");
+  emitByte(OP_THROW);
 }
 
 static void breakStatement(void) {
@@ -1010,6 +1049,9 @@ static void breakStatement(void) {
   }
   for (int i = current->localCount - 1; i >= 0 && current->locals[i].depth > currentLoop->scopeDepth; i--) {
     emitByte(current->locals[i].isCaptured ? OP_CLOSE_UPVALUE : OP_POP);
+  }
+  for (int i = current->tryDepth - currentLoop->tryDepth; i > 0; i--) {
+    emitByte(OP_POP_HANDLER);
   }
 
   if (currentLoop->breakCount == currentLoop->breakCapacity) {
@@ -1036,6 +1078,9 @@ static void continueStatement(void) {
   for (int i = current->localCount - 1; i >= 0 && current->locals[i].depth > currentLoop->bodyScopeDepth; i--) {
     emitByte(current->locals[i].isCaptured ? OP_CLOSE_UPVALUE : OP_POP);
   }
+  for (int i = current->tryDepth - currentLoop->tryDepth; i > 0; i--) {
+    emitByte(OP_POP_HANDLER);
+  }
   emitLoop(currentLoop->continueTarget);
   consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
 }
@@ -1047,6 +1092,7 @@ static void whileStatement() {
   loopCompiler.breakCount = 0;
   loopCompiler.breakCapacity = 0;
   loopCompiler.scopeDepth = current->scopeDepth;
+  loopCompiler.tryDepth = current->tryDepth;
   currentLoop = &loopCompiler;
 
   int loopStart = currentChunk()->count;
@@ -1081,9 +1127,9 @@ static bool isAliasCharacter(char character) {
 }
 
 static bool isReservedAlias(const char *chars, int length) {
-  static const char *reserved[] = {"and",    "as",   "break", "case", "class", "default", "else",  "export",
+  static const char *reserved[] = {"and",    "as",   "break", "case", "catch", "class", "default", "else",  "export",
                                    "false",  "for",  "fun",   "if",   "let",   "nil",     "or",    "print",
-                                   "return", "rizz", "super", "this", "true",  "use",     "while", "yap"};
+                                   "return", "rizz", "super", "this", "throw", "true", "try", "use",     "while", "yap"};
   size_t count = sizeof(reserved) / sizeof(reserved[0]);
   for (size_t i = 0; i < count; i++) {
     if ((int)strlen(reserved[i]) == length && memcmp(chars, reserved[i], (size_t)length) == 0) return true;
@@ -1216,6 +1262,8 @@ static void synchronize() {
     case TOKEN_RETURN:
     case TOKEN_BREAK:
     case TOKEN_CONTINUE:
+    case TOKEN_TRY:
+    case TOKEN_THROW:
       return;
 
     default:; // do nothing
@@ -1263,6 +1311,10 @@ static void statement() {
     breakStatement();
   } else if (match(TOKEN_CONTINUE)) {
     continueStatement();
+  } else if (match(TOKEN_TRY)) {
+    tryStatement();
+  } else if (match(TOKEN_THROW)) {
+    throwStatement();
   } else {
     expressionStatement();
   }
