@@ -112,6 +112,8 @@ typedef enum {
   OP_PUSH_HANDLER,
   OP_POP_HANDLER,
   OP_THROW,
+  OP_END_FINALLY,
+  OP_END_FINALLY_CHAIN,
 } OpCode;
 
 typedef struct {

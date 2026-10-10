@@ -284,6 +284,8 @@ static void markRoots() {
   markTable(&vm.globals);
   markTable(&vm.prelude);
   markTable(&vm.modules);
+  markValue(vm.errorMessage);
+  markValue(vm.thrownValue);
   markCompilerRoots();
   markObject((Obj *)vm.initString);
   for (int i = 0; i < 256; i++) {

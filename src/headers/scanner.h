@@ -64,6 +64,7 @@ typedef enum {
   TOKEN_TRY,
   TOKEN_CATCH,
   TOKEN_THROW,
+  TOKEN_FINALLY,
 
   TOKEN_ERROR,
   TOKEN_EOF

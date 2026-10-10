@@ -157,6 +157,8 @@ static TokenType identifierType() {
       switch (scanner.start[1]) {
       case 'a':
         return checkKeyword(2, 3, "lse", TOKEN_FALSE);
+      case 'i':
+        return checkKeyword(2, 5, "nally", TOKEN_FINALLY);
       case 'o':
         return checkKeyword(2, 1, "r", TOKEN_FOR);
       case 'u':

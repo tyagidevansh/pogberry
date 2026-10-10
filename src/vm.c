@@ -101,12 +101,30 @@ static ObjList *buildTraceList(void) {
   return trace;
 }
 
-static bool unwindToHandler(int stopFrameCount, uint8_t **resumeIp) {
+static bool findHandler(int stopFrameCount, int *indexOut) {
   int index = vm.handlerCount - 1;
   while (index >= 0 && vm.handlers[index].frameIndex < stopFrameCount) index--;
   if (index < 0) return false;
+  *indexOut = index;
+  return true;
+}
+
+static void resumeUnwind(ObjHashmap *error, int index, uint8_t **resumeIp) {
   ErrorHandler handler = vm.handlers[index];
   vm.handlerCount = index;
+  closeUpvalues(handler.slotTop);
+  vm.frameCount = handler.frameIndex + 1;
+  vm.stackTop = handler.slotTop;
+  push(OBJ_VAL(error));
+  vm.hadRuntimeError = false;
+  vm.errorMessage = NIL_VAL;
+  vm.thrownValue = NIL_VAL;
+  *resumeIp = vm.frames[handler.frameIndex].closure->function->chunk.code + handler.catchAddress;
+}
+
+static bool unwindToHandler(int stopFrameCount, uint8_t **resumeIp) {
+  int index = 0;
+  if (!findHandler(stopFrameCount, &index)) return false;
 
   ObjHashmap *error = newHashmap();
   push(OBJ_VAL(error));
@@ -117,7 +135,6 @@ static bool unwindToHandler(int stopFrameCount, uint8_t **resumeIp) {
   ObjString *valueKey = copyString("value", 5);
   push(OBJ_VAL(valueKey));
   ObjList *trace = buildTraceList();
-  push(OBJ_VAL(trace));
   bool complete = mapSet(&error->items, OBJ_VAL(messageKey), vm.errorMessage, NULL);
   if (complete) complete = mapSet(&error->items, OBJ_VAL(traceKey), OBJ_VAL(trace), NULL);
   if (complete) complete = mapSet(&error->items, OBJ_VAL(valueKey), vm.thrownValue, NULL);
@@ -128,15 +145,31 @@ static bool unwindToHandler(int stopFrameCount, uint8_t **resumeIp) {
   pop();
   if (!complete) return false;
 
-  closeUpvalues(handler.slotTop);
-  vm.frameCount = handler.frameIndex + 1;
-  vm.stackTop = handler.slotTop;
-  push(OBJ_VAL(error));
-  vm.hadRuntimeError = false;
-  vm.errorMessage = NIL_VAL;
-  vm.thrownValue = NIL_VAL;
-  *resumeIp = vm.frames[handler.frameIndex].closure->function->chunk.code + handler.catchAddress;
+  resumeUnwind(error, index, resumeIp);
   return true;
+}
+
+static void reportErrorMap(ObjHashmap *error) {
+  ObjString *messageKey = copyString("message", 7);
+  push(OBJ_VAL(messageKey));
+  Value message = NIL_VAL;
+  Value found;
+  if (mapGet(&error->items, OBJ_VAL(messageKey), &found) && IS_STRING(found)) message = found;
+  pop();
+  reportDiagnostic(PB_DIAGNOSTIC_RUNTIME, IS_STRING(message) ? AS_CSTRING(message) : "Runtime error.");
+  ObjString *traceKey = copyString("trace", 5);
+  push(OBJ_VAL(traceKey));
+  Value trace = NIL_VAL;
+  if (mapGet(&error->items, OBJ_VAL(traceKey), &found)) trace = found;
+  pop();
+  if (IS_LIST(trace)) {
+    ObjList *lines = AS_LIST(trace);
+    for (int i = 0; i < lines->items.count; i++) {
+      if (IS_STRING(lines->items.values[i])) reportDiagnostic(PB_DIAGNOSTIC_RUNTIME, AS_CSTRING(lines->items.values[i]));
+    }
+  }
+  closeUpvalues(vm.stack);
+  resetStack();
 }
 
 static void flushPendingError(void) {
@@ -882,6 +915,8 @@ static InterpretResult run(int stopFrameCount) {
     [OP_PUSH_HANDLER] = &&target_OP_PUSH_HANDLER,
     [OP_POP_HANDLER] = &&target_OP_POP_HANDLER,
     [OP_THROW] = &&target_OP_THROW,
+    [OP_END_FINALLY] = &&target_OP_END_FINALLY,
+    [OP_END_FINALLY_CHAIN] = &&target_OP_END_FINALLY_CHAIN,
   };
 
   uint8_t instruction;
@@ -1707,7 +1742,47 @@ static InterpretResult run(int stopFrameCount) {
       vm.hadRuntimeError = true;
       goto runtime_error;
     }
+    TARGET(OP_END_FINALLY) {
+    do_end_finally: {
+      Value marker = POP();
+      if (IS_NIL(marker)) DISPATCH();
+      if (!IS_NUMBER(marker)) {
+        if (!IS_HASHMAP(marker)) {
+          STORE_FRAME();
+          runtimeError("Invalid finally state.");
+          goto runtime_error;
+        }
+        ObjHashmap *error = AS_HASHMAP(marker);
+        int index = 0;
+        if (!findHandler(stopFrameCount, &index)) {
+          reportErrorMap(error);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        uint8_t *catchIp = NULL;
+        resumeUnwind(error, index, &catchIp);
+        frame = &vm.frames[vm.frameCount - 1];
+        ip = catchIp;
+        stackTop = vm.stackTop;
+        slots = frame->slots;
+        DISPATCH();
+      }
+      int reason = (int)AS_NUMBER(marker);
+      if (reason == 1) goto do_return;
+      Value addrValue = POP();
+      ip = frame->closure->function->chunk.code + (int)AS_NUMBER(addrValue);
+      DISPATCH();
+    }
+    }
+    TARGET(OP_END_FINALLY_CHAIN) {
+      uint16_t outer = READ_SHORT();
+      if (!IS_NIL(PEEK(0)) && IS_NUMBER(PEEK(0))) {
+        ip = frame->closure->function->chunk.code + outer;
+        DISPATCH();
+      }
+      goto do_end_finally;
+    }
     TARGET(OP_RETURN) {
+    do_return: {
       Value result = POP();
       if (vm.openUpvalues != NULL) {
         closeUpvalues(frame->slots);
@@ -1734,6 +1809,7 @@ static InterpretResult run(int stopFrameCount) {
         return INTERPRET_OK;
       }
       DISPATCH();
+    }
     }
     TARGET(OP_CLASS)
     TARGET(OP_CLASS_LONG) {

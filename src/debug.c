@@ -300,6 +300,13 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("OP_POP_HANDLER", offset);
   case OP_THROW:
     return simpleInstruction("OP_THROW", offset);
+  case OP_END_FINALLY:
+    return simpleInstruction("OP_END_FINALLY", offset);
+  case OP_END_FINALLY_CHAIN: {
+    uint16_t chained = decodeU16BE(&chunk->code[offset + 1]);
+    printf("%-16s %4d -> %d\n", "OP_END_FINALLY_CHAIN", offset, offset + 3 + (int)chained);
+    return offset + 3;
+  }
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;
@@ -401,6 +408,8 @@ static const char *opcodeNames[256] = {
     [OP_PUSH_HANDLER] = "OP_PUSH_HANDLER",
     [OP_POP_HANDLER] = "OP_POP_HANDLER",
     [OP_THROW] = "OP_THROW",
+    [OP_END_FINALLY] = "OP_END_FINALLY",
+    [OP_END_FINALLY_CHAIN] = "OP_END_FINALLY_CHAIN",
 };
 
 typedef struct {

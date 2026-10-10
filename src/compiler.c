@@ -88,11 +88,30 @@ typedef struct LoopCompiler {
   int continueTarget;
   int bodyScopeDepth;
   int tryDepth;
+  int finallyDepth;
+  int *finallyResumeConsts;
+  int finallyResumeCount;
+  int finallyResumeCapacity;
 } LoopCompiler;
 
+typedef struct FinallyCompiler {
+  struct FinallyCompiler *enclosing;
+  int depth;
+  int *exitJumps;
+  int exitCount;
+  int exitCapacity;
+} FinallyCompiler;
+
 static LoopCompiler *currentLoop = NULL;
+static FinallyCompiler *currentFinally = NULL;
+
 static void breakStatement(void);
 static void continueStatement(void);
+static void emitConstant(Value value);
+static int finallyDepthNow(void);
+static void emitJumpToFinally(void);
+static void recordFinallyExit(FinallyCompiler *finally, int offset);
+static void recordLoopResume(LoopCompiler *loop, ConstantIndex constant);
 
 Parser parser;
 Compiler *current = NULL;
@@ -330,6 +349,11 @@ static void emitReturn() {
     emitByte(OP_GET_LOCAL_0);
   } else {
     emitByte(OP_NIL);
+  }
+  if (currentFinally != NULL) {
+    emitConstant(NUMBER_VAL(1));
+    emitJumpToFinally();
+    return;
   }
   emitByte(OP_RETURN);
 }
@@ -719,6 +743,8 @@ static void block() {
 static void function(FunctionType type) {
   LoopCompiler *enclosingLoop = currentLoop;
   currentLoop = NULL;
+  FinallyCompiler *enclosingFinally = currentFinally;
+  currentFinally = NULL;
 
   Compiler compiler;
   initCompiler(&compiler, type);
@@ -741,6 +767,7 @@ static void function(FunctionType type) {
 
   ObjFunction *function = endCompiler();
   currentLoop = enclosingLoop;
+  currentFinally = enclosingFinally;
   emitConstantInstruction(OP_CLOSURE, OP_CLOSURE_LONG, makeConstant(OBJ_VAL(function)));
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -882,6 +909,10 @@ static void forStatement() {
   loopCompiler.breakCapacity = 0;
   loopCompiler.scopeDepth = current->scopeDepth;
   loopCompiler.tryDepth = current->tryDepth;
+  loopCompiler.finallyDepth = finallyDepthNow();
+  loopCompiler.finallyResumeConsts = NULL;
+  loopCompiler.finallyResumeCount = 0;
+  loopCompiler.finallyResumeCapacity = 0;
   currentLoop = &loopCompiler;
 
   beginScope(); // wrap the whole statement in a block for proper scoping for variables
@@ -936,7 +967,13 @@ static void forStatement() {
     patchJump(currentLoop->breakJumpOffsets[i]);
   }
 
+  for (int i = 0; i < currentLoop->finallyResumeCount; i++) {
+    currentChunk()->constants.values[currentLoop->finallyResumeConsts[i]] =
+        NUMBER_VAL((double)currentChunk()->count);
+  }
+
   free(currentLoop->breakJumpOffsets);
+  free(currentLoop->finallyResumeConsts);
   currentLoop = currentLoop->enclosing;
 }
 
@@ -1009,31 +1046,114 @@ static void returnStatement() {
     for (int i = 0; i < current->tryDepth; i++) {
       emitByte(OP_POP_HANDLER);
     }
+    if (currentFinally != NULL) {
+      emitConstant(NUMBER_VAL(1));
+      emitJumpToFinally();
+      return;
+    }
     emitByte(OP_RETURN);
   }
 }
 
+static void recordFinallyExit(FinallyCompiler *finally, int offset) {
+  if (finally->exitCount == finally->exitCapacity) {
+    int oldCapacity = finally->exitCapacity;
+    int newCapacity = oldCapacity < 8 ? 8 : oldCapacity * 2;
+    int *offsets = (int *)realloc(finally->exitJumps, sizeof(int) * newCapacity);
+    if (offsets == NULL) {
+      error("Not enough memory to compile finally exits.");
+      return;
+    }
+    finally->exitJumps = offsets;
+    finally->exitCapacity = newCapacity;
+  }
+  finally->exitJumps[finally->exitCount++] = offset;
+}
+
+static void recordLoopResume(LoopCompiler *loop, ConstantIndex constant) {
+  if (loop->finallyResumeCount == loop->finallyResumeCapacity) {
+    int oldCapacity = loop->finallyResumeCapacity;
+    int newCapacity = oldCapacity < 8 ? 8 : oldCapacity * 2;
+    int *constants = (int *)realloc(loop->finallyResumeConsts, sizeof(int) * newCapacity);
+    if (constants == NULL) {
+      error("Not enough memory to compile loop breaks.");
+      return;
+    }
+    loop->finallyResumeConsts = constants;
+    loop->finallyResumeCapacity = newCapacity;
+  }
+  loop->finallyResumeConsts[loop->finallyResumeCount++] = (int)constant;
+}
+
+static int finallyDepthNow(void) {
+  return currentFinally != NULL ? currentFinally->depth : 0;
+}
+
+static void emitJumpToFinally(void) {
+  recordFinallyExit(currentFinally, emitJump(OP_JUMP));
+}
+
 static void tryStatement() {
   consume(TOKEN_LEFT_BRACE, "Expect '{' after 'try'.");
+  FinallyCompiler finallyCompiler;
+  finallyCompiler.enclosing = currentFinally;
+  finallyCompiler.depth = currentFinally != NULL ? currentFinally->depth + 1 : 1;
+  finallyCompiler.exitJumps = NULL;
+  finallyCompiler.exitCount = 0;
+  finallyCompiler.exitCapacity = 0;
+  currentFinally = &finallyCompiler;
   current->tryDepth++;
   beginScope();
   int handlerOffset = emitJump(OP_PUSH_HANDLER);
   block();
   endScope();
-  current->tryDepth--;
   emitByte(OP_POP_HANDLER);
-  int catchJump = emitJump(OP_JUMP);
-  patchJump(handlerOffset);
-  consume(TOKEN_CATCH, "Expect 'catch' after try block.");
-  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'catch'.");
-  beginScope();
-  ConstantIndex constant = parseVariable("Expect catch parameter name.");
-  defineVariable(constant);
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after catch parameter.");
-  consume(TOKEN_LEFT_BRACE, "Expect '{' after catch parameter.");
-  block();
-  endScope();
-  patchJump(catchJump);
+  emitByte(OP_NIL);
+  recordFinallyExit(&finallyCompiler, emitJump(OP_JUMP));
+  bool hasCatch = match(TOKEN_CATCH);
+  if (hasCatch) {
+    patchJump(handlerOffset);
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'catch'.");
+    beginScope();
+    ConstantIndex constant = parseVariable("Expect catch parameter name.");
+    defineVariable(constant);
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after catch parameter.");
+    consume(TOKEN_LEFT_BRACE, "Expect '{' after catch parameter.");
+    recordFinallyExit(&finallyCompiler, emitJump(OP_PUSH_HANDLER));
+    block();
+    endScope();
+    emitByte(OP_POP_HANDLER);
+    emitByte(OP_NIL);
+    recordFinallyExit(&finallyCompiler, emitJump(OP_JUMP));
+    current->tryDepth--;
+  } else {
+    recordFinallyExit(&finallyCompiler, handlerOffset);
+    current->tryDepth--;
+  }
+  bool hasFinally = match(TOKEN_FINALLY);
+  if (!hasCatch && !hasFinally) {
+    error("Expect 'catch' or 'finally' after try block.");
+  }
+  for (int i = 0; i < finallyCompiler.exitCount; i++) {
+    patchJump(finallyCompiler.exitJumps[i]);
+  }
+  free(finallyCompiler.exitJumps);
+  currentFinally = finallyCompiler.enclosing;
+  if (hasFinally) {
+    consume(TOKEN_LEFT_BRACE, "Expect '{' after 'finally'.");
+    beginScope();
+    block();
+    endScope();
+    if (currentFinally != NULL) {
+      emitByte(OP_END_FINALLY_CHAIN);
+      emitU16BE(UINT16_MAX);
+      recordFinallyExit(currentFinally, currentChunk()->count - 2);
+    } else {
+      emitByte(OP_END_FINALLY);
+    }
+  } else {
+    emitByte(OP_END_FINALLY);
+  }
 }
 
 static void throwStatement() {
@@ -1052,6 +1172,16 @@ static void breakStatement(void) {
   }
   for (int i = current->tryDepth - currentLoop->tryDepth; i > 0; i--) {
     emitByte(OP_POP_HANDLER);
+  }
+
+  if (finallyDepthNow() > currentLoop->finallyDepth) {
+    ConstantIndex resume = makeConstant(NUMBER_VAL(0));
+    emitConstantInstruction(OP_CONSTANT, OP_CONSTANT_LONG, resume);
+    recordLoopResume(currentLoop, resume);
+    emitConstant(NUMBER_VAL(2));
+    emitJumpToFinally();
+    consume(TOKEN_SEMICOLON, "Expect ';' after 'break'.");
+    return;
   }
 
   if (currentLoop->breakCount == currentLoop->breakCapacity) {
@@ -1081,7 +1211,13 @@ static void continueStatement(void) {
   for (int i = current->tryDepth - currentLoop->tryDepth; i > 0; i--) {
     emitByte(OP_POP_HANDLER);
   }
-  emitLoop(currentLoop->continueTarget);
+  if (finallyDepthNow() > currentLoop->finallyDepth) {
+    emitConstant(NUMBER_VAL((double)currentLoop->continueTarget));
+    emitConstant(NUMBER_VAL(3));
+    emitJumpToFinally();
+  } else {
+    emitLoop(currentLoop->continueTarget);
+  }
   consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
 }
 
@@ -1093,6 +1229,10 @@ static void whileStatement() {
   loopCompiler.breakCapacity = 0;
   loopCompiler.scopeDepth = current->scopeDepth;
   loopCompiler.tryDepth = current->tryDepth;
+  loopCompiler.finallyDepth = finallyDepthNow();
+  loopCompiler.finallyResumeConsts = NULL;
+  loopCompiler.finallyResumeCount = 0;
+  loopCompiler.finallyResumeCapacity = 0;
   currentLoop = &loopCompiler;
 
   int loopStart = currentChunk()->count;
@@ -1114,7 +1254,13 @@ static void whileStatement() {
     patchJump(currentLoop->breakJumpOffsets[i]);
   }
 
+  for (int i = 0; i < currentLoop->finallyResumeCount; i++) {
+    currentChunk()->constants.values[currentLoop->finallyResumeConsts[i]] =
+        NUMBER_VAL((double)currentChunk()->count);
+  }
+
   free(currentLoop->breakJumpOffsets);
+  free(currentLoop->finallyResumeConsts);
   currentLoop = currentLoop->enclosing;
 }
 
@@ -1128,7 +1274,7 @@ static bool isAliasCharacter(char character) {
 
 static bool isReservedAlias(const char *chars, int length) {
   static const char *reserved[] = {"and",    "as",   "break", "case", "catch", "class", "default", "else",  "export",
-                                   "false",  "for",  "fun",   "if",   "let",   "nil",     "or",    "print",
+                                   "false",  "finally",  "for",  "fun",   "if",   "let",   "nil",     "or",    "print",
                                    "return", "rizz", "super", "this", "throw", "true", "try", "use",     "while", "yap"};
   size_t count = sizeof(reserved) / sizeof(reserved[0]);
   for (size_t i = 0; i < count; i++) {
