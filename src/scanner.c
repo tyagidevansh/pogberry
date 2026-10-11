@@ -39,6 +39,16 @@ static char peekNext() {
   return scanner.current[1];
 }
 
+static bool hasExponent() {
+  if (peek() != 'e' && peek() != 'E') return false;
+  char next = scanner.current[1];
+  if (isDigit(next)) return true;
+  if ((next == '+' || next == '-') && next != '\0') {
+    return isDigit(scanner.current[2]);
+  }
+  return false;
+}
+
 static bool match(char expected) {
   if (isAtEnd()) return false;
   if (*scanner.current != expected) return false;
@@ -227,6 +237,13 @@ static Token number() {
     advance();
 
     // no conversion of lexeme to double yet
+    while (isDigit(peek())) advance();
+  }
+
+  // look for the exponent part
+  if (hasExponent()) {
+    advance();
+    if (peek() == '+' || peek() == '-') advance();
     while (isDigit(peek())) advance();
   }
 

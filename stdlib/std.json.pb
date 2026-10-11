@@ -1,4 +1,4 @@
-let maxJsonNumber = num("1e308");
+let maxJsonNumber = 1e308;
 
 class Parser
 {
