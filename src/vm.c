@@ -592,6 +592,22 @@ static bool invokeMapMethod(ObjString *name, int argCount) {
     return true;
   }
 
+  if (name->length == 4 && memcmp(name->chars, "keys", 4) == 0) {
+    if (argCount != 0) {
+      runtimeError("keys() expects 0 arguments but got %d.", argCount);
+      return false;
+    }
+    ObjHashmap *map = AS_HASHMAP(vm.stackTop[-1]);
+    ObjList *keys = newList();
+    push(OBJ_VAL(keys));
+    for (int index = mapFirstEntry(&map->items); index != -1; index = mapNextEntry(&map->items, index)) {
+      writeValueArray(&keys->items, mapEntryAt(&map->items, index)->key);
+    }
+    Value listed = pop();
+    vm.stackTop[-1] = listed;
+    return true;
+  }
+
   runtimeError("Maps do not have a method named '%s'.", name->chars);
   return false;
 }

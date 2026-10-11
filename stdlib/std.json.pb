@@ -1,3 +1,5 @@
+let maxJsonNumber = num("1e308");
+
 class Parser
 {
   init(text)
@@ -213,4 +215,81 @@ export fun parse(text)
   parser.skipWs();
   if (!parser.atEnd()) return nil;
   return value;
+}
+
+fun escapeString(text)
+{
+  let out = "\"";
+  let i = 0;
+  while (i < len(text))
+  {
+    let ch = text[i];
+    if (ch == "\"") out = out + "\\\"";
+    else if (ch == "\\") out = out + "\\\\";
+    else if (ch == "\n") out = out + "\\n";
+    else if (ch == "\t") out = out + "\\t";
+    else if (ch == "\r") out = out + "\\r";
+    else out = out + ch;
+    i = i + 1;
+  }
+  return out + "\"";
+}
+
+fun stringifyOrNull(value)
+{
+  if (value == nil) return "null";
+  return stringify(value);
+}
+
+fun encodeList(items)
+{
+  let out = "[";
+  let i = 0;
+  while (i < len(items))
+  {
+    if (i > 0) out = out + ",";
+    let part = stringifyOrNull(items[i]);
+    if (part == nil) return nil;
+    out = out + part;
+    i = i + 1;
+  }
+  return out + "]";
+}
+
+fun encodeMap(map)
+{
+  let out = "{";
+  let first = true;
+  let ks = map.keys();
+  let i = 0;
+  while (i < len(ks))
+  {
+    if (type(ks[i]) != "string") return nil;
+    if (!first) out = out + ",";
+    first = false;
+    let part = stringifyOrNull(map[ks[i]]);
+    if (part == nil) return nil;
+    out = out + escapeString(ks[i]) + ":" + part;
+    i = i + 1;
+  }
+  return out + "}";
+}
+
+export fun stringify(value)
+{
+  let kind = type(value);
+  if (kind == "nil") return "null";
+  if (kind == "bool")
+  {
+    if (value) return "true";
+    return "false";
+  }
+  if (kind == "number") {
+    if (value > maxJsonNumber or value < -maxJsonNumber) return nil;
+    return str(value);
+  }
+  if (kind == "string") return escapeString(value);
+  if (kind == "list") return encodeList(value);
+  if (kind == "map") return encodeMap(value);
+  return nil;
 }

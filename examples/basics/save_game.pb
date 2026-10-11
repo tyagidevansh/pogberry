@@ -3,7 +3,7 @@ use "std.json" as json;
 
 print("Saving progress...");
 let out = file.open("savegame.txt", "w");
-out.write('{"name": "Mira", "health": 85, "level": 3}');
+out.write(json.stringify({"name": "Mira", "health": 85, "level": 3}));
 out.close();
 
 print("Loading progress...");

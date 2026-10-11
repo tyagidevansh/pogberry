@@ -11,6 +11,9 @@ print(len(data));
 data.clear();
 print(data);
 print(data.length);
+print({"b": 2, "a": 1}.keys());
+print({}.keys());
+print(data.keys());
 // EXPECTED STATUS: 0
 // EXPECTED OUTPUT:
 //|true
@@ -23,4 +26,7 @@ print(data.length);
 //|2
 //|{}
 //|0
+//|[b, a]
+//|[]
+//|[]
 // END EXPECTED OUTPUT
