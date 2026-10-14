@@ -551,6 +551,12 @@ Value typeNative(int argCount, Value *args) {
     name = "instance";
   else if (IS_MODULE(args[0]))
     name = "module";
+  else if (IS_VEC2(args[0]))
+    name = "vec2";
+  else if (IS_VEC3(args[0]))
+    name = "vec3";
+  else if (IS_VEC4(args[0]))
+    name = "vec4";
   else if (IS_RESOURCE(args[0]))
     name = AS_RESOURCE(args[0])->typeName;
   else
@@ -584,6 +590,83 @@ Value numNative(int argCount, Value *args) {
     return NIL_VAL;
   }
   return NUMBER_VAL(value);
+}
+
+static bool vecNumbers(const Value *args, int count) {
+  for (int i = 0; i < count; i++) {
+    if (!IS_NUMBER(args[i]) || !isfinite(AS_NUMBER(args[i]))) return false;
+  }
+  return true;
+}
+
+Value vec2Native(int argCount, Value *args) {
+  if (argCount != 2 || !vecNumbers(args, 2)) {
+    runtimeError("vec2() expects 2 finite numbers.");
+    return NIL_VAL;
+  }
+  return OBJ_VAL(newVec2(AS_NUMBER(args[0]), AS_NUMBER(args[1])));
+}
+
+Value vec3Native(int argCount, Value *args) {
+  if (argCount != 3 || !vecNumbers(args, 3)) {
+    runtimeError("vec3() expects 3 finite numbers.");
+    return NIL_VAL;
+  }
+  return OBJ_VAL(newVec3(AS_NUMBER(args[0]), AS_NUMBER(args[1]), AS_NUMBER(args[2])));
+}
+
+Value vec4Native(int argCount, Value *args) {
+  if (argCount != 4 || !vecNumbers(args, 4)) {
+    runtimeError("vec4() expects 4 finite numbers.");
+    return NIL_VAL;
+  }
+  return OBJ_VAL(newVec4(AS_NUMBER(args[0]), AS_NUMBER(args[1]), AS_NUMBER(args[2]), AS_NUMBER(args[3])));
+}
+
+Value vecDotNative(int argCount, Value *args) {
+  if (argCount != 2) {
+    runtimeError("dot() expects a vector.");
+    return NIL_VAL;
+  }
+  int dims = vecDimensions(args[0]);
+  if (dims == 0 || vecDimensions(args[1]) != dims) {
+    runtimeError("dot() expects a vector of the same size.");
+    return NIL_VAL;
+  }
+  double total = 0;
+  for (int i = 0; i < dims; i++) total = total + vecComponent(args[0], i) * vecComponent(args[1], i);
+  return NUMBER_VAL(total);
+}
+
+Value vecLengthNative(int argCount, Value *args) {
+  if (argCount != 1) {
+    runtimeError("length() expects no arguments.");
+    return NIL_VAL;
+  }
+  int dims = vecDimensions(args[0]);
+  double total = 0;
+  for (int i = 0; i < dims; i++) total = total + vecComponent(args[0], i) * vecComponent(args[0], i);
+  return NUMBER_VAL(sqrt(total));
+}
+
+Value vecNormalizeNative(int argCount, Value *args) {
+  if (argCount != 1) {
+    runtimeError("normalize() expects no arguments.");
+    return NIL_VAL;
+  }
+  int dims = vecDimensions(args[0]);
+  double total = 0;
+  for (int i = 0; i < dims; i++) total = total + vecComponent(args[0], i) * vecComponent(args[0], i);
+  double length = sqrt(total);
+  if (length == 0) {
+    runtimeError("Cannot normalize a zero-length vector.");
+    return NIL_VAL;
+  }
+  double parts[4] = {0, 0, 0, 0};
+  for (int i = 0; i < dims; i++) parts[i] = vecComponent(args[0], i) / length;
+  if (dims == 2) return OBJ_VAL(newVec2(parts[0], parts[1]));
+  if (dims == 3) return OBJ_VAL(newVec3(parts[0], parts[1], parts[2]));
+  return OBJ_VAL(newVec4(parts[0], parts[1], parts[2], parts[3]));
 }
 
 Value joinNative(int argCount, Value *args) {

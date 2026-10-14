@@ -229,6 +229,9 @@ static void initialiseActiveVM(const PbConfig *config) {
   defineNative("type", typeNative);
   defineNative("str", strNative);
   defineNative("num", numNative);
+  defineNative("vec2", vec2Native);
+  defineNative("vec3", vec3Native);
+  defineNative("vec4", vec4Native);
   defineNative("join", joinNative);
   tableAddAll(&vm.globals, &vm.prelude);
 }
@@ -524,6 +527,34 @@ static bool invokeStringMethod(ObjString *name, int argCount) {
   return true;
 }
 
+static bool invokeVecMethod(ObjString *name, int argCount) {
+  NativeFn method = NULL;
+
+  switch (name->length) {
+  case 3:
+    if (memcmp(name->chars, "dot", 3) == 0) method = vecDotNative;
+    break;
+  case 6:
+    if (memcmp(name->chars, "length", 6) == 0) method = vecLengthNative;
+    break;
+  case 9:
+    if (memcmp(name->chars, "normalize", 9) == 0) method = vecNormalizeNative;
+    break;
+  }
+
+  if (method == NULL) {
+    runtimeError("Vectors do not have a method named '%s'.", name->chars);
+    return false;
+  }
+
+  Value result = method(argCount + 1, vm.stackTop - argCount - 1);
+  if (vm.hadRuntimeError) return false;
+
+  vm.stackTop -= argCount + 1;
+  push(result);
+  return true;
+}
+
 static bool invokeMapMethod(ObjString *name, int argCount) {
   if (name->length == 3 && memcmp(name->chars, "has", 3) == 0) {
     if (argCount != 1) {
@@ -636,6 +667,10 @@ static bool invoke(ObjString *name, int argCount) {
 
   if (IS_STRING(receiver)) {
     return invokeStringMethod(name, argCount);
+  }
+
+  if (IS_VEC(receiver)) {
+    return invokeVecMethod(name, argCount);
   }
 
   if (!IS_INSTANCE(receiver)) {
@@ -792,6 +827,58 @@ static Table *globalsForFrame(CallFrame *frame) {
 #define TARGET(op) case op:
 #define DISPATCH() break
 #endif
+
+static bool vecBinary(char op, Value left, Value right, Value *out) {
+  int leftDims = vecDimensions(left);
+  int rightDims = vecDimensions(right);
+  if (op == '+' || op == '-') {
+    if (leftDims == 0 || leftDims != rightDims) {
+      runtimeError("Operands must be numbers or vectors of the same size.");
+      return false;
+    }
+    double parts[4];
+    for (int i = 0; i < leftDims; i++) {
+      double a = vecComponent(left, i);
+      double b = vecComponent(right, i);
+      parts[i] = op == '+' ? a + b : a - b;
+    }
+    if (leftDims == 2) *out = OBJ_VAL(newVec2(parts[0], parts[1]));
+    else if (leftDims == 3) *out = OBJ_VAL(newVec3(parts[0], parts[1], parts[2]));
+    else *out = OBJ_VAL(newVec4(parts[0], parts[1], parts[2], parts[3]));
+    return true;
+  }
+  bool leftNumber = IS_NUMBER(left);
+  bool rightNumber = IS_NUMBER(right);
+  if (op == '*') {
+    if (!((leftDims != 0 && rightNumber) || (leftNumber && rightDims != 0))) {
+      runtimeError("Operands must be numbers, or a vector and a scalar.");
+      return false;
+    }
+    int dims = leftDims != 0 ? leftDims : rightDims;
+    double scalar = leftDims != 0 ? AS_NUMBER(right) : AS_NUMBER(left);
+    Value vector = leftDims != 0 ? left : right;
+    double parts[4];
+    for (int i = 0; i < dims; i++) parts[i] = vecComponent(vector, i) * scalar;
+    if (dims == 2) *out = OBJ_VAL(newVec2(parts[0], parts[1]));
+    else if (dims == 3) *out = OBJ_VAL(newVec3(parts[0], parts[1], parts[2]));
+    else *out = OBJ_VAL(newVec4(parts[0], parts[1], parts[2], parts[3]));
+    return true;
+  }
+  if (leftDims == 0 || !rightNumber) {
+    runtimeError("Operands must be numbers, or a vector and a scalar.");
+    return false;
+  }
+  if (AS_NUMBER(right) == 0) {
+    runtimeError("Division by zero.");
+    return false;
+  }
+  double parts[4];
+  for (int i = 0; i < leftDims; i++) parts[i] = vecComponent(left, i) / AS_NUMBER(right);
+  if (leftDims == 2) *out = OBJ_VAL(newVec2(parts[0], parts[1]));
+  else if (leftDims == 3) *out = OBJ_VAL(newVec3(parts[0], parts[1], parts[2]));
+  else *out = OBJ_VAL(newVec4(parts[0], parts[1], parts[2], parts[3]));
+  return true;
+}
 
 static InterpretResult run(int stopFrameCount) {
   CallFrame *frame = &vm.frames[vm.frameCount - 1];
@@ -1169,6 +1256,25 @@ static InterpretResult run(int stopFrameCount) {
         DISPATCH();
       }
 
+      if (IS_VEC(PEEK(0))) {
+        int dims = vecDimensions(PEEK(0));
+        int component = -1;
+        if (name->length == 1) {
+          if (name->chars[0] == 'x') component = 0;
+          else if (name->chars[0] == 'y' && dims >= 2) component = 1;
+          else if (name->chars[0] == 'z' && dims >= 3) component = 2;
+          else if (name->chars[0] == 'w' && dims >= 4) component = 3;
+        }
+        if (component < 0) {
+          STORE_FRAME();
+          runtimeError("Vectors do not have a property named '%s'.", name->chars);
+          goto runtime_error;
+        }
+        Value vector = POP();
+        PUSH(NUMBER_VAL(vecComponent(vector, component)));
+        DISPATCH();
+      }
+
       if (!IS_INSTANCE(PEEK(0))) {
         STORE_FRAME();
         runtimeError("Only instances have properties.");
@@ -1195,6 +1301,11 @@ static InterpretResult run(int stopFrameCount) {
       if (IS_MODULE(PEEK(1))) {
         STORE_FRAME();
         runtimeError("Module exports are read-only.");
+        goto runtime_error;
+      }
+      if (IS_VEC(PEEK(1))) {
+        STORE_FRAME();
+        runtimeError("Vectors are immutable.");
         goto runtime_error;
       }
       if (!IS_INSTANCE(PEEK(1))) {
@@ -1297,6 +1408,12 @@ static InterpretResult run(int stopFrameCount) {
         STORE_FRAME();
         concatenate();
         LOAD_FRAME();
+      } else if (IS_VEC(stackTop[-1]) || IS_VEC(stackTop[-2])) {
+        STORE_FRAME();
+        Value result;
+        if (!vecBinary('+', stackTop[-2], stackTop[-1], &result)) goto runtime_error;
+        stackTop[-2] = result;
+        stackTop--;
       } else {
         STORE_FRAME();
         runtimeError("Operands must be two numbers or two strings.");
@@ -1304,29 +1421,53 @@ static InterpretResult run(int stopFrameCount) {
       }
       DISPATCH();
     }
-    TARGET(OP_SUBTRACT)
-      BINARY_OP(NUMBER_VAL, -);
+    TARGET(OP_SUBTRACT) {
+      if (IS_VEC(stackTop[-1]) || IS_VEC(stackTop[-2])) {
+        STORE_FRAME();
+        Value result;
+        if (!vecBinary('-', stackTop[-2], stackTop[-1], &result)) goto runtime_error;
+        stackTop[-2] = result;
+        stackTop--;
+      } else {
+        BINARY_OP(NUMBER_VAL, -);
+      }
       DISPATCH();
-    TARGET(OP_MULTIPLY)
-      BINARY_OP(NUMBER_VAL, *);
+    }
+    TARGET(OP_MULTIPLY) {
+      if (IS_VEC(stackTop[-1]) || IS_VEC(stackTop[-2])) {
+        STORE_FRAME();
+        Value result;
+        if (!vecBinary('*', stackTop[-2], stackTop[-1], &result)) goto runtime_error;
+        stackTop[-2] = result;
+        stackTop--;
+      } else {
+        BINARY_OP(NUMBER_VAL, *);
+      }
       DISPATCH();
+    }
     TARGET(OP_DIVIDE) {
-      if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
+      if (IS_VEC(stackTop[-1]) || IS_VEC(stackTop[-2])) {
+        STORE_FRAME();
+        Value result;
+        if (!vecBinary('/', stackTop[-2], stackTop[-1], &result)) goto runtime_error;
+        stackTop[-2] = result;
+        stackTop--;
+      } else if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
         goto runtime_error;
-      }
+      } else {
+        double divisor = AS_NUMBER(stackTop[-1]);
+        double dividend = AS_NUMBER(stackTop[-2]);
+        if (divisor == 0) {
+          STORE_FRAME();
+          runtimeError("Division by zero.");
+          goto runtime_error;
+        }
 
-      double divisor = AS_NUMBER(stackTop[-1]);
-      double dividend = AS_NUMBER(stackTop[-2]);
-      if (divisor == 0) {
-        STORE_FRAME();
-        runtimeError("Division by zero.");
-        goto runtime_error;
+        stackTop[-2] = NUMBER_VAL(dividend / divisor);
+        stackTop--;
       }
-
-      stackTop[-2] = NUMBER_VAL(dividend / divisor);
-      stackTop--;
       DISPATCH();
     }
     TARGET(OP_MODULO)
@@ -1357,7 +1498,17 @@ static InterpretResult run(int stopFrameCount) {
     TARGET(OP_NOT)
       stackTop[-1] = BOOL_VAL(isFalsey(stackTop[-1]));
       DISPATCH();
-    TARGET(OP_NEGATE)
+    TARGET(OP_NEGATE) {
+      if (IS_VEC(PEEK(0))) {
+        int dims = vecDimensions(PEEK(0));
+        double parts[4];
+        for (int i = 0; i < dims; i++) parts[i] = -vecComponent(PEEK(0), i);
+        Value negated = dims == 2 ? OBJ_VAL(newVec2(parts[0], parts[1]))
+                        : dims == 3 ? OBJ_VAL(newVec3(parts[0], parts[1], parts[2]))
+                                    : OBJ_VAL(newVec4(parts[0], parts[1], parts[2], parts[3]));
+        stackTop[-1] = negated;
+        DISPATCH();
+      }
       if (!IS_NUMBER(PEEK(0))) {
         STORE_FRAME();
         runtimeError("Operand must be a number.");
@@ -1365,6 +1516,7 @@ static InterpretResult run(int stopFrameCount) {
       }
       stackTop[-1] = NUMBER_VAL(-AS_NUMBER(stackTop[-1]));
       DISPATCH();
+    }
     TARGET(OP_PRINT) {
       STORE_FRAME();
       ObjString *rendered = valueToString(POP());

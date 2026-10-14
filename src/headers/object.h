@@ -21,6 +21,10 @@
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 #define IS_MODULE(value) isObjType(value, OBJ_MODULE)
 #define IS_RESOURCE(value) isObjType(value, OBJ_RESOURCE)
+#define IS_VEC2(value) isObjType(value, OBJ_VEC2)
+#define IS_VEC3(value) isObjType(value, OBJ_VEC3)
+#define IS_VEC4(value) isObjType(value, OBJ_VEC4)
+#define IS_VEC(value) (IS_VEC2(value) || IS_VEC3(value) || IS_VEC4(value))
 
 #define AS_FUNCTION(value) ((ObjFunction *)AS_OBJ(value))
 #define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
@@ -34,6 +38,9 @@
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
 #define AS_MODULE(value) ((ObjModule *)AS_OBJ(value))
 #define AS_RESOURCE(value) ((ObjResource *)AS_OBJ(value))
+#define AS_VEC2(value) ((ObjVec2 *)AS_OBJ(value))
+#define AS_VEC3(value) ((ObjVec3 *)AS_OBJ(value))
+#define AS_VEC4(value) ((ObjVec4 *)AS_OBJ(value))
 
 typedef enum {
   OBJ_FUNCTION,
@@ -48,6 +55,9 @@ typedef enum {
   OBJ_BOUND_METHOD,
   OBJ_MODULE,
   OBJ_RESOURCE,
+  OBJ_VEC2,
+  OBJ_VEC3,
+  OBJ_VEC4,
 } ObjType;
 
 struct Obj {
@@ -140,6 +150,27 @@ struct ObjModule {
 
 typedef struct {
   Obj obj;
+  double x;
+  double y;
+} ObjVec2;
+
+typedef struct {
+  Obj obj;
+  double x;
+  double y;
+  double z;
+} ObjVec3;
+
+typedef struct {
+  Obj obj;
+  double x;
+  double y;
+  double z;
+  double w;
+} ObjVec4;
+
+typedef struct {
+  Obj obj;
   const char *typeName;
   int tag;
   int backendId;
@@ -164,6 +195,11 @@ ObjInstance *newInstance(ObjClass *klass);
 ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
 ObjModule *newModule(ObjString *name);
 ObjResource *newResource(const char *typeName, int tag, int backendId, PbResourceFinalizer finalizer, void *ctx);
+ObjVec2 *newVec2(double x, double y);
+ObjVec3 *newVec3(double x, double y, double z);
+ObjVec4 *newVec4(double x, double y, double z, double w);
+int vecDimensions(Value value);
+double vecComponent(Value value, int index);
 void printObject(Value value);
 
 // function rather than just putting it in the macro coz this uses a value twice, that would cause the macro to be

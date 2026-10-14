@@ -117,6 +117,10 @@ static void blackenObject(Obj *object) {
     break;
   case OBJ_STRING:
     break;
+  case OBJ_VEC2:
+  case OBJ_VEC3:
+  case OBJ_VEC4:
+    break;
   case OBJ_CLASS: {
     ObjClass *klass = (ObjClass *)object;
     markObject((Obj *)klass->name);
@@ -203,6 +207,15 @@ static void freeObject(Obj *object) {
     break;
   case OBJ_NATIVE:
     FREE(ObjNative, object);
+    break;
+  case OBJ_VEC2:
+    FREE(ObjVec2, object);
+    break;
+  case OBJ_VEC3:
+    FREE(ObjVec3, object);
+    break;
+  case OBJ_VEC4:
+    FREE(ObjVec4, object);
     break;
   case OBJ_STRING: {
     ObjString *string = (ObjString *)object;

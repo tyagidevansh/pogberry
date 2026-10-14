@@ -39,7 +39,7 @@ static bool stringsEqual(ObjString *left, ObjString *right) {
   return left->length == right->length && memcmp(left->chars, right->chars, (size_t)left->length) == 0;
 }
 
-static int formatNumberString(char *buffer, size_t size, double value) {
+int formatNumberString(char *buffer, size_t size, double value) {
   if (isfinite(value) && floor(value) == value && fabs(value) < 1e16) {
     return snprintf(buffer, size, "%.0f", value);
   }
@@ -126,6 +126,17 @@ static bool objectsEqual(Value left, Value right, EqualityContext *context) {
 
   case OBJ_HASHMAP:
     return hashmapsEqual((ObjHashmap *)leftObject, (ObjHashmap *)rightObject, context);
+
+  case OBJ_VEC2:
+    return AS_VEC2(left)->x == AS_VEC2(right)->x && AS_VEC2(left)->y == AS_VEC2(right)->y;
+
+  case OBJ_VEC3:
+    return AS_VEC3(left)->x == AS_VEC3(right)->x && AS_VEC3(left)->y == AS_VEC3(right)->y &&
+           AS_VEC3(left)->z == AS_VEC3(right)->z;
+
+  case OBJ_VEC4:
+    return AS_VEC4(left)->x == AS_VEC4(right)->x && AS_VEC4(left)->y == AS_VEC4(right)->y &&
+           AS_VEC4(left)->z == AS_VEC4(right)->z && AS_VEC4(left)->w == AS_VEC4(right)->w;
 
   default:
     return false;
@@ -379,6 +390,25 @@ static void appendValue(StringBuilder *builder, Value value) {
     appendCString(builder, " ");
     appendChars(builder, id, len);
     appendCString(builder, ">");
+    return;
+  }
+
+  if (object->type == OBJ_VEC2 || object->type == OBJ_VEC3 || object->type == OBJ_VEC4) {
+    int dims = vecDimensions(value);
+    char count[32];
+    int countLen = formatNumberString(count, sizeof(count), (double)dims);
+    if (countLen < 0) countLen = 0;
+    appendCString(builder, "vec");
+    appendChars(builder, count, countLen);
+    appendCString(builder, "(");
+    for (int i = 0; i < dims; i++) {
+      if (i > 0) appendCString(builder, ", ");
+      char number[32];
+      int len = formatNumberString(number, sizeof(number), vecComponent(value, i));
+      if (len < 0) len = 0;
+      appendChars(builder, number, len);
+    }
+    appendCString(builder, ")");
     return;
   }
 

@@ -160,6 +160,59 @@ ObjModule *newModule(ObjString *name) {
   return module;
 }
 
+ObjVec2 *newVec2(double x, double y) {
+  ObjVec2 *vec = ALLOCATE_OBJ(ObjVec2, OBJ_VEC2);
+  vec->x = x;
+  vec->y = y;
+  return vec;
+}
+
+ObjVec3 *newVec3(double x, double y, double z) {
+  ObjVec3 *vec = ALLOCATE_OBJ(ObjVec3, OBJ_VEC3);
+  vec->x = x;
+  vec->y = y;
+  vec->z = z;
+  return vec;
+}
+
+ObjVec4 *newVec4(double x, double y, double z, double w) {
+  ObjVec4 *vec = ALLOCATE_OBJ(ObjVec4, OBJ_VEC4);
+  vec->x = x;
+  vec->y = y;
+  vec->z = z;
+  vec->w = w;
+  return vec;
+}
+
+int vecDimensions(Value value) {
+  if (!IS_OBJ(value)) return 0;
+  switch (AS_OBJ(value)->type) {
+  case OBJ_VEC2:
+    return 2;
+  case OBJ_VEC3:
+    return 3;
+  case OBJ_VEC4:
+    return 4;
+  default:
+    return 0;
+  }
+}
+
+double vecComponent(Value value, int index) {
+  switch (AS_OBJ(value)->type) {
+  case OBJ_VEC2:
+    return index == 0 ? AS_VEC2(value)->x : AS_VEC2(value)->y;
+  case OBJ_VEC3:
+    if (index == 0) return AS_VEC3(value)->x;
+    return index == 1 ? AS_VEC3(value)->y : AS_VEC3(value)->z;
+  default:
+    if (index == 0) return AS_VEC4(value)->x;
+    if (index == 1) return AS_VEC4(value)->y;
+    if (index == 2) return AS_VEC4(value)->z;
+    return AS_VEC4(value)->w;
+  }
+}
+
 ObjResource *newResource(const char *typeName, int tag, int backendId, PbResourceFinalizer finalizer, void *ctx) {
   ObjResource *resource = ALLOCATE_OBJ(ObjResource, OBJ_RESOURCE);
   resource->typeName = typeName;
@@ -242,6 +295,36 @@ void printObject(Value value) {
   case OBJ_RESOURCE: {
     ObjResource *resource = AS_RESOURCE(value);
     printf("<%s %d>", resource->typeName, resource->backendId);
+    break;
+  }
+  case OBJ_VEC2: {
+    char x[32];
+    char y[32];
+    formatNumberString(x, sizeof(x), AS_VEC2(value)->x);
+    formatNumberString(y, sizeof(y), AS_VEC2(value)->y);
+    printf("vec2(%s, %s)", x, y);
+    break;
+  }
+  case OBJ_VEC3: {
+    char x[32];
+    char y[32];
+    char z[32];
+    formatNumberString(x, sizeof(x), AS_VEC3(value)->x);
+    formatNumberString(y, sizeof(y), AS_VEC3(value)->y);
+    formatNumberString(z, sizeof(z), AS_VEC3(value)->z);
+    printf("vec3(%s, %s, %s)", x, y, z);
+    break;
+  }
+  case OBJ_VEC4: {
+    char x[32];
+    char y[32];
+    char z[32];
+    char w[32];
+    formatNumberString(x, sizeof(x), AS_VEC4(value)->x);
+    formatNumberString(y, sizeof(y), AS_VEC4(value)->y);
+    formatNumberString(z, sizeof(z), AS_VEC4(value)->z);
+    formatNumberString(w, sizeof(w), AS_VEC4(value)->w);
+    printf("vec4(%s, %s, %s, %s)", x, y, z, w);
     break;
   }
   }
