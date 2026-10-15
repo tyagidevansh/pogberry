@@ -41,6 +41,8 @@
 #define AS_VEC2(value) ((ObjVec2 *)AS_OBJ(value))
 #define AS_VEC3(value) ((ObjVec3 *)AS_OBJ(value))
 #define AS_VEC4(value) ((ObjVec4 *)AS_OBJ(value))
+#define AS_MAT4(value) ((ObjMat4 *)AS_OBJ(value))
+#define IS_MAT4(value) isObjType(value, OBJ_MAT4)
 
 typedef enum {
   OBJ_FUNCTION,
@@ -58,6 +60,7 @@ typedef enum {
   OBJ_VEC2,
   OBJ_VEC3,
   OBJ_VEC4,
+  OBJ_MAT4,
 } ObjType;
 
 struct Obj {
@@ -171,6 +174,11 @@ typedef struct {
 
 typedef struct {
   Obj obj;
+  double m[16];
+} ObjMat4;
+
+typedef struct {
+  Obj obj;
   const char *typeName;
   int tag;
   int backendId;
@@ -200,6 +208,9 @@ ObjVec3 *newVec3(double x, double y, double z);
 ObjVec4 *newVec4(double x, double y, double z, double w);
 int vecDimensions(Value value);
 double vecComponent(Value value, int index);
+ObjMat4 *newMat4Identity(void);
+ObjMat4 *newMat4From(const double cells[16]);
+void mat4Multiply(const double left[16], const double right[16], double out[16]);
 void printObject(Value value);
 
 // function rather than just putting it in the macro coz this uses a value twice, that would cause the macro to be

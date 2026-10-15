@@ -138,6 +138,15 @@ static bool objectsEqual(Value left, Value right, EqualityContext *context) {
     return AS_VEC4(left)->x == AS_VEC4(right)->x && AS_VEC4(left)->y == AS_VEC4(right)->y &&
            AS_VEC4(left)->z == AS_VEC4(right)->z && AS_VEC4(left)->w == AS_VEC4(right)->w;
 
+  case OBJ_MAT4: {
+    ObjMat4 *leftMat = AS_MAT4(left);
+    ObjMat4 *rightMat = AS_MAT4(right);
+    for (int i = 0; i < 16; i++) {
+      if (leftMat->m[i] != rightMat->m[i]) return false;
+    }
+    return true;
+  }
+
   default:
     return false;
   }
@@ -407,6 +416,21 @@ static void appendValue(StringBuilder *builder, Value value) {
       int len = formatNumberString(number, sizeof(number), vecComponent(value, i));
       if (len < 0) len = 0;
       appendChars(builder, number, len);
+    }
+    appendCString(builder, ")");
+    return;
+  }
+
+  if (object->type == OBJ_MAT4) {
+    appendCString(builder, "mat4(");
+    for (int row = 0; row < 4; row++) {
+      for (int column = 0; column < 4; column++) {
+        if (row != 0 || column != 0) appendCString(builder, ", ");
+        char number[32];
+        int len = formatNumberString(number, sizeof(number), AS_MAT4(value)->m[column * 4 + row]);
+        if (len < 0) len = 0;
+        appendChars(builder, number, len);
+      }
     }
     appendCString(builder, ")");
     return;

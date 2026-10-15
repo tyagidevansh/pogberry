@@ -232,6 +232,7 @@ static void initialiseActiveVM(const PbConfig *config) {
   defineNative("vec2", vec2Native);
   defineNative("vec3", vec3Native);
   defineNative("vec4", vec4Native);
+  defineNative("mat4", mat4Native);
   defineNative("join", joinNative);
   tableAddAll(&vm.globals, &vm.prelude);
 }
@@ -555,6 +556,36 @@ static bool invokeVecMethod(ObjString *name, int argCount) {
   return true;
 }
 
+static bool invokeMatMethod(ObjString *name, int argCount) {
+  NativeFn method = NULL;
+
+  switch (name->length) {
+  case 5:
+    if (memcmp(name->chars, "scale", 5) == 0) method = matScaleNative;
+    break;
+  case 7:
+    if (memcmp(name->chars, "rotateX", 7) == 0) method = matRotateXNative;
+    else if (memcmp(name->chars, "rotateY", 7) == 0) method = matRotateYNative;
+    else if (memcmp(name->chars, "rotateZ", 7) == 0) method = matRotateZNative;
+    break;
+  case 9:
+    if (memcmp(name->chars, "translate", 9) == 0) method = matTranslateNative;
+    break;
+  }
+
+  if (method == NULL) {
+    runtimeError("Matrices do not have a method named '%s'.", name->chars);
+    return false;
+  }
+
+  Value result = method(argCount + 1, vm.stackTop - argCount - 1);
+  if (vm.hadRuntimeError) return false;
+
+  vm.stackTop -= argCount + 1;
+  push(result);
+  return true;
+}
+
 static bool invokeMapMethod(ObjString *name, int argCount) {
   if (name->length == 3 && memcmp(name->chars, "has", 3) == 0) {
     if (argCount != 1) {
@@ -671,6 +702,10 @@ static bool invoke(ObjString *name, int argCount) {
 
   if (IS_VEC(receiver)) {
     return invokeVecMethod(name, argCount);
+  }
+
+  if (IS_MAT4(receiver)) {
+    return invokeMatMethod(name, argCount);
   }
 
   if (!IS_INSTANCE(receiver)) {
@@ -878,6 +913,53 @@ static bool vecBinary(char op, Value left, Value right, Value *out) {
   else if (leftDims == 3) *out = OBJ_VAL(newVec3(parts[0], parts[1], parts[2]));
   else *out = OBJ_VAL(newVec4(parts[0], parts[1], parts[2], parts[3]));
   return true;
+}
+
+static bool matTransform(const double cells[16], Value vector, Value *out) {
+  int dims = vecDimensions(vector);
+  if (dims != 3 && dims != 4) {
+    runtimeError("Cannot transform a vec2 with a mat4; use a vec3 or vec4.");
+    return false;
+  }
+  double x = vecComponent(vector, 0);
+  double y = vecComponent(vector, 1);
+  double z = vecComponent(vector, 2);
+  double w = dims == 4 ? vecComponent(vector, 3) : 1;
+  double result[4];
+  for (int row = 0; row < 4; row++) {
+    result[row] = cells[0 * 4 + row] * x + cells[1 * 4 + row] * y + cells[2 * 4 + row] * z + cells[3 * 4 + row] * w;
+  }
+  if (dims == 3) *out = OBJ_VAL(newVec3(result[0], result[1], result[2]));
+  else *out = OBJ_VAL(newVec4(result[0], result[1], result[2], result[3]));
+  return true;
+}
+
+static bool matBinary(Value left, Value right, Value *out) {
+  bool leftMat = IS_MAT4(left);
+  bool rightMat = IS_MAT4(right);
+  bool leftNumber = IS_NUMBER(left);
+  bool rightNumber = IS_NUMBER(right);
+  if (leftMat && rightMat) {
+    double cells[16];
+    mat4Multiply(AS_MAT4(left)->m, AS_MAT4(right)->m, cells);
+    *out = OBJ_VAL(newMat4From(cells));
+    return true;
+  }
+  if ((leftMat && rightNumber) || (leftNumber && rightMat)) {
+    double scalar = leftMat ? AS_NUMBER(right) : AS_NUMBER(left);
+    const double *cells = leftMat ? AS_MAT4(left)->m : AS_MAT4(right)->m;
+    double scaled[16];
+    for (int i = 0; i < 16; i++) scaled[i] = cells[i] * scalar;
+    *out = OBJ_VAL(newMat4From(scaled));
+    return true;
+  }
+  if (leftMat && vecDimensions(right) != 0) return matTransform(AS_MAT4(left)->m, right, out);
+  if (vecDimensions(left) != 0 && rightMat) {
+    runtimeError("Matrices multiply on the left: use mat * vec.");
+    return false;
+  }
+  runtimeError("Operands must be numbers, vectors, or matrices with matching dimensions.");
+  return false;
 }
 
 static InterpretResult run(int stopFrameCount) {
@@ -1275,6 +1357,12 @@ static InterpretResult run(int stopFrameCount) {
         DISPATCH();
       }
 
+      if (IS_MAT4(PEEK(0))) {
+        STORE_FRAME();
+        runtimeError("Matrices do not have a property named '%s'.", name->chars);
+        goto runtime_error;
+      }
+
       if (!IS_INSTANCE(PEEK(0))) {
         STORE_FRAME();
         runtimeError("Only instances have properties.");
@@ -1306,6 +1394,11 @@ static InterpretResult run(int stopFrameCount) {
       if (IS_VEC(PEEK(1))) {
         STORE_FRAME();
         runtimeError("Vectors are immutable.");
+        goto runtime_error;
+      }
+      if (IS_MAT4(PEEK(1))) {
+        STORE_FRAME();
+        runtimeError("Matrices are immutable.");
         goto runtime_error;
       }
       if (!IS_INSTANCE(PEEK(1))) {
@@ -1414,6 +1507,10 @@ static InterpretResult run(int stopFrameCount) {
         if (!vecBinary('+', stackTop[-2], stackTop[-1], &result)) goto runtime_error;
         stackTop[-2] = result;
         stackTop--;
+      } else if (IS_MAT4(stackTop[-1]) || IS_MAT4(stackTop[-2])) {
+        STORE_FRAME();
+        runtimeError("Matrices support only multiplication.");
+        goto runtime_error;
       } else {
         STORE_FRAME();
         runtimeError("Operands must be two numbers or two strings.");
@@ -1428,13 +1525,23 @@ static InterpretResult run(int stopFrameCount) {
         if (!vecBinary('-', stackTop[-2], stackTop[-1], &result)) goto runtime_error;
         stackTop[-2] = result;
         stackTop--;
+      } else if (IS_MAT4(stackTop[-1]) || IS_MAT4(stackTop[-2])) {
+        STORE_FRAME();
+        runtimeError("Matrices support only multiplication.");
+        goto runtime_error;
       } else {
         BINARY_OP(NUMBER_VAL, -);
       }
       DISPATCH();
     }
     TARGET(OP_MULTIPLY) {
-      if (IS_VEC(stackTop[-1]) || IS_VEC(stackTop[-2])) {
+      if (IS_MAT4(stackTop[-1]) || IS_MAT4(stackTop[-2])) {
+        STORE_FRAME();
+        Value result;
+        if (!matBinary(stackTop[-2], stackTop[-1], &result)) goto runtime_error;
+        stackTop[-2] = result;
+        stackTop--;
+      } else if (IS_VEC(stackTop[-1]) || IS_VEC(stackTop[-2])) {
         STORE_FRAME();
         Value result;
         if (!vecBinary('*', stackTop[-2], stackTop[-1], &result)) goto runtime_error;
@@ -1452,6 +1559,10 @@ static InterpretResult run(int stopFrameCount) {
         if (!vecBinary('/', stackTop[-2], stackTop[-1], &result)) goto runtime_error;
         stackTop[-2] = result;
         stackTop--;
+      } else if (IS_MAT4(stackTop[-1]) || IS_MAT4(stackTop[-2])) {
+        STORE_FRAME();
+        runtimeError("Matrices support only multiplication.");
+        goto runtime_error;
       } else if (!IS_NUMBER(stackTop[-1]) || !IS_NUMBER(stackTop[-2])) {
         STORE_FRAME();
         runtimeError("Operands must be numbers.");
@@ -1499,6 +1610,12 @@ static InterpretResult run(int stopFrameCount) {
       stackTop[-1] = BOOL_VAL(isFalsey(stackTop[-1]));
       DISPATCH();
     TARGET(OP_NEGATE) {
+      if (IS_MAT4(PEEK(0))) {
+        double cells[16];
+        for (int i = 0; i < 16; i++) cells[i] = -AS_MAT4(PEEK(0))->m[i];
+        stackTop[-1] = OBJ_VAL(newMat4From(cells));
+        DISPATCH();
+      }
       if (IS_VEC(PEEK(0))) {
         int dims = vecDimensions(PEEK(0));
         double parts[4];

@@ -213,6 +213,31 @@ double vecComponent(Value value, int index) {
   }
 }
 
+static const double MAT4_IDENTITY[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+
+ObjMat4 *newMat4Identity(void) {
+  return newMat4From(MAT4_IDENTITY);
+}
+
+ObjMat4 *newMat4From(const double cells[16]) {
+  ObjMat4 *mat = ALLOCATE_OBJ(ObjMat4, OBJ_MAT4);
+  for (int i = 0; i < 16; i++) mat->m[i] = cells[i];
+  return mat;
+}
+
+void mat4Multiply(const double left[16], const double right[16], double out[16]) {
+  double result[16];
+  for (int column = 0; column < 4; column++) {
+    for (int row = 0; row < 4; row++) {
+      result[column * 4 + row] = left[0 * 4 + row] * right[column * 4 + 0] +
+                                left[1 * 4 + row] * right[column * 4 + 1] +
+                                left[2 * 4 + row] * right[column * 4 + 2] +
+                                left[3 * 4 + row] * right[column * 4 + 3];
+    }
+  }
+  for (int i = 0; i < 16; i++) out[i] = result[i];
+}
+
 ObjResource *newResource(const char *typeName, int tag, int backendId, PbResourceFinalizer finalizer, void *ctx) {
   ObjResource *resource = ALLOCATE_OBJ(ObjResource, OBJ_RESOURCE);
   resource->typeName = typeName;
@@ -325,6 +350,19 @@ void printObject(Value value) {
     formatNumberString(z, sizeof(z), AS_VEC4(value)->z);
     formatNumberString(w, sizeof(w), AS_VEC4(value)->w);
     printf("vec4(%s, %s, %s, %s)", x, y, z, w);
+    break;
+  }
+  case OBJ_MAT4: {
+    char cells[16][32];
+    for (int i = 0; i < 16; i++) formatNumberString(cells[i], sizeof(cells[i]), AS_MAT4(value)->m[i]);
+    printf("mat4(");
+    for (int row = 0; row < 4; row++) {
+      for (int column = 0; column < 4; column++) {
+        if (row != 0 || column != 0) printf(", ");
+        printf("%s", cells[column * 4 + row]);
+      }
+    }
+    printf(")");
     break;
   }
   }

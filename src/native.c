@@ -557,6 +557,8 @@ Value typeNative(int argCount, Value *args) {
     name = "vec3";
   else if (IS_VEC4(args[0]))
     name = "vec4";
+  else if (IS_MAT4(args[0]))
+    name = "mat4";
   else if (IS_RESOURCE(args[0]))
     name = AS_RESOURCE(args[0])->typeName;
   else
@@ -667,6 +669,112 @@ Value vecNormalizeNative(int argCount, Value *args) {
   if (dims == 2) return OBJ_VAL(newVec2(parts[0], parts[1]));
   if (dims == 3) return OBJ_VAL(newVec3(parts[0], parts[1], parts[2]));
   return OBJ_VAL(newVec4(parts[0], parts[1], parts[2], parts[3]));
+}
+
+Value mat4Native(int argCount, Value *args) {
+  (void)args;
+  if (argCount != 0) {
+    runtimeError("mat4() expects no arguments.");
+    return NIL_VAL;
+  }
+  return OBJ_VAL(newMat4Identity());
+}
+
+Value matTranslateNative(int argCount, Value *args) {
+  if ((argCount != 3 && argCount != 4) || !IS_NUMBER(args[1]) || !isfinite(AS_NUMBER(args[1])) ||
+      !IS_NUMBER(args[2]) || !isfinite(AS_NUMBER(args[2]))) {
+    runtimeError("translate() expects x, y, and an optional z.");
+    return NIL_VAL;
+  }
+  double z = 0;
+  if (argCount == 4) {
+    if (!IS_NUMBER(args[3]) || !isfinite(AS_NUMBER(args[3]))) {
+      runtimeError("translate() expects x, y, and an optional z.");
+      return NIL_VAL;
+    }
+    z = AS_NUMBER(args[3]);
+  }
+  double cells[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, AS_NUMBER(args[1]), AS_NUMBER(args[2]), z, 1};
+  double out[16];
+  mat4Multiply(AS_MAT4(args[0])->m, cells, out);
+  return OBJ_VAL(newMat4From(out));
+}
+
+Value matScaleNative(int argCount, Value *args) {
+  if (argCount < 2 || argCount > 4) {
+    runtimeError("scale() expects a factor, or x, y, and an optional z.");
+    return NIL_VAL;
+  }
+  double x = 0;
+  double y = 0;
+  double z = 1;
+  if (argCount == 2) {
+    if (!IS_NUMBER(args[1]) || !isfinite(AS_NUMBER(args[1]))) {
+      runtimeError("scale() expects a factor, or x, y, and an optional z.");
+      return NIL_VAL;
+    }
+    x = AS_NUMBER(args[1]);
+    y = x;
+    z = x;
+  } else {
+    if (!IS_NUMBER(args[1]) || !isfinite(AS_NUMBER(args[1])) || !IS_NUMBER(args[2]) ||
+        !isfinite(AS_NUMBER(args[2]))) {
+      runtimeError("scale() expects a factor, or x, y, and an optional z.");
+      return NIL_VAL;
+    }
+    x = AS_NUMBER(args[1]);
+    y = AS_NUMBER(args[2]);
+    if (argCount == 4) {
+      if (!IS_NUMBER(args[3]) || !isfinite(AS_NUMBER(args[3]))) {
+        runtimeError("scale() expects a factor, or x, y, and an optional z.");
+        return NIL_VAL;
+      }
+      z = AS_NUMBER(args[3]);
+    }
+  }
+  double cells[16] = {x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1};
+  double out[16];
+  mat4Multiply(AS_MAT4(args[0])->m, cells, out);
+  return OBJ_VAL(newMat4From(out));
+}
+
+Value matRotateXNative(int argCount, Value *args) {
+  if (argCount != 2 || !IS_NUMBER(args[1]) || !isfinite(AS_NUMBER(args[1]))) {
+    runtimeError("rotateX() expects an angle in radians.");
+    return NIL_VAL;
+  }
+  double cosine = cos(AS_NUMBER(args[1]));
+  double sine = sin(AS_NUMBER(args[1]));
+  double cells[16] = {1, 0, 0, 0, 0, cosine, sine, 0, 0, -sine, cosine, 0, 0, 0, 0, 1};
+  double out[16];
+  mat4Multiply(AS_MAT4(args[0])->m, cells, out);
+  return OBJ_VAL(newMat4From(out));
+}
+
+Value matRotateYNative(int argCount, Value *args) {
+  if (argCount != 2 || !IS_NUMBER(args[1]) || !isfinite(AS_NUMBER(args[1]))) {
+    runtimeError("rotateY() expects an angle in radians.");
+    return NIL_VAL;
+  }
+  double cosine = cos(AS_NUMBER(args[1]));
+  double sine = sin(AS_NUMBER(args[1]));
+  double cells[16] = {cosine, 0, -sine, 0, 0, 1, 0, 0, sine, 0, cosine, 0, 0, 0, 0, 1};
+  double out[16];
+  mat4Multiply(AS_MAT4(args[0])->m, cells, out);
+  return OBJ_VAL(newMat4From(out));
+}
+
+Value matRotateZNative(int argCount, Value *args) {
+  if (argCount != 2 || !IS_NUMBER(args[1]) || !isfinite(AS_NUMBER(args[1]))) {
+    runtimeError("rotateZ() expects an angle in radians.");
+    return NIL_VAL;
+  }
+  double cosine = cos(AS_NUMBER(args[1]));
+  double sine = sin(AS_NUMBER(args[1]));
+  double cells[16] = {cosine, sine, 0, 0, -sine, cosine, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+  double out[16];
+  mat4Multiply(AS_MAT4(args[0])->m, cells, out);
+  return OBJ_VAL(newMat4From(out));
 }
 
 Value joinNative(int argCount, Value *args) {
