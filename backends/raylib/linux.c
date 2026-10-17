@@ -233,6 +233,34 @@ void endDrawing(void) {
   }
   EndDrawing();
 }
+
+void begin3D(float camX, float camY, float camZ, float targetX, float targetY, float targetZ, float fovy) {
+  Camera3D camera = {0};
+  camera.position = (Vector3){camX, camY, camZ};
+  camera.target = (Vector3){targetX, targetY, targetZ};
+  camera.up = (Vector3){0.0f, 1.0f, 0.0f};
+  camera.fovy = fovy;
+  camera.projection = CAMERA_PERSPECTIVE;
+  BeginMode3D(camera);
+}
+
+void end3D(void) { EndMode3D(); }
+
+void drawCube3D(float x, float y, float z, float width, float height, float length, int r, int g, int b) {
+  DrawCube((Vector3){x, y, z}, width, height, length, (Color){r, g, b, 255});
+}
+
+void drawCubeWires3D(float x, float y, float z, float width, float height, float length, int r, int g, int b) {
+  DrawCubeWires((Vector3){x, y, z}, width, height, length, (Color){r, g, b, 255});
+}
+
+void drawPlane3D(float x, float y, float z, float width, float length, int r, int g, int b) {
+  DrawPlane((Vector3){x, y, z}, (Vector2){width, length}, (Color){r, g, b, 255});
+}
+
+void drawSphere3D(float x, float y, float z, float radius, int r, int g, int b) {
+  DrawSphere((Vector3){x, y, z}, radius, (Color){r, g, b, 255});
+}
 void setTargetFPS(int fps) { SetTargetFPS(fps); }
 
 void drawPixel(int posX, int posY, int r, int g, int b) { DrawPixel(posX, posY, (Color){r, g, b, 255}); }

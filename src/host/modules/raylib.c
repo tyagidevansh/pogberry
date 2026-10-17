@@ -129,6 +129,11 @@ typedef void (*SetShaderVec3Fn)(int, const char *, float, float, float);
 typedef void (*SetShaderVec4Fn)(int, const char *, float, float, float, float);
 typedef void (*SetShaderColorFn)(int, const char *, float, float, float, float);
 typedef void (*SetShaderTextureFn)(int, const char *, int);
+typedef void (*Begin3DFn)(float, float, float, float, float, float, float);
+typedef void (*End3DFn)(void);
+typedef void (*DrawCube3DFn)(float, float, float, float, float, float, int, int, int);
+typedef void (*DrawPlane3DFn)(float, float, float, float, float, int, int, int);
+typedef void (*DrawSphere3DFn)(float, float, float, float, int, int, int);
 
 #define RAYLIB_BASE_FUNCTIONS(X) \
   X(initWindow, InitWindowFn, "initWindow", guiInitWindow) \
@@ -243,7 +248,13 @@ typedef void (*SetShaderTextureFn)(int, const char *, int);
   X(setShaderVec3, SetShaderVec3Fn, "setShaderVec3", guiSetShaderVec3) \
   X(setShaderVec4, SetShaderVec4Fn, "setShaderVec4", guiSetShaderVec4) \
   X(setShaderColor, SetShaderColorFn, "setShaderColor", guiSetShaderColor) \
-  X(setShaderTexture, SetShaderTextureFn, "setShaderTexture", guiSetShaderTexture)
+  X(setShaderTexture, SetShaderTextureFn, "setShaderTexture", guiSetShaderTexture) \
+  X(begin3D, Begin3DFn, "begin3D", guiBegin3D) \
+  X(end3D, End3DFn, "end3D", guiEnd3D) \
+  X(drawCube3D, DrawCube3DFn, "drawCube3D", guiDrawCube3D) \
+  X(drawCubeWires3D, DrawCube3DFn, "drawCubeWires3D", guiDrawCubeWires3D) \
+  X(drawPlane3D, DrawPlane3DFn, "drawPlane3D", guiDrawPlane3D) \
+  X(drawSphere3D, DrawSphere3DFn, "drawSphere3D", guiDrawSphere3D)
 
 #define RAYLIB_FUNCTIONS(X) \
   RAYLIB_BASE_FUNCTIONS(X) \
@@ -660,6 +671,73 @@ static PbValue guiEndDrawing(PbVM *vm, int argCount, const PbValue *args, void *
   (void)userData;
   if (argCount != 0) return guiError(vm, "endDrawing() takes no arguments.");
   raylib.endDrawing();
+  return pbNilValue();
+}
+
+static PbValue guiBegin3D(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 7 || !numbersFitFloat(args, 7) || args[6].as.number <= 1.0 || args[6].as.number >= 179.0)
+    return guiError(vm, "begin3D(camX, camY, camZ, targetX, targetY, targetZ, fovy) expected.");
+  if (raylib.begin3D == NULL) return missingRaylibFunction(vm, "begin3D");
+  raylib.begin3D((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                 (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
+                 (float)args[6].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiEnd3D(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)args;
+  (void)userData;
+  if (argCount != 0) return guiError(vm, "end3D() takes no arguments.");
+  if (raylib.end3D == NULL) return missingRaylibFunction(vm, "end3D");
+  raylib.end3D();
+  return pbNilValue();
+}
+
+static PbValue guiDrawCube3D(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 9 || !numbersFitFloat(args, 6) || args[3].as.number < 0 || args[4].as.number < 0 ||
+      args[5].as.number < 0 || !validColor(args + 6))
+    return guiError(vm, "drawCube3D(x, y, z, width, height, length, r, g, b) expected.");
+  if (raylib.drawCube3D == NULL) return missingRaylibFunction(vm, "drawCube3D");
+  raylib.drawCube3D((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                    (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
+                    (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawCubeWires3D(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 9 || !numbersFitFloat(args, 6) || args[3].as.number < 0 || args[4].as.number < 0 ||
+      args[5].as.number < 0 || !validColor(args + 6))
+    return guiError(vm, "drawCubeWires3D(x, y, z, width, height, length, r, g, b) expected.");
+  if (raylib.drawCubeWires3D == NULL) return missingRaylibFunction(vm, "drawCubeWires3D");
+  raylib.drawCubeWires3D((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                         (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
+                         (int)args[6].as.number, (int)args[7].as.number, (int)args[8].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawPlane3D(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 8 || !numbersFitFloat(args, 5) || args[3].as.number < 0 || args[4].as.number < 0 ||
+      !validColor(args + 5))
+    return guiError(vm, "drawPlane3D(x, y, z, width, length, r, g, b) expected.");
+  if (raylib.drawPlane3D == NULL) return missingRaylibFunction(vm, "drawPlane3D");
+  raylib.drawPlane3D((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                     (float)args[3].as.number, (float)args[4].as.number, (int)args[5].as.number,
+                     (int)args[6].as.number, (int)args[7].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawSphere3D(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 7 || !numbersFitFloat(args, 4) || args[3].as.number < 0 || !validColor(args + 4))
+    return guiError(vm, "drawSphere3D(x, y, z, radius, r, g, b) expected.");
+  if (raylib.drawSphere3D == NULL) return missingRaylibFunction(vm, "drawSphere3D");
+  raylib.drawSphere3D((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                      (float)args[3].as.number, (int)args[4].as.number, (int)args[5].as.number,
+                      (int)args[6].as.number);
   return pbNilValue();
 }
 
