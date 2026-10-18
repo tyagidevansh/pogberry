@@ -64,12 +64,26 @@ export class Track {
   }
 
   getCurveOffset(z, distance) {
-    // Smooth sinusoidal curves along the track
-    let trackProgress = (distance - z) * 0.0035;
-    let curveAmt = 3.8;
-    if (this.trackId == 1) curveAmt = 5.2; // Sunset has wider curves
-    else if (this.trackId == 2) curveAmt = 6.8; // Canyon has sharp chicanes
-    return math.sin(trackProgress) * curveAmt;
+    let k = 0.0030;
+    let curveAmt = 4.0;
+    if (this.trackId == 1) curveAmt = 5.2;
+    else if (this.trackId == 2) curveAmt = 6.5;
+
+    // Player-relative curve offset: zero at z = 0, curves smoothly into the distance
+    let base = math.sin(distance * k) * curveAmt;
+    let ahead = math.sin((distance - z) * k) * curveAmt;
+    return ahead - base;
+  }
+
+  getCurvature(z, distance) {
+    let k = 0.0030;
+    let curveAmt = 4.0;
+    if (this.trackId == 1) curveAmt = 5.2;
+    else if (this.trackId == 2) curveAmt = 6.5;
+
+    // Curvature rate of upcoming curve ahead (30m down the road)
+    let lookAhead = (math.sin((distance + 30.0) * k) - math.sin(distance * k)) * curveAmt;
+    return lookAhead * 0.025;
   }
 
   draw(scroll, distance, t, assets) {

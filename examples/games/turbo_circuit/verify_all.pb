@@ -40,18 +40,25 @@ for (let cId = 0; cId < 4; cId += 1) {
   let trk = track_mod.Track(0);
   car.speed = 100.0;
   car.updatePlayer(0.016, trk, particles, assets);
-  print("Car " + str(cId) + " (" + car.spec["name"] + ") updated cleanly");
+  let curv = trk.getCurvature(0.0, 100.0);
+  print("Car " + str(cId) + " (" + car.spec["name"] + ") updated cleanly, worldX=" + str(car.worldX));
 }
 
 // Test AI Rivals and Traffic
 let rival = car_mod.Vehicle(1, false, "RIVAL", -30.0);
 let trk = track_mod.Track(0);
 rival.updateAi(0.0, 100.0, 0.016, trk);
-print("AI Rival updated cleanly");
+print("AI Rival updated cleanly, worldX=" + str(rival.worldX));
 
 let traffic = car_mod.TrafficCar(-50.0);
 traffic.update(100.0, 0.016);
-print("TrafficCar updated cleanly");
+traffic.syncPosition(trk, 150.0);
+print("TrafficCar updated cleanly, worldX=" + str(traffic.worldX));
+
+// Test Camera lookahead
+cam.setLookCurve(trk.getCurveOffset(-34.0, 150.0));
+cam.updateFollow(0.0, 0.0, 0.0, 80.0, 0.1, 0.0, false, 0.016);
+print("ChaseCamera lookahead updated cleanly");
 
 // Test UI screen rendering calls
 gui.beginDrawing();
@@ -61,7 +68,24 @@ let cSpec = const.getCarSpec(0);
 ui.drawGarageScreen(0, cSpec, 0.5);
 let tSpec = const.getTrackSpec(0);
 ui.drawTrackSelectScreen(0, tSpec, recordManager, 0.5);
+
+// Test Grand Prix HUD
+ui.setMode(const.MODE_GRAND_PRIX);
+ui.setBanner("OBJECTIVE: PODIUM FINISH", "TOP 3", 3.0, 255, 220, 40);
+ui.updateBanners(0.016);
 ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 41.2, 1, 5, true, 0.5, 200.0, 1800.0, [rival]);
+
+// Test Outrun HUD & Timeout
+ui.setMode(const.MODE_OUTRUN);
+ui.setOutrunState(38.5, 2, 600.0, 450.0, 3);
+ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 41.2, 1, 5, false, 0.5, 450.0, 1800.0, nil);
+ui.drawTimeoutScreen(0.5);
+
+// Test Time Attack HUD
+ui.setMode(const.MODE_TIME_ATTACK);
+ui.setTimeAttackDelta(-0.45);
+ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 2, 3, 21.0, 41.2, 1, 1, false, 0.5, 800.0, 1800.0, nil);
+
 ui.drawPauseMenu(0);
 ui.drawResultsScreen(1, 5, 41.2, 42.5, true, 0.5);
 ui.drawCrashedScreen(0.5);

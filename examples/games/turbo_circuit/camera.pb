@@ -21,6 +21,11 @@ export class ChaseCamera {
     this.fov = 64.0;
     this.shake = 0.0;
     this.orbitAngle = 0.0;
+    this.lookCurve = 0.0;
+  }
+
+  setLookCurve(curve) {
+    this.lookCurve = curve;
   }
 
   addShake(amount) {
@@ -29,29 +34,29 @@ export class ChaseCamera {
   }
 
   updateFollow(carX, carY, carZ, speed, steer, driftAngle, boosting, dt) {
-    // 1. Calculate ideal camera position
-    let targetCamX = carX * 0.45;
-    let targetCamY = 5.2 + (speed / 140.0) * 0.8;
-    let targetCamZ = carZ + 10.2 + (speed / 120.0) * 2.0;
+    // 1. Calculate ideal camera position directly behind vehicle
+    let targetCamX = carX * 0.72;
+    let targetCamY = 4.8 + (speed / 140.0) * 0.6;
+    let targetCamZ = carZ + 9.8 + (speed / 120.0) * 1.5;
 
     // Camera lag / smoothing
-    let followSpeed = 9.0;
+    let followSpeed = 12.0;
     this.x = mu.lerp(this.x, targetCamX, dt * followSpeed);
     this.y = mu.lerp(this.y, targetCamY, dt * followSpeed);
     this.z = mu.lerp(this.z, targetCamZ, dt * followSpeed);
 
     // 2. Camera target lookahead
-    let lookDist = 32.0 + (speed / 100.0) * 16.0;
-    let targetLookX = carX * 0.25 - steer * 1.5 - driftAngle * 0.8;
-    let targetLookY = 1.1;
+    let lookDist = 32.0;
+    let targetLookX = carX * 0.35 + (this.lookCurve * 0.45) - steer * 1.0;
+    let targetLookY = 1.2;
     let targetLookZ = carZ - lookDist;
 
-    this.targetX = mu.lerp(this.targetX, targetLookX, dt * 8.0);
-    this.targetY = mu.lerp(this.targetY, targetLookY, dt * 8.0);
+    this.targetX = mu.lerp(this.targetX, targetLookX, dt * 10.0);
+    this.targetY = mu.lerp(this.targetY, targetLookY, dt * 10.0);
     this.targetZ = mu.lerp(this.targetZ, targetLookZ, dt * 10.0);
 
     // 3. Dynamic Roll (Bank into sharp turns)
-    let rollAngle = (steer * 0.14) + (driftAngle * 0.08);
+    let rollAngle = (steer * 0.10) + (driftAngle * 0.05);
     this.upX = math.sin(rollAngle);
     this.upY = math.cos(rollAngle);
     this.upZ = 0.0;

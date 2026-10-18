@@ -13,6 +13,7 @@ export let STATE_RACE = 4;
 export let STATE_PAUSED = 5;
 export let STATE_FINISH = 6;
 export let STATE_CRASHED = 7;
+export let STATE_TIMEOUT = 8;
 
 // Game Modes
 export let MODE_GRAND_PRIX = 0;
