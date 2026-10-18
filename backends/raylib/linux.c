@@ -2,7 +2,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <raylib.h>
+#include <rlgl.h>
 
 #define MAX_TEXTURES 512
 #define MAX_SOUNDS 256
@@ -32,6 +34,10 @@ static bool inTextureMode = false;
 #define MAX_FONTS 32
 static Font fonts[MAX_FONTS];
 static bool fontActive[MAX_FONTS];
+
+#define MAX_MODELS 256
+static Model models[MAX_MODELS];
+static bool modelActive[MAX_MODELS];
 
 static void traceLogCallback(int logLevel, const char *text, va_list args) {
   const char *prefix = "";
@@ -64,7 +70,11 @@ static void traceLogCallback(int logLevel, const char *text, va_list args) {
 }
 
 void initWindow(int width, int height, const char *title) {
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  unsigned int flags = FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN;
+  if (getenv("PB_HEADLESS") != NULL) {
+    flags |= FLAG_WINDOW_HIDDEN;
+  }
+  SetConfigFlags(flags);
   SetTraceLogCallback(traceLogCallback);
   SetTraceLogLevel(traceLevel);
   InitWindow(width, height, title);
@@ -129,8 +139,8 @@ void setVirtualResolution(int width, int height) {
   }
 }
 
-int getRenderWidth(void) { return GetScreenWidth(); }
-int getRenderHeight(void) { return GetScreenHeight(); }
+int getRenderWidth(void) { return GetRenderWidth(); }
+int getRenderHeight(void) { return GetRenderHeight(); }
 
 void closeWindow(void) {
   closeAudio();
@@ -156,6 +166,12 @@ void closeWindow(void) {
     if (fontActive[i]) {
       UnloadFont(fonts[i]);
       fontActive[i] = false;
+    }
+  }
+  for (int i = 0; i < MAX_MODELS; i++) {
+    if (modelActive[i]) {
+      UnloadModel(models[i]);
+      modelActive[i] = false;
     }
   }
   inTextureMode = false;
@@ -234,17 +250,24 @@ void endDrawing(void) {
   EndDrawing();
 }
 
-void begin3D(float camX, float camY, float camZ, float targetX, float targetY, float targetZ, float fovy) {
-  Camera3D camera = {0};
-  camera.position = (Vector3){camX, camY, camZ};
-  camera.target = (Vector3){targetX, targetY, targetZ};
-  camera.up = (Vector3){0.0f, 1.0f, 0.0f};
-  camera.fovy = fovy;
-  camera.projection = CAMERA_PERSPECTIVE;
-  BeginMode3D(camera);
+static Camera3D activeCamera = {0};
+
+void begin3DEx(float camX, float camY, float camZ, float targetX, float targetY, float targetZ, float upX, float upY, float upZ, float fovy) {
+  activeCamera.position = (Vector3){camX, camY, camZ};
+  activeCamera.target = (Vector3){targetX, targetY, targetZ};
+  activeCamera.up = (Vector3){upX, upY, upZ};
+  activeCamera.fovy = fovy;
+  activeCamera.projection = CAMERA_PERSPECTIVE;
+  BeginMode3D(activeCamera);
 }
 
-void end3D(void) { EndMode3D(); }
+void begin3D(float camX, float camY, float camZ, float targetX, float targetY, float targetZ, float fovy) {
+  begin3DEx(camX, camY, camZ, targetX, targetY, targetZ, 0.0f, 1.0f, 0.0f, fovy);
+}
+
+void end3D(void) {
+  EndMode3D();
+}
 
 void drawCube3D(float x, float y, float z, float width, float height, float length, int r, int g, int b) {
   DrawCube((Vector3){x, y, z}, width, height, length, (Color){r, g, b, 255});
@@ -261,6 +284,91 @@ void drawPlane3D(float x, float y, float z, float width, float length, int r, in
 void drawSphere3D(float x, float y, float z, float radius, int r, int g, int b) {
   DrawSphere((Vector3){x, y, z}, radius, (Color){r, g, b, 255});
 }
+
+void drawCylinder3D(float x, float y, float z, float radiusTop, float radiusBottom, float height, int slices, int r, int g, int b) {
+  DrawCylinder((Vector3){x, y, z}, radiusTop, radiusBottom, height, slices, (Color){r, g, b, 255});
+}
+
+void drawCylinderWires3D(float x, float y, float z, float radiusTop, float radiusBottom, float height, int slices, int r, int g, int b) {
+  DrawCylinderWires((Vector3){x, y, z}, radiusTop, radiusBottom, height, slices, (Color){r, g, b, 255});
+}
+
+void drawBillboard(int textureId, float posX, float posY, float posZ, float size, int r, int g, int b) {
+  int index = textureId - 1;
+  if (index >= 0 && index < MAX_TEXTURES && textureActive[index]) {
+    DrawBillboard(activeCamera, textures[index], (Vector3){posX, posY, posZ}, size, (Color){r, g, b, 255});
+  }
+}
+
+void drawGrid(int slices, float spacing) {
+  DrawGrid(slices, spacing);
+}
+
+int loadModel(const char *path) {
+  if (!IsWindowReady()) return 0;
+  if (path == NULL || path[0] == '\0') return 0;
+  for (int i = 0; i < MAX_MODELS; i++) {
+    if (!modelActive[i]) {
+      Model model = LoadModel(path);
+      if (model.meshCount == 0) return 0;
+      models[i] = model;
+      modelActive[i] = true;
+      return i + 1;
+    }
+  }
+  return 0;
+}
+
+void unloadModel(int id) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_MODELS && modelActive[index]) {
+    UnloadModel(models[index]);
+    modelActive[index] = false;
+  }
+}
+
+void drawModel(int id, float posX, float posY, float posZ, float scale, int r, int g, int b) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_MODELS && modelActive[index]) {
+    DrawModel(models[index], (Vector3){posX, posY, posZ}, scale, (Color){r, g, b, 255});
+  }
+}
+
+void drawModelEx(int id, float posX, float posY, float posZ, float rx, float ry, float rz, float angle, float sx, float sy, float sz, int r, int g, int b) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_MODELS && modelActive[index]) {
+    DrawModelEx(models[index], (Vector3){posX, posY, posZ}, (Vector3){rx, ry, rz}, angle, (Vector3){sx, sy, sz}, (Color){r, g, b, 255});
+  }
+}
+
+void drawModelWires(int id, float posX, float posY, float posZ, float scale, int r, int g, int b) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_MODELS && modelActive[index]) {
+    DrawModelWires(models[index], (Vector3){posX, posY, posZ}, scale, (Color){r, g, b, 255});
+  }
+}
+
+void drawModelWiresEx(int id, float posX, float posY, float posZ, float rx, float ry, float rz, float angle, float sx, float sy, float sz, int r, int g, int b) {
+  int index = id - 1;
+  if (index >= 0 && index < MAX_MODELS && modelActive[index]) {
+    DrawModelWiresEx(models[index], (Vector3){posX, posY, posZ}, (Vector3){rx, ry, rz}, angle, (Vector3){sx, sy, sz}, (Color){r, g, b, 255});
+  }
+}
+
+void setModelTexture(int modelId, int materialIndex, int textureId) {
+  int mIndex = modelId - 1;
+  int tIndex = textureId - 1;
+  if (mIndex >= 0 && mIndex < MAX_MODELS && modelActive[mIndex] &&
+      tIndex >= 0 && tIndex < MAX_TEXTURES && textureActive[tIndex]) {
+    if (materialIndex >= 0 && materialIndex < models[mIndex].materialCount) {
+      SetMaterialTexture(&models[mIndex].materials[materialIndex], MATERIAL_MAP_DIFFUSE, textures[tIndex]);
+    }
+  }
+}
+void takeScreenshot(const char *path) {
+  TakeScreenshot(path);
+}
+
 void setTargetFPS(int fps) { SetTargetFPS(fps); }
 
 void drawPixel(int posX, int posY, int r, int g, int b) { DrawPixel(posX, posY, (Color){r, g, b, 255}); }

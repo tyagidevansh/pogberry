@@ -474,3 +474,53 @@ RAYLIB_EXPORT float measureTextFont(int id, const char *text, float size, float 
 }
 
 RAYLIB_EXPORT int readChar(void) { return 65; }
+
+RAYLIB_EXPORT void begin3D(float camX, float camY, float camZ, float targetX, float targetY, float targetZ, float fovy) {
+  (void)camX; (void)camY; (void)camZ; (void)targetX; (void)targetY; (void)targetZ; (void)fovy;
+}
+RAYLIB_EXPORT void begin3DEx(float camX, float camY, float camZ, float targetX, float targetY, float targetZ, float upX, float upY, float upZ, float fovy) {
+  (void)camX; (void)camY; (void)camZ; (void)targetX; (void)targetY; (void)targetZ; (void)upX; (void)upY; (void)upZ; (void)fovy;
+}
+RAYLIB_EXPORT void end3D(void) {}
+RAYLIB_EXPORT void drawCube3D(float x, float y, float z, float w, float h, float l, int r, int g, int b) {
+  (void)x; (void)y; (void)z; (void)w; (void)h; (void)l; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawCubeWires3D(float x, float y, float z, float w, float h, float l, int r, int g, int b) {
+  (void)x; (void)y; (void)z; (void)w; (void)h; (void)l; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawPlane3D(float x, float y, float z, float w, float l, int r, int g, int b) {
+  (void)x; (void)y; (void)z; (void)w; (void)l; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawSphere3D(float x, float y, float z, float radius, int r, int g, int b) {
+  (void)x; (void)y; (void)z; (void)radius; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawCylinder3D(float x, float y, float z, float radiusTop, float radiusBottom, float height, int slices, int r, int g, int b) {
+  (void)x; (void)y; (void)z; (void)radiusTop; (void)radiusBottom; (void)height; (void)slices; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawCylinderWires3D(float x, float y, float z, float radiusTop, float radiusBottom, float height, int slices, int r, int g, int b) {
+  (void)x; (void)y; (void)z; (void)radiusTop; (void)radiusBottom; (void)height; (void)slices; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawBillboard(int textureId, float posX, float posY, float posZ, float size, int r, int g, int b) {
+  (void)textureId; (void)posX; (void)posY; (void)posZ; (void)size; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawGrid(int slices, float spacing) {
+  (void)slices; (void)spacing;
+}
+RAYLIB_EXPORT int loadModel(const char *path) { (void)path; return 1; }
+RAYLIB_EXPORT void unloadModel(int id) { (void)id; }
+RAYLIB_EXPORT void drawModel(int id, float posX, float posY, float posZ, float scale, int r, int g, int b) {
+  (void)id; (void)posX; (void)posY; (void)posZ; (void)scale; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawModelEx(int id, float posX, float posY, float posZ, float rx, float ry, float rz, float angle, float sx, float sy, float sz, int r, int g, int b) {
+  (void)id; (void)posX; (void)posY; (void)posZ; (void)rx; (void)ry; (void)rz; (void)angle; (void)sx; (void)sy; (void)sz; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawModelWires(int id, float posX, float posY, float posZ, float scale, int r, int g, int b) {
+  (void)id; (void)posX; (void)posY; (void)posZ; (void)scale; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawModelWiresEx(int id, float posX, float posY, float posZ, float rx, float ry, float rz, float angle, float sx, float sy, float sz, int r, int g, int b) {
+  (void)id; (void)posX; (void)posY; (void)posZ; (void)rx; (void)ry; (void)rz; (void)angle; (void)sx; (void)sy; (void)sz; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void setModelTexture(int modelId, int materialIndex, int textureId) {
+  (void)modelId; (void)materialIndex; (void)textureId;
+}
+RAYLIB_EXPORT void takeScreenshot(const char *path) { (void)path; }

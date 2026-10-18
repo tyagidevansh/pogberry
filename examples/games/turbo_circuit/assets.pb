@@ -1,0 +1,241 @@
+// TURBO CIRCUIT: OVERDRIVE — Asset Manager
+use "pb_gui" as gui;
+
+export class AssetManager {
+  init(baseDir) {
+    this.baseDir = baseDir;
+    this.modelsDir = baseDir + "/assets/models";
+    this.audioDir = baseDir + "/assets/audio";
+
+    // 3D Model Handles
+    this.modelPhantom = 0;
+    this.modelValkyrie = 0;
+    this.modelShinobi = 0;
+    this.modelVanta = 0;
+    this.modelRivalFormula = 0;
+    this.modelDelivery = 0;
+    this.modelTruck = 0;
+    this.modelSedan = 0;
+    this.modelTaxi = 0;
+    this.modelAmbulance = 0;
+    this.modelCone = 0;
+    this.modelBox = 0;
+    this.modelBuildingA = 0;
+    this.modelBuildingB = 0;
+    this.modelBuildingC = 0;
+    this.modelBuildingD = 0;
+    this.modelGarage = 0;
+
+    // Sound Handles
+    this.sndCountdownLow = 0;
+    this.sndCountdownHigh = 0;
+    this.sndCheckpoint = 0;
+    this.sndSelect = 0;
+    this.sndConfirm = 0;
+    this.sndNitro = 0;
+    this.sndSkid = 0;
+    this.sndCrash = 0;
+    this.sndWin = 0;
+    this.sndEngineStart = 0;
+
+    // Music Handles
+    this.musicCruise = 0;
+    this.musicClimax = 0;
+    this.activeMusic = 0;
+    this.musicMuted = false;
+
+    // Post processing shader
+    this.shaderVelocity = nil;
+  }
+
+  loadAll() {
+    gui.initAudio();
+
+    // Load 3D Models
+    this.modelPhantom = gui.loadModel(this.modelsDir + "/race-future.obj");
+    this.modelValkyrie = gui.loadModel(this.modelsDir + "/suv-luxury.obj");
+    this.modelShinobi = gui.loadModel(this.modelsDir + "/sedan-sports.obj");
+    this.modelVanta = gui.loadModel(this.modelsDir + "/police.obj");
+    this.modelRivalFormula = gui.loadModel(this.modelsDir + "/race.obj");
+    this.modelDelivery = gui.loadModel(this.modelsDir + "/delivery.obj");
+    this.modelTruck = gui.loadModel(this.modelsDir + "/truck.obj");
+    this.modelSedan = gui.loadModel(this.modelsDir + "/sedan.obj");
+    this.modelTaxi = gui.loadModel(this.modelsDir + "/taxi.obj");
+    this.modelAmbulance = gui.loadModel(this.modelsDir + "/ambulance.obj");
+    this.modelCone = gui.loadModel(this.modelsDir + "/cone.obj");
+    this.modelBox = gui.loadModel(this.modelsDir + "/box.obj");
+
+    // City models
+    this.modelBuildingA = gui.loadModel(this.modelsDir + "/building-small-a.glb");
+    this.modelBuildingB = gui.loadModel(this.modelsDir + "/building-small-b.glb");
+    this.modelBuildingC = gui.loadModel(this.modelsDir + "/building-small-c.glb");
+    this.modelBuildingD = gui.loadModel(this.modelsDir + "/building-small-d.glb");
+    this.modelGarage = gui.loadModel(this.modelsDir + "/building-garage.glb");
+
+    // Load Sounds
+    this.sndCountdownLow = gui.loadSound(this.audioDir + "/countdown_low.wav");
+    this.sndCountdownHigh = gui.loadSound(this.audioDir + "/countdown_high.wav");
+    this.sndCheckpoint = gui.loadSound(this.audioDir + "/checkpoint.wav");
+    this.sndSelect = gui.loadSound(this.audioDir + "/ui_select.wav");
+    this.sndConfirm = gui.loadSound(this.audioDir + "/ui_confirm.wav");
+    this.sndNitro = gui.loadSound(this.audioDir + "/nitro.wav");
+    this.sndSkid = gui.loadSound(this.audioDir + "/skid.wav");
+    this.sndCrash = gui.loadSound(this.audioDir + "/crash.wav");
+    this.sndWin = gui.loadSound(this.audioDir + "/win.wav");
+    this.sndEngineStart = gui.loadSound(this.baseDir + "/assets/engine-start.wav");
+
+    // Volumes
+    if (this.sndEngineStart > 0) gui.setSoundVolume(this.sndEngineStart, 0.45);
+    if (this.sndNitro > 0) gui.setSoundVolume(this.sndNitro, 0.55);
+    if (this.sndSkid > 0) gui.setSoundVolume(this.sndSkid, 0.35);
+    if (this.sndCrash > 0) gui.setSoundVolume(this.sndCrash, 0.60);
+    if (this.sndCheckpoint > 0) gui.setSoundVolume(this.sndCheckpoint, 0.50);
+    if (this.sndCountdownLow > 0) gui.setSoundVolume(this.sndCountdownLow, 0.55);
+    if (this.sndCountdownHigh > 0) gui.setSoundVolume(this.sndCountdownHigh, 0.65);
+    if (this.sndSelect > 0) gui.setSoundVolume(this.sndSelect, 0.40);
+    if (this.sndConfirm > 0) gui.setSoundVolume(this.sndConfirm, 0.50);
+
+    // Music
+    this.musicCruise = gui.loadMusic(this.baseDir + "/assets/neon-sign-circuit.ogg");
+    this.musicClimax = gui.loadMusic(this.baseDir + "/assets/neon-sign-circuit-climax.ogg");
+    if (this.musicCruise > 0) {
+      gui.setMusicVolume(this.musicCruise, 0.40);
+      gui.playMusic(this.musicCruise);
+      this.activeMusic = this.musicCruise;
+    }
+    if (this.musicClimax > 0) {
+      gui.setMusicVolume(this.musicClimax, 0.40);
+    }
+
+    // Shader
+    this.shaderVelocity = gui.loadShader(nil, this.baseDir + "/assets/velocity.fs");
+  }
+
+  playCarModel(carId, x, y, z, rotY, scale, r, g, b) {
+    let m = this.modelPhantom;
+    if (carId == 1) m = this.modelValkyrie;
+    else if (carId == 2) m = this.modelShinobi;
+    else if (carId == 3) m = this.modelVanta;
+
+    if (m > 0) {
+      // Draw 3D model rotated around Y axis
+      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+    } else {
+      // Fallback primitive
+      gui.drawCube3D(x, y + 0.5, z, 1.8, 0.6, 3.2, r, g, b);
+    }
+  }
+
+  playTrafficModel(typeId, x, y, z, rotY, scale, r, g, b) {
+    let m = this.modelDelivery;
+    if (typeId == 1) m = this.modelTruck;
+    else if (typeId == 2) m = this.modelSedan;
+    else if (typeId == 3) m = this.modelTaxi;
+    else if (typeId == 4) m = this.modelAmbulance;
+    else if (typeId == 5) m = this.modelRivalFormula;
+
+    if (m > 0) {
+      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+    } else {
+      gui.drawCube3D(x, y + 0.6, z, 1.9, 0.8, 3.4, r, g, b);
+    }
+  }
+
+  playBuildingModel(variant, x, y, z, scale, rotY) {
+    let m = this.modelBuildingA;
+    if (variant == 1) m = this.modelBuildingB;
+    else if (variant == 2) m = this.modelBuildingC;
+    else if (variant == 3) m = this.modelBuildingD;
+
+    if (m > 0) {
+      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+    } else {
+      gui.drawCube3D(x, y + scale * 4.0, z, scale * 3.0, scale * 8.0, scale * 3.0, 40, 45, 65);
+    }
+  }
+
+  playHazardCone(x, y, z, scale) {
+    if (this.modelCone > 0) {
+      gui.drawModel(this.modelCone, x, y, z, scale, 255, 120, 20);
+    } else {
+      gui.drawCylinder3D(x, y + 0.5, z, 0.05, 0.4, 0.9, 8, 255, 120, 20);
+    }
+  }
+
+  playHazardBox(x, y, z, scale) {
+    if (this.modelBox > 0) {
+      gui.drawModel(this.modelBox, x, y, z, scale, 210, 180, 110);
+    } else {
+      gui.drawCube3D(x, y + scale * 0.5, z, scale, scale, scale, 210, 180, 110);
+    }
+  }
+
+  updateAudio(isClimaxWanted) {
+    if (this.musicCruise > 0) gui.updateMusic(this.musicCruise);
+    if (this.musicClimax > 0) gui.updateMusic(this.musicClimax);
+
+    if (this.musicMuted) return;
+
+    if (isClimaxWanted and this.activeMusic != this.musicClimax and this.musicClimax > 0) {
+      if (this.musicCruise > 0) gui.stopMusic(this.musicCruise);
+      gui.playMusic(this.musicClimax);
+      this.activeMusic = this.musicClimax;
+    } else if (!isClimaxWanted and this.activeMusic != this.musicCruise and this.musicCruise > 0) {
+      if (this.musicClimax > 0) gui.stopMusic(this.musicClimax);
+      gui.playMusic(this.musicCruise);
+      this.activeMusic = this.musicCruise;
+    }
+  }
+
+  toggleMute() {
+    this.musicMuted = !this.musicMuted;
+    let vol = 0.40;
+    if (this.musicMuted) vol = 0.0;
+    if (this.musicCruise > 0) gui.setMusicVolume(this.musicCruise, vol);
+    if (this.musicClimax > 0) gui.setMusicVolume(this.musicClimax, vol);
+  }
+
+  playSfx(snd) {
+    if (snd > 0) gui.playSound(snd);
+  }
+
+  unloadAll() {
+    // Unload Models
+    if (this.modelPhantom > 0) gui.unloadModel(this.modelPhantom);
+    if (this.modelValkyrie > 0) gui.unloadModel(this.modelValkyrie);
+    if (this.modelShinobi > 0) gui.unloadModel(this.modelShinobi);
+    if (this.modelVanta > 0) gui.unloadModel(this.modelVanta);
+    if (this.modelRivalFormula > 0) gui.unloadModel(this.modelRivalFormula);
+    if (this.modelDelivery > 0) gui.unloadModel(this.modelDelivery);
+    if (this.modelTruck > 0) gui.unloadModel(this.modelTruck);
+    if (this.modelSedan > 0) gui.unloadModel(this.modelSedan);
+    if (this.modelTaxi > 0) gui.unloadModel(this.modelTaxi);
+    if (this.modelAmbulance > 0) gui.unloadModel(this.modelAmbulance);
+    if (this.modelCone > 0) gui.unloadModel(this.modelCone);
+    if (this.modelBox > 0) gui.unloadModel(this.modelBox);
+    if (this.modelBuildingA > 0) gui.unloadModel(this.modelBuildingA);
+    if (this.modelBuildingB > 0) gui.unloadModel(this.modelBuildingB);
+    if (this.modelBuildingC > 0) gui.unloadModel(this.modelBuildingC);
+    if (this.modelBuildingD > 0) gui.unloadModel(this.modelBuildingD);
+    if (this.modelGarage > 0) gui.unloadModel(this.modelGarage);
+
+    // Unload Sounds
+    if (this.sndCountdownLow > 0) gui.unloadSound(this.sndCountdownLow);
+    if (this.sndCountdownHigh > 0) gui.unloadSound(this.sndCountdownHigh);
+    if (this.sndCheckpoint > 0) gui.unloadSound(this.sndCheckpoint);
+    if (this.sndSelect > 0) gui.unloadSound(this.sndSelect);
+    if (this.sndConfirm > 0) gui.unloadSound(this.sndConfirm);
+    if (this.sndNitro > 0) gui.unloadSound(this.sndNitro);
+    if (this.sndSkid > 0) gui.unloadSound(this.sndSkid);
+    if (this.sndCrash > 0) gui.unloadSound(this.sndCrash);
+    if (this.sndWin > 0) gui.unloadSound(this.sndWin);
+    if (this.sndEngineStart > 0) gui.unloadSound(this.sndEngineStart);
+
+    // Unload Music & Shader
+    if (this.musicCruise > 0) gui.unloadMusic(this.musicCruise);
+    if (this.musicClimax > 0) gui.unloadMusic(this.musicClimax);
+    if (this.shaderVelocity != nil) gui.unloadShader(this.shaderVelocity);
+
+    gui.closeAudio();
+  }
+}
