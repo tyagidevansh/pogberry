@@ -5,7 +5,7 @@ export class RecordManager {
   init(filepath) {
     this.path = filepath;
     // Default best lap times in seconds for each track
-    this.records = [42.50, 52.80, 63.40];
+    this.records = [42.50, 52.80, 63.40, 36.20];
     this.load();
   }
 

@@ -99,21 +99,17 @@ for (let i = 0; i < 4; i += 1) {
   rivals.push(rCar);
 }
 
-for (let i = 0; i < 30; i += 1) {
+// 3. Capture Track 0: Neo Shibuya
+let track0 = track_mod.Track(const.TRACK_SHIBUYA);
+for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 1.0 + i * dt;
-  player.trackDistance = 200.0;
-  player.worldX = track.getCurveOffset(player.z, player.trackDistance) + player.x;
-  for (let r = 0; r < len(rivals); r += 1) {
-    rivals[r].trackDistance = 220.0 + r * 15.0;
-    rivals[r].worldX = track.getCurveOffset(rivals[r].z, player.trackDistance) + rivals[r].x;
-  }
-  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
-  particles.update(dt);
+  let dist = 220.0;
+  player.trackDistance = dist;
+  player.worldX = player.x;
 
-  cam.setLookCurve(track.getCurveOffset(-34.0, 200.0));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.2, 0.0, true, dt);
-  track.update(player.speed, dt);
+  cam.setLookAhead(track0.getCurveOffset(-34.0, dist), track0.getYOffset(-34.0, dist));
+  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.1, 0.0, true, dt);
 
   let tSpec = const.getTrackSpec(0);
   let sky = tSpec["skyColor"];
@@ -122,42 +118,34 @@ for (let i = 0; i < 30; i += 1) {
 
   cam.begin3DPass();
   gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
-  track.draw(0.0, 200.0, t, assets);
-  for (let r = 0; r < len(rivals); r += 1) rivals[r].draw(assets, t);
+  track0.draw(0.0, dist, t, assets);
+  for (let r = 0; r < len(rivals); r += 1) {
+    rivals[r].worldX = track0.getCurveOffset(rivals[r].z, dist) + rivals[r].x;
+    rivals[r].draw(assets, t);
+  }
   player.draw(assets, t);
-  particles.draw();
   cam.end3DPass();
 
   ui.updateDimensions();
   ui.setMode(const.MODE_GRAND_PRIX);
-  ui.setBanner("OBJECTIVE: PODIUM FINISH (TOP 3)", "RACE 5 RIVALS // 3 LAPS", 4.0, 255, 220, 40);
-  ui.drawHUD(player, 1, 3, 14.5, 0.0, 2, 5, true, t, 200.0, 1800.0, rivals);
+  ui.setBanner("NEO SHIBUYA // DOWNTOWN FLYOVER", "CIRCUIT 1 OF 4", 3.0, 0, 240, 255);
+  ui.drawHUD(player, 1, 3, 14.5, 0.0, 2, 5, true, t, dist, 1800.0, rivals);
   gui.endDrawing();
 }
-gui.takeScreenshot("race.png");
-gui.takeScreenshot("test_assets/race.png");
-print("Captured race.png");
+gui.takeScreenshot("track_shibuya.png");
+gui.takeScreenshot("test_assets/track_shibuya.png");
+print("Captured track_shibuya.png");
 
-// 4. Capture Outrun Mode with Traffic and Arcade Timer
-let trafficList = [];
-for (let i = 0; i < 6; i += 1) {
-  let tf = car_mod.TrafficCar(-25.0 - i * 22.0);
-  tf.x = -2.5 + (i % 3) * 2.5;
-  trafficList.push(tf);
-}
-
+// 4. Capture Track 1: Sunset Horizon (Coastal Ocean Highway)
+let track1 = track_mod.Track(const.TRACK_SUNSET);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 2.0 + i * dt;
-  let dist = 650.0;
+  let dist = 350.0;
   player.trackDistance = dist;
-  player.worldX = track.getCurveOffset(player.z, dist) + player.x;
+  player.worldX = player.x;
 
-  for (let k = 0; k < len(trafficList); k += 1) {
-    trafficList[k].syncPosition(track, dist);
-  }
-
-  cam.setLookCurve(track.getCurveOffset(-34.0, dist));
+  cam.setLookAhead(track1.getCurveOffset(-34.0, dist), track1.getYOffset(-34.0, dist));
   cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.0, 0.0, false, dt);
 
   let tSpec = const.getTrackSpec(1);
@@ -167,21 +155,87 @@ for (let i = 0; i < 20; i += 1) {
 
   cam.begin3DPass();
   gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
-  track.draw(0.0, dist, t, assets);
-  for (let k = 0; k < len(trafficList); k += 1) trafficList[k].draw(assets);
+  track1.draw(0.0, dist, t, assets);
   player.draw(assets, t);
   cam.end3DPass();
 
   ui.updateDimensions();
   ui.setMode(const.MODE_OUTRUN);
-  ui.setOutrunState(42.5, 2, 1200.0, dist, 4);
-  ui.setBanner("CHECKPOINT! +20 SECONDS", "STAGE 2: SPEEDWAY WEAVE", 3.0, 0, 255, 230);
-  ui.drawHUD(player, 1, 999, 28.0, 0.0, 1, 1, false, t, dist, 2200.0, nil);
+  ui.setOutrunState(44.0, 1, 600.0, dist, 0);
+  ui.setBanner("SUNSET HORIZON // PACIFIC COAST", "CIRCUIT 2 OF 4", 3.0, 255, 140, 40);
+  ui.drawHUD(player, 1, 999, 22.0, 0.0, 1, 1, false, t, dist, 2200.0, nil);
   gui.endDrawing();
 }
-gui.takeScreenshot("outrun.png");
-gui.takeScreenshot("test_assets/outrun.png");
-print("Captured outrun.png");
+gui.takeScreenshot("track_sunset.png");
+gui.takeScreenshot("test_assets/track_sunset.png");
+print("Captured track_sunset.png");
+
+// 5. Capture Track 2: Nebula Canyon (Titan Badlands)
+let track2 = track_mod.Track(const.TRACK_CANYON);
+for (let i = 0; i < 20; i += 1) {
+  let dt = 0.016;
+  let t = 3.0 + i * dt;
+  let dist = 420.0;
+  player.trackDistance = dist;
+  player.worldX = player.x;
+
+  cam.setLookAhead(track2.getCurveOffset(-34.0, dist), track2.getYOffset(-34.0, dist));
+  cam.updateFollow(player.worldX, player.y, player.z, player.speed, -0.15, 0.0, false, dt);
+
+  let tSpec = const.getTrackSpec(2);
+  let sky = tSpec["skyColor"];
+  gui.beginDrawing();
+  gui.clearBackground(sky[0], sky[1], sky[2]);
+
+  cam.begin3DPass();
+  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  track2.draw(0.0, dist, t, assets);
+  player.draw(assets, t);
+  cam.end3DPass();
+
+  ui.updateDimensions();
+  ui.setMode(const.MODE_TIME_ATTACK);
+  ui.setTimeAttackDelta(-0.62);
+  ui.setBanner("NEBULA CANYON // TITAN RIFT", "CIRCUIT 3 OF 4", 3.0, 255, 200, 40);
+  ui.drawHUD(player, 2, 4, 38.0, 63.4, 1, 1, false, t, dist, 2600.0, nil);
+  gui.endDrawing();
+}
+gui.takeScreenshot("track_canyon.png");
+gui.takeScreenshot("test_assets/track_canyon.png");
+print("Captured track_canyon.png");
+
+// 6. Capture Track 3: Hyperion Speedway (Orbital Superspeedway)
+let track3 = track_mod.Track(const.TRACK_HYPERION);
+for (let i = 0; i < 20; i += 1) {
+  let dt = 0.016;
+  let t = 4.0 + i * dt;
+  let dist = 600.0;
+  player.trackDistance = dist;
+  player.worldX = player.x;
+
+  cam.setLookAhead(track3.getCurveOffset(-34.0, dist), track3.getYOffset(-34.0, dist));
+  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.0, 0.0, true, dt);
+
+  let tSpec = const.getTrackSpec(3);
+  let sky = tSpec["skyColor"];
+  gui.beginDrawing();
+  gui.clearBackground(sky[0], sky[1], sky[2]);
+
+  cam.begin3DPass();
+  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  track3.draw(0.0, dist, t, assets);
+  player.draw(assets, t);
+  cam.end3DPass();
+
+  ui.updateDimensions();
+  ui.setMode(const.MODE_GRAND_PRIX);
+  ui.setBanner("HYPERION SPEEDWAY // ORBITAL RING", "CIRCUIT 4 OF 4", 3.0, 0, 255, 170);
+  ui.drawHUD(player, 1, 4, 18.0, 0.0, 1, 5, true, t, dist, 2400.0, nil);
+  gui.endDrawing();
+}
+gui.takeScreenshot("track_hyperion.png");
+gui.takeScreenshot("test_assets/track_hyperion.png");
+print("Captured track_hyperion.png");
 
 assets.unloadAll();
 gui.closeWindow();

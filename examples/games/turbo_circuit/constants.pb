@@ -31,7 +31,8 @@ export let TOTAL_CARS = 4;
 export let TRACK_SHIBUYA = 0; // Neo Shibuya Expressway (rainy cyber city, high-rises)
 export let TRACK_SUNSET = 1;  // Sunset Coastline Highway (synthwave golden hour, ocean)
 export let TRACK_CANYON = 2;  // Nebula Canyon Badlands (energy pylons, hazard chicanes)
-export let TOTAL_TRACKS = 3;
+export let TRACK_HYPERION = 3;// Hyperion Orbital Speedway (Zero-G ring, boost pads)
+export let TOTAL_TRACKS = 4;
 
 // Machine Specs: [name, subtitle, topSpeed, accel, driftGrip, maxHull, nitroCapacity, modelName, scale]
 export fun getCarSpec(id) {
@@ -120,8 +121,9 @@ export fun getTrackSpec(id) {
       "difficulty": "EASY",
       "laps": 3,
       "length": 1800.0,
+      "roadWidth": 12.0,
       "skyColor": [4, 6, 16],
-      "roadColor": [16, 18, 28],
+      "roadColor": [14, 16, 26],
       "railColorA": [0, 240, 255],
       "railColorB": [255, 40, 160],
       "theme": "city"
@@ -134,24 +136,41 @@ export fun getTrackSpec(id) {
       "difficulty": "MEDIUM",
       "laps": 3,
       "length": 2200.0,
-      "skyColor": [38, 12, 34],
-      "roadColor": [26, 20, 32],
-      "railColorA": [255, 140, 40],
-      "railColorB": [255, 60, 180],
+      "roadWidth": 10.6,
+      "skyColor": [45, 14, 38],
+      "roadColor": [26, 18, 30],
+      "railColorA": [255, 150, 40],
+      "railColorB": [255, 60, 160],
       "theme": "sunset"
     };
   }
+  if (id == 2) {
+    return {
+      "name": "NEBULA CANYON",
+      "subtitle": "Industrial Badlands // Titan Rift",
+      "difficulty": "HARD",
+      "laps": 4,
+      "length": 2600.0,
+      "roadWidth": 9.6,
+      "skyColor": [14, 8, 24],
+      "roadColor": [28, 16, 22],
+      "railColorA": [255, 200, 40],
+      "railColorB": [160, 40, 255],
+      "theme": "canyon"
+    };
+  }
   return {
-    "name": "NEBULA CANYON",
-    "subtitle": "Industrial Badlands // Titan Rift",
-    "difficulty": "HARD",
+    "name": "HYPERION SPEEDWAY",
+    "subtitle": "Orbital Superspeedway // Geo Ring 01",
+    "difficulty": "EXPERT",
     "laps": 4,
-    "length": 2600.0,
-    "skyColor": [12, 8, 22],
-    "roadColor": [22, 18, 26],
-    "railColorA": [255, 200, 40],
-    "railColorB": [120, 40, 255],
-    "theme": "canyon"
+    "length": 2400.0,
+    "roadWidth": 14.0,
+    "skyColor": [2, 4, 14],
+    "roadColor": [10, 14, 24],
+    "railColorA": [0, 255, 170],
+    "railColorB": [0, 210, 255],
+    "theme": "orbital"
   };
 }
 

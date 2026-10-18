@@ -220,7 +220,8 @@ while (!gui.windowShouldClose()) {
   else if (state == const.STATE_COUNTDOWN) {
     let lookDist = 34.0;
     let lookCurve = track.getCurveOffset(-lookDist, distance);
-    cam.setLookCurve(lookCurve);
+    let lookHill = track.getYOffset(-lookDist, distance);
+    cam.setLookAhead(lookCurve, lookHill);
     cam.updateFollow(player.worldX, player.y, player.z, player.speed, player.steer, player.driftAngle, false, dt);
 
     let oldSec = math.ceil(countdownTimer);
@@ -261,10 +262,11 @@ while (!gui.windowShouldClose()) {
     track.update(player.speed, dt);
     particles.update(dt);
 
-    // Dynamic Camera lookahead following road curve
+    // Dynamic Camera lookahead following road curve & elevation crests
     let lookDist = 34.0 + (player.speed / 100.0) * 16.0;
     let lookCurve = track.getCurveOffset(-lookDist, distance);
-    cam.setLookCurve(lookCurve);
+    let lookHill = track.getYOffset(-lookDist, distance);
+    cam.setLookAhead(lookCurve, lookHill);
     cam.updateFollow(player.worldX, player.y, player.z, player.speed, player.steer, player.driftAngle, player.isBoosting, dt);
 
     let tSpec = const.getTrackSpec(selectedTrack);
@@ -336,6 +338,21 @@ while (!gui.windowShouldClose()) {
       cam.addShake(0.35);
       assets.playSfx(assets.sndCheckpoint);
       ui.setBanner("ENERGY CORE HARVESTED!", "+35 NITRO  //  +18 REPAIR", 1.8, 0, 255, 230);
+    }
+
+    // 5b. Boost Pad Collision (Hyperion Speedway)
+    if (selectedTrack == 3) {
+      let padProg = distance - math.floor(distance / 100.0) * 100.0;
+      if (padProg > 34.0 and padProg < 46.0 and math.abs(player.x) < track.roadWidth * 0.25) {
+        if (!player.isBoosting) {
+          player.speed = mu.clamp(player.speed + 22.0, 0.0, player.boostSpeed);
+          player.nitro = mu.clamp(player.nitro + 18.0, 0.0, player.maxNitro);
+          particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+          assets.playSfx(assets.sndNitro);
+          cam.addShake(0.25);
+          ui.setBanner("SUPERCHARGE BOOST PAD!", "+22 MPH  //  +18 NITRO", 1.2, 0, 255, 170);
+        }
+      }
     }
 
     // 6. Hazard Collisions (Cones & Boxes)

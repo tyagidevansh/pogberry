@@ -172,29 +172,29 @@ export class UIRenderer {
     for (let i = 0; i < const.TOTAL_TRACKS; i += 1) {
       let tInfo = const.getTrackSpec(i);
       let tX = 80;
-      let tY = 160 + i * 145;
+      let tY = 145 + i * 122;
       let isSel = (i == selectedTrack);
       let recTime = 99.99;
       if (recordManager != nil) recTime = recordManager.getRecord(i);
 
       if (isSel) {
-        gui.drawRectangleAlpha(tX, tY, 860, 120, 24, 38, 70, 230);
-        gui.drawRectangleLines(tX, tY, 860, 120, 255, 80, 180);
-        gui.drawText(tInfo["name"], tX + 28, tY + 18, 32, 255, 240, 90);
-        gui.drawText(tInfo["subtitle"], tX + 28, tY + 58, 18, 200, 230, 255);
-        gui.drawText("DIFFICULTY: " + tInfo["difficulty"] + "  //  " + str(tInfo["laps"]) + " LAPS", tX + 460, tY + 22, 18, 0, 240, 255);
-        gui.drawText("RECORD: " + str(recTime) + "s", tX + 460, tY + 58, 20, 255, 220, 60);
+        gui.drawRectangleAlpha(tX, tY, 860, 106, 24, 38, 70, 230);
+        gui.drawRectangleLines(tX, tY, 860, 106, 255, 80, 180);
+        gui.drawText(tInfo["name"], tX + 24, tY + 14, 28, 255, 240, 90);
+        gui.drawText(tInfo["subtitle"], tX + 24, tY + 48, 16, 200, 230, 255);
+        gui.drawText("DIFFICULTY: " + tInfo["difficulty"] + "  //  " + str(tInfo["laps"]) + " LAPS", tX + 460, tY + 18, 17, 0, 240, 255);
+        gui.drawText("RECORD: " + str(recTime) + "s", tX + 460, tY + 48, 18, 255, 220, 60);
       } else {
-        gui.drawRectangleAlpha(tX, tY, 860, 120, 12, 16, 32, 170);
-        gui.drawRectangleLines(tX, tY, 860, 120, 60, 70, 90);
-        gui.drawText(tInfo["name"], tX + 28, tY + 18, 28, 170, 190, 210);
-        gui.drawText(tInfo["subtitle"], tX + 28, tY + 58, 18, 120, 140, 160);
-        gui.drawText("DIFFICULTY: " + tInfo["difficulty"], tX + 460, tY + 22, 18, 140, 160, 180);
-        gui.drawText("RECORD: " + str(recTime) + "s", tX + 460, tY + 58, 18, 180, 170, 100);
+        gui.drawRectangleAlpha(tX, tY, 860, 106, 12, 16, 32, 170);
+        gui.drawRectangleLines(tX, tY, 860, 106, 60, 70, 90);
+        gui.drawText(tInfo["name"], tX + 24, tY + 14, 24, 170, 190, 210);
+        gui.drawText(tInfo["subtitle"], tX + 24, tY + 48, 16, 120, 140, 160);
+        gui.drawText("DIFFICULTY: " + tInfo["difficulty"], tX + 460, tY + 18, 17, 140, 160, 180);
+        gui.drawText("RECORD: " + str(recTime) + "s", tX + 460, tY + 48, 17, 180, 170, 100);
       }
     }
 
-    gui.drawText("W / S  CHOOSE TRACK     ENTER  IGNITE ENGINES     ESC  BACK", 80, 645, 22, 255, 230, 90);
+    gui.drawText("W / S  CHOOSE TRACK     ENTER  IGNITE ENGINES     ESC  BACK", 80, 655, 22, 255, 230, 90);
   }
 
   drawStatBar(x, y, label, ratio, r, g, b) {

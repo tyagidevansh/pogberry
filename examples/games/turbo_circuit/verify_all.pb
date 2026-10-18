@@ -27,11 +27,14 @@ let isNew = recordManager.submitLapTime(0, 41.20);
 print("Submitted 41.20s: isNewRecord = " + str(isNew));
 print("New Track 0 record is: " + str(recordManager.getRecord(0)));
 
-// Test all 3 tracks
-for (let tId = 0; tId < 3; tId += 1) {
+// Test all 4 tracks
+for (let tId = 0; tId < const.TOTAL_TRACKS; tId += 1) {
   let track = track_mod.Track(tId);
   track.update(100.0, 0.016);
-  print("Track " + str(tId) + " (" + const.getTrackSpec(tId)["name"] + ") initialized and updated cleanly");
+  let cOffset = track.getCurveOffset(-30.0, 150.0);
+  let yOffset = track.getYOffset(-30.0, 150.0);
+  let inTun = track.isInTunnel(500.0);
+  print("Track " + str(tId) + " (" + const.getTrackSpec(tId)["name"] + ") initialized, curve=" + str(cOffset) + ", hill=" + str(yOffset));
 }
 
 // Test all 4 cars

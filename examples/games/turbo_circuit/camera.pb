@@ -22,10 +22,16 @@ export class ChaseCamera {
     this.shake = 0.0;
     this.orbitAngle = 0.0;
     this.lookCurve = 0.0;
+    this.lookHill = 0.0;
   }
 
   setLookCurve(curve) {
     this.lookCurve = curve;
+  }
+
+  setLookAhead(curve, hill) {
+    this.lookCurve = curve;
+    this.lookHill = hill;
   }
 
   addShake(amount) {
@@ -48,7 +54,7 @@ export class ChaseCamera {
     // 2. Camera target lookahead
     let lookDist = 32.0;
     let targetLookX = carX * 0.35 + (this.lookCurve * 0.45) - steer * 1.0;
-    let targetLookY = 1.2;
+    let targetLookY = 1.2 + (this.lookHill * 0.45);
     let targetLookZ = carZ - lookDist;
 
     this.targetX = mu.lerp(this.targetX, targetLookX, dt * 10.0);
