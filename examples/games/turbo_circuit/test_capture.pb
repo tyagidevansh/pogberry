@@ -33,10 +33,11 @@ for (let i = 0; i < 15; i += 1) {
 
   let tSpec = const.getTrackSpec(0);
   let sky = tSpec["skyColor"];
+  let ground = tSpec["groundColor"];
   gui.beginDrawing();
   gui.clearBackground(sky[0], sky[1], sky[2]);
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  gui.drawPlane3D(0.0, -0.2, -140.0, 260.0, 480.0, ground[0], ground[1], ground[2]);
   track.draw(0.0, 0.0, t, assets);
   cam.end3DPass();
 
@@ -76,10 +77,11 @@ for (let i = 0; i < 15; i += 1) {
   cam.updateCinematic(t);
   let tSpec = const.getTrackSpec(0);
   let sky = tSpec["skyColor"];
+  let ground = tSpec["groundColor"];
   gui.beginDrawing();
   gui.clearBackground(sky[0], sky[1], sky[2]);
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  gui.drawPlane3D(0.0, -0.2, -140.0, 260.0, 480.0, ground[0], ground[1], ground[2]);
   track.draw(0.0, 0.0, t, assets);
   cam.end3DPass();
 
@@ -114,11 +116,12 @@ for (let i = 0; i < 20; i += 1) {
 
   let tSpec = const.getTrackSpec(0);
   let sky = tSpec["skyColor"];
+  let ground = tSpec["groundColor"];
   gui.beginDrawing();
   gui.clearBackground(sky[0], sky[1], sky[2]);
 
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  gui.drawPlane3D(0.0, -0.2, -140.0, 260.0, 480.0, ground[0], ground[1], ground[2]);
   track0.draw(0.0, dist, t, assets);
   for (let r = 0; r < len(rivals); r += 1) {
     rivals[r].worldX = track0.getCurveOffset(rivals[r].z, dist) + rivals[r].x;
@@ -152,11 +155,12 @@ for (let i = 0; i < 20; i += 1) {
 
   let tSpec = const.getTrackSpec(1);
   let sky = tSpec["skyColor"];
+  let ground = tSpec["groundColor"];
   gui.beginDrawing();
   gui.clearBackground(sky[0], sky[1], sky[2]);
 
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  gui.drawPlane3D(0.0, -0.2, -140.0, 260.0, 480.0, ground[0], ground[1], ground[2]);
   track1.draw(0.0, dist, t, assets);
   player.draw(assets, t);
   cam.end3DPass();
@@ -187,11 +191,12 @@ for (let i = 0; i < 20; i += 1) {
 
   let tSpec = const.getTrackSpec(2);
   let sky = tSpec["skyColor"];
+  let ground = tSpec["groundColor"];
   gui.beginDrawing();
   gui.clearBackground(sky[0], sky[1], sky[2]);
 
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  gui.drawPlane3D(0.0, -0.2, -140.0, 260.0, 480.0, ground[0], ground[1], ground[2]);
   track2.draw(0.0, dist, t, assets);
   player.draw(assets, t);
   cam.end3DPass();
@@ -222,11 +227,12 @@ for (let i = 0; i < 20; i += 1) {
 
   let tSpec = const.getTrackSpec(3);
   let sky = tSpec["skyColor"];
+  let ground = tSpec["groundColor"];
   gui.beginDrawing();
   gui.clearBackground(sky[0], sky[1], sky[2]);
 
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  gui.drawPlane3D(0.0, -0.2, -140.0, 260.0, 480.0, ground[0], ground[1], ground[2]);
   track3.draw(0.0, dist, t, assets);
   player.draw(assets, t);
   cam.end3DPass();

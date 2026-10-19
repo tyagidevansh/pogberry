@@ -130,7 +130,8 @@ export fun getTrackSpec(id) {
       "theme": "city",
       "shape": "URBAN RECTANGLE",
       "turns": 6,
-      "elevationProfile": "Flyovers & Subway Dips"
+      "elevationProfile": "Flyovers & Subway Dips",
+      "groundColor": [8, 10, 16]
     };
   }
   if (id == 1) {
@@ -148,7 +149,8 @@ export fun getTrackSpec(id) {
       "theme": "sunset",
       "shape": "COASTAL PENINSULA",
       "turns": 4,
-      "elevationProfile": "Rolling Ocean Bluffs"
+      "elevationProfile": "Rolling Ocean Bluffs",
+      "groundColor": [22, 12, 28]
     };
   }
   if (id == 2) {
@@ -166,7 +168,8 @@ export fun getTrackSpec(id) {
       "theme": "canyon",
       "shape": "SERPENTINE SWITCHBACK",
       "turns": 8,
-      "elevationProfile": "Extreme Mountain Drops"
+      "elevationProfile": "Extreme Mountain Drops",
+      "groundColor": [26, 12, 14]
     };
   }
   return {
@@ -183,7 +186,8 @@ export fun getTrackSpec(id) {
     "theme": "orbital",
     "shape": "ORBITAL TRI-OVAL",
     "turns": 3,
-    "elevationProfile": "Parabolic Banking"
+    "elevationProfile": "Parabolic Banking",
+    "groundColor": [3, 5, 12]
   };
 }
 
@@ -246,6 +250,11 @@ export fun getTrackTangent(id, s) {
   let dx = 320.0 * math.cos(u) + 160.0 * math.cos(2.0 * u);
   let dz = -320.0 * math.sin(u) + 160.0 * math.sin(2.0 * u);
   return [dx, dz];
+}
+
+export fun getTrackHeading(id, s) {
+  let tan = getTrackTangent(id, s);
+  return math.atan2(tan[0], tan[1]);
 }
 
 export fun getTrackBounds(id) {

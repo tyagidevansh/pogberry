@@ -12,14 +12,11 @@ export class Track {
     if (this.spec["roadWidth"] != nil) {
       this.roadWidth = this.spec["roadWidth"];
     }
-    this.segmentLength = 20.0;
-    this.drawDistance = 24; // visible segments ahead
+    this.segmentLength = 6.0;
+    this.drawDistance = 48; // 288m visible road ahead (high fidelity, zero gaps)
 
     // Curve scaling for optimal visual perspective
-    this.curveScale = 0.78;
-    if (this.trackId == 1) this.curveScale = 0.85;
-    else if (this.trackId == 2) this.curveScale = 0.82;
-    else if (this.trackId == 3) this.curveScale = 0.90;
+    this.curveScale = 1.0;
 
     // Precompute 64 2D minimap radar points around closed circuit loop
     this.mapPoints = [];
@@ -55,9 +52,11 @@ export class Track {
 
   initHazards() {
     this.hazards = [];
-    for (let i = 0; i < 6; i += 1) {
-      let hz = -60.0 - i * 55.0;
-      let hx = mu.randFloat(-2.8, 2.8);
+    for (let i = 0; i < 4; i += 1) {
+      let hz = -60.0 - i * 70.0;
+      let side = 1.0;
+      if (i % 2 == 1) side = -1.0;
+      let hx = side * mu.randFloat(2.4, 3.6);
       let kind = rand(2); // 0 = cone/boulder, 1 = box/barrel
       this.hazards.push({"x": hx, "z": hz, "kind": kind, "hit": false});
     }
@@ -83,31 +82,32 @@ export class Track {
       let h = this.hazards[i];
       h["z"] = h["z"] + scrollSpeed * dt;
       if (h["z"] > 14.0) {
-        h["z"] = h["z"] - 330.0;
-        h["x"] = mu.randFloat(-3.0, 3.0);
+        h["z"] = h["z"] - 280.0;
+        let side = 1.0;
+        if (rand(2) == 0) side = -1.0;
+        h["x"] = side * mu.randFloat(2.4, 3.6);
         h["hit"] = false;
       }
     }
   }
 
   // ---------------------------------------------------------------------------
-  // GEOMETRIC CLOSED CIRCUIT CURVES (2D WORLD PATH ROTATION)
+  // GEOMETRIC CLOSED CIRCUIT CURVES (RELATIVE HEADING WITH SOFT SATURATION)
   // ---------------------------------------------------------------------------
   getCurveOffset(z, distance) {
-    let p0 = const.getTrackWorldPoint(this.trackId, distance);
-    let t0 = const.getTrackTangent(this.trackId, distance);
-    let h0 = math.sqrt(t0[0] * t0[0] + t0[1] * t0[1]);
-    if (h0 < 0.001) h0 = 1.0;
-    let fx = t0[0] / h0;
-    let fz = t0[1] / h0;
-    let rx = fz;
-    let rz = -fx;
+    let h0 = const.getTrackHeading(this.trackId, distance);
+    let h1 = const.getTrackHeading(this.trackId, distance - z);
+    let diff = h1 - h0;
+    while (diff > 3.14159265) {
+      diff = diff - 6.2831853;
+    }
+    while (diff < -3.14159265) {
+      diff = diff + 6.2831853;
+    }
 
-    let p1 = const.getTrackWorldPoint(this.trackId, distance - z);
-    let dx = p1[0] - p0[0];
-    let dz = p1[1] - p0[1];
-
-    let lat = dx * rx + dz * rz;
+    let d = -z;
+    let raw = d * math.sin(diff * 0.5) * 0.75;
+    let lat = raw / (1.0 + math.abs(raw) / 16.0);
     return lat * this.curveScale;
   }
 
@@ -116,45 +116,44 @@ export class Track {
   // ---------------------------------------------------------------------------
   getYOffset(z, distance) {
     let d = -z;
+    let base = 0.0;
+    let ahead = 0.0;
     if (this.trackId == 0) {
       // Shibuya: Mild expressway overpass flyover humps and subway descent
       let k = 0.007;
       let b_p = distance * k;
       let s_p = (distance + d) * k;
-      let base = (math.sin(b_p) + math.sin(b_p * 2.0) * 0.4) * 1.8;
-      let ahead = (math.sin(s_p) + math.sin(s_p * 2.0) * 0.4) * 1.8;
-      return ahead - base;
-    }
-    if (this.trackId == 1) {
+      base = (math.sin(b_p) + math.sin(b_p * 2.0) * 0.4) * 1.5;
+      ahead = (math.sin(s_p) + math.sin(s_p * 2.0) * 0.4) * 1.5;
+    } else if (this.trackId == 1) {
       // Sunset: Scenic rolling coastal hills and ocean drops
-      let k = 0.009;
-      let b_p = distance * k;
-      let s_p = (distance + d) * k;
-      let base = (math.sin(b_p) + math.cos(b_p * 0.5) * 0.5) * 3.4;
-      let ahead = (math.sin(s_p) + math.cos(s_p * 0.5) * 0.5) * 3.4;
-      return ahead - base;
-    }
-    if (this.trackId == 2) {
-      // Canyon: Steep mountain climbs, dips and roller-coaster drops
       let k = 0.008;
       let b_p = distance * k;
       let s_p = (distance + d) * k;
-      let base = math.sin(b_p) * 5.2 + math.cos(b_p * 2.2) * 2.2;
-      let ahead = math.sin(s_p) * 5.2 + math.cos(s_p * 2.2) * 2.2;
-      return ahead - base;
+      base = (math.sin(b_p) + math.cos(b_p * 0.5) * 0.5) * 2.2;
+      ahead = (math.sin(s_p) + math.cos(s_p * 0.5) * 0.5) * 2.2;
+    } else if (this.trackId == 2) {
+      // Canyon: Steep mountain climbs, dips and roller-coaster drops
+      let k = 0.007;
+      let b_p = distance * k;
+      let s_p = (distance + d) * k;
+      base = math.sin(b_p) * 3.2 + math.cos(b_p * 2.0) * 1.5;
+      ahead = math.sin(s_p) * 3.2 + math.cos(s_p * 2.0) * 1.5;
+    } else {
+      // Hyperion: Orbital ring high-speed parabolic banking
+      let k = 0.006;
+      let b_p = distance * k;
+      let s_p = (distance + d) * k;
+      base = math.sin(b_p) * 2.0;
+      ahead = math.sin(s_p) * 2.0;
     }
-    // Hyperion: Orbital ring high-speed parabolic banking
-    let k = 0.006;
-    let b_p = distance * k;
-    let s_p = (distance + d) * k;
-    let base = math.sin(b_p) * 2.8;
-    let ahead = math.sin(s_p) * 2.8;
-    return ahead - base;
+    let rawY = ahead - base;
+    return rawY / (1.0 + math.abs(rawY) / 10.0);
   }
 
   getCurvature(z, distance) {
     let lookAhead = this.getCurveOffset(-30.0, distance);
-    return lookAhead * 0.025;
+    return lookAhead * 0.015;
   }
 
   // Check if position is inside an enclosed tunnel section
@@ -226,7 +225,7 @@ export class Track {
     // 1. Render Road Segments & Elevation
     // -------------------------------------------------------------------------
     for (let i = 0; i < this.drawDistance; i += 1) {
-      let segZ = 16.0 - i * this.segmentLength + scroll;
+      let segZ = 12.0 - i * this.segmentLength + scroll;
       let segDist = distance - segZ;
       let curve = this.getCurveOffset(segZ, distance);
       let hill = this.getYOffset(segZ, distance);
@@ -237,7 +236,7 @@ export class Track {
       let midHill = (hill + nextHill) * 0.5;
 
       // Road Surface Plane
-      gui.drawPlane3D(midCurve, midHill, segZ, this.roadWidth, this.segmentLength + 0.2,
+      gui.drawPlane3D(midCurve, midHill, segZ, this.roadWidth, this.segmentLength + 0.35,
                       roadCol[0], roadCol[1], roadCol[2]);
 
       // Racing Curbs / Rumble Strips (Left & Right Shoulders)
@@ -294,8 +293,8 @@ export class Track {
         }
       }
 
-      // Overhead Streetlights / Energy Arches every 3 segments (when not in tunnel)
-      if (!inTunnel and i % 3 == 0) {
+      // Overhead Streetlights / Energy Arches every 5 segments (every 30m when not in tunnel)
+      if (!inTunnel and i % 5 == 0) {
         let archH = 7.5;
         // Left post
         gui.drawCube3D(curve - halfW - 0.5, midHill + archH * 0.5, segZ, 0.25, archH, 0.25, 30, 36, 52);
@@ -310,89 +309,96 @@ export class Track {
     }
 
     // -------------------------------------------------------------------------
-    // 2. Render Roadside Scenery (Unique per Track)
+    // 2. Render Roadside Scenery (Unique per Track, Anchored to World Stations)
     // -------------------------------------------------------------------------
-    for (let i = 0; i < 14; i += 1) {
-      let propZ = -30.0 - i * 28.0 + scroll;
-      let curve = this.getCurveOffset(propZ, distance);
-      let hill = this.getYOffset(propZ, distance);
+    let propInterval = 28.0;
+    let baseStation = math.floor(distance / propInterval);
+    for (let k = 0; k < 12; k += 1) {
+      let stationIdx = baseStation + k;
+      let worldDist = stationIdx * propInterval;
+      let propZ = -(worldDist - distance);
+      if (propZ > -280.0 and propZ < 10.0) {
+        let curve = this.getCurveOffset(propZ, distance);
+        let hill = this.getYOffset(propZ, distance);
+        let i = stationIdx;
 
-      if (this.trackId == 0) {
-        // Neo Shibuya Skyscrapers & Cyber Billboards
-        let bldScaleLeft = 3.0 + ((i * 7) % 3);
-        let bldScaleRight = 3.5 + ((i * 11) % 4);
-        let variantLeft = i % 4;
-        let variantRight = (i + 2) % 4;
+        if (this.trackId == 0) {
+          // Neo Shibuya Skyscrapers & Cyber Billboards
+          let bldScaleLeft = 3.0 + ((i * 7) % 3);
+          let bldScaleRight = 3.5 + ((i * 11) % 4);
+          let variantLeft = i % 4;
+          let variantRight = (i + 2) % 4;
 
-        assets.playBuildingModel(variantLeft, curve - 15.0, hill, propZ, bldScaleLeft, 90.0);
-        assets.playBuildingModel(variantRight, curve + 15.0, hill, propZ - 12.0, bldScaleRight, -90.0);
+          assets.playBuildingModel(variantLeft, curve - 15.0, hill, propZ, bldScaleLeft, 90.0);
+          assets.playBuildingModel(variantRight, curve + 15.0, hill, propZ - 12.0, bldScaleRight, -90.0);
 
-        // Neon Billboards
-        if (i % 2 == 0) {
-          let glowPulse = 180 + math.floor(math.sin(t * 4.0 + i) * 70.0);
-          gui.drawCube3D(curve - 11.5, hill + 5.0, propZ, 0.2, 3.2, 6.0, 255, 40, glowPulse);
-          gui.drawCube3D(curve + 11.5, hill + 5.0, propZ - 8.0, 0.2, 3.2, 6.0, 40, glowPulse, 255);
-        }
-      } else if (this.trackId == 1) {
-        // Sunset Horizon (Pacific Beach Dunes, Palm Trees, Moored Yachts)
-        // Left: Sandy beach dunes & 3D Palm Trees
-        gui.drawPlane3D(curve - 28.0, hill - 0.3, propZ, 32.0, 30.0, 180, 130, 85);
+          // Neon Billboards
+          if (i % 2 == 0) {
+            let glowPulse = 180 + math.floor(math.sin(t * 4.0 + i) * 70.0);
+            gui.drawCube3D(curve - 11.5, hill + 5.0, propZ, 0.2, 3.2, 6.0, 255, 40, glowPulse);
+            gui.drawCube3D(curve + 11.5, hill + 5.0, propZ - 8.0, 0.2, 3.2, 6.0, 40, glowPulse, 255);
+          }
+        } else if (this.trackId == 1) {
+          // Sunset Horizon (Pacific Beach Dunes, Palm Trees, Moored Yachts)
+          // Left: Sandy beach dunes & 3D Palm Trees
+          gui.drawPlane3D(curve - 28.0, hill - 0.3, propZ, 32.0, 30.0, 180, 130, 85);
 
-        // Palm Tree (Trunk + Fronds)
-        gui.drawCylinder3D(curve - 10.5, hill + 3.2, propZ + 4.0, 0.22, 0.42, 6.5, 6, 95, 55, 32);
-        gui.drawSphere3D(curve - 10.5, hill + 6.6, propZ + 4.0, 2.2, 35, 130, 65);
-        gui.drawSphere3D(curve - 10.5, hill + 6.2, propZ + 4.0, 1.4, 60, 170, 80);
+          // Palm Tree (Trunk + Fronds)
+          gui.drawCylinder3D(curve - 10.5, hill + 3.2, propZ + 4.0, 0.22, 0.42, 6.5, 6, 95, 55, 32);
+          gui.drawSphere3D(curve - 10.5, hill + 6.6, propZ + 4.0, 2.2, 35, 130, 65);
+          gui.drawSphere3D(curve - 10.5, hill + 6.2, propZ + 4.0, 1.4, 60, 170, 80);
 
-        // Second Palm Tree
-        gui.drawCylinder3D(curve - 12.5, hill + 3.0, propZ - 6.0, 0.20, 0.38, 6.0, 6, 95, 55, 32);
-        gui.drawSphere3D(curve - 12.5, hill + 6.2, propZ - 6.0, 1.9, 35, 130, 65);
+          // Second Palm Tree
+          gui.drawCylinder3D(curve - 12.5, hill + 3.0, propZ - 6.0, 0.20, 0.38, 6.0, 6, 95, 55, 32);
+          gui.drawSphere3D(curve - 12.5, hill + 6.2, propZ - 6.0, 1.9, 35, 130, 65);
 
-        // Right: Ocean Water & Moored Yachts
-        if (i % 3 == 0) {
-          let yachtX = curve + 32.0 + ((i * 5) % 18);
-          // Boat hull
-          gui.drawCube3D(yachtX, hill - 0.6, propZ, 3.5, 1.2, 8.5, 240, 245, 255);
-          // Sail mast
-          gui.drawCylinder3D(yachtX, hill + 3.5, propZ, 0.1, 0.12, 7.5, 4, 180, 160, 140);
-          // White triangular sail
-          gui.drawCube3D(yachtX, hill + 3.5, propZ + 1.2, 0.08, 5.0, 2.6, 255, 250, 240);
-        }
+          // Right: Ocean Water & Moored Yachts
+          if (i % 3 == 0) {
+            let yachtX = curve + 32.0 + ((i * 5) % 18);
+            // Boat hull
+            gui.drawCube3D(yachtX, hill - 0.6, propZ, 3.5, 1.2, 8.5, 240, 245, 255);
+            // Sail mast
+            gui.drawCylinder3D(yachtX, hill + 3.5, propZ, 0.1, 0.12, 7.5, 4, 180, 160, 140);
+            // White triangular sail
+            gui.drawCube3D(yachtX, hill + 3.5, propZ + 1.2, 0.08, 5.0, 2.6, 255, 250, 240);
+          }
 
-        // Coastal Highway Sign
-        if (i % 4 == 1) {
-          gui.drawCube3D(curve, hill + 6.8, propZ, 8.5, 1.6, 0.3, 20, 85, 55);
-        }
-      } else if (this.trackId == 2) {
-        // Nebula Canyon (Towering Sandstone Spire Cliffs, Purple Crystals & Rings)
-        let rockH = 14.0 + ((i * 9) % 16);
-        // Left Canyon Rock Wall
-        gui.drawCylinder3D(curve - 15.5, hill + rockH * 0.5, propZ, 4.5, 7.5, rockH, 8, 140, 50, 40);
-        // Right Canyon Rock Wall
-        gui.drawCylinder3D(curve + 15.5, hill + rockH * 0.5, propZ - 10.0, 4.5, 7.5, rockH, 8, 140, 50, 40);
+          // Coastal Highway Sign
+          if (i % 4 == 1) {
+            gui.drawCube3D(curve, hill + 6.8, propZ, 8.5, 1.6, 0.3, 20, 85, 55);
+          }
+        } else if (this.trackId == 2) {
+          // Nebula Canyon (Towering Sandstone Spire Cliffs, Purple Crystals & Rings)
+          let rockH = 14.0 + ((i * 9) % 16);
+          // Left Canyon Rock Wall
+          gui.drawCylinder3D(curve - 15.5, hill + rockH * 0.5, propZ, 4.5, 7.5, rockH, 8, 140, 50, 40);
+          // Right Canyon Rock Wall
+          gui.drawCylinder3D(curve + 15.5, hill + rockH * 0.5, propZ - 10.0, 4.5, 7.5, rockH, 8, 140, 50, 40);
 
-        // Glowing Purple & Amber Alien Crystals
-        let crystalGlow = 180 + math.floor(math.sin(t * 5.0 + i) * 60.0);
-        gui.drawCylinder3D(curve - 15.5, hill + rockH + 2.0, propZ, 0.05, 1.5, 4.2, 5, 200, 50, crystalGlow);
-        gui.drawCylinder3D(curve + 15.5, hill + rockH + 2.0, propZ - 10.0, 0.05, 1.5, 4.2, 5, 255, crystalGlow, 50);
+          // Glowing Purple & Amber Alien Crystals
+          let crystalGlow = 180 + math.floor(math.sin(t * 5.0 + i) * 60.0);
+          gui.drawCylinder3D(curve - 15.5, hill + rockH + 2.0, propZ, 0.05, 1.5, 4.2, 5, 200, 50, crystalGlow);
+          gui.drawCylinder3D(curve + 15.5, hill + rockH + 2.0, propZ - 10.0, 0.05, 1.5, 4.2, 5, 255, crystalGlow, 50);
 
-        // Giant Overhead Floating Energy Rings
-        if (i % 3 == 1) {
-          gui.drawCylinderWires3D(curve, hill + 6.5, propZ, 6.0, 6.0, 1.2, 16, 255, 150, 30);
-        }
-      } else {
-        // Hyperion Speedway (Orbital Solar Panels, Satellites & Space Arrays)
-        // Giant Blue Solar Panels on left and right
-        let panelW = 9.0;
-        gui.drawCube3D(curve - 18.0, hill + 5.0, propZ, panelW, 0.25, 6.0, 30, 80, 200);
-        gui.drawCube3D(curve + 18.0, hill + 5.0, propZ - 8.0, panelW, 0.25, 6.0, 30, 80, 200);
+          // Giant Overhead Floating Energy Rings
+          if (i % 3 == 1) {
+            gui.drawCylinderWires3D(curve, hill + 6.5, propZ, 6.0, 6.0, 1.2, 16, 255, 150, 30);
+          }
+        } else {
+          // Hyperion Speedway (Orbital Solar Panels, Satellites & Space Arrays)
+          // Giant Blue Solar Panels on left and right
+          let panelW = 9.0;
+          gui.drawCube3D(curve - 18.0, hill + 5.0, propZ, panelW, 0.25, 6.0, 30, 80, 200);
+          gui.drawCube3D(curve + 18.0, hill + 5.0, propZ - 8.0, panelW, 0.25, 6.0, 30, 80, 200);
 
-        // Pylon mast
-        gui.drawCube3D(curve - 18.0, hill + 2.5, propZ, 0.4, 5.0, 0.4, 90, 100, 120);
-        gui.drawCube3D(curve + 18.0, hill + 2.5, propZ - 8.0, 0.4, 5.0, 0.4, 90, 100, 120);
+          // Pylon mast
+          gui.drawCube3D(curve - 18.0, hill + 2.5, propZ, 0.4, 5.0, 0.4, 90, 100, 120);
+          gui.drawCube3D(curve + 18.0, hill + 2.5, propZ - 8.0, 0.4, 5.0, 0.4, 90, 100, 120);
 
-        // Floating navigation beacon rings
-        if (i % 2 == 1) {
-          gui.drawCylinderWires3D(curve, hill + 6.2, propZ, 7.5, 7.5, 0.8, 14, 0, 255, 180);
+          // Floating navigation beacon rings
+          if (i % 2 == 1) {
+            gui.drawCylinderWires3D(curve, hill + 6.2, propZ, 7.5, 7.5, 0.8, 14, 0, 255, 180);
+          }
         }
       }
     }

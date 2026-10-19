@@ -36,6 +36,9 @@ export class Vehicle {
     this.maxNitro = this.spec["nitroCapacity"];
     this.nitro = this.maxNitro;
     this.isBoosting = false;
+    this.wallDamageCooldown = 0.0;
+    this.shieldRegenDelay = 0.0;
+    this.spinTimer = 0.0;
 
     // AI parameters
     this.aiLane = 0.0;
@@ -54,6 +57,34 @@ export class Vehicle {
   }
 
   updatePlayer(dt, track, particles, assets) {
+    // 0. Spin-out handling (when shield is depleted or during severe impact)
+    if (this.spinTimer > 0.0) {
+      this.spinTimer = this.spinTimer - dt;
+      this.speed = mu.approach(this.speed, 20.0, dt * 50.0);
+      this.driftAngle = this.driftAngle + 680.0 * dt;
+      this.trackDistance = this.trackDistance + this.speed * dt;
+      this.worldX = this.x;
+      particles.emitDriftSmoke(this.worldX, 0.0, this.z, 1.0);
+      if (this.hitFlash > 0.0) this.hitFlash = this.hitFlash - dt;
+      if (this.spinTimer <= 0.0) {
+        this.driftAngle = 0.0;
+      }
+      return;
+    }
+
+    // Shield auto-repair when out of combat / damage cooldown
+    if (this.shieldRegenDelay > 0.0) {
+      this.shieldRegenDelay = this.shieldRegenDelay - dt;
+    } else {
+      if (this.hull < this.maxHull) {
+        this.hull = mu.clamp(this.hull + 10.0 * dt, 0.0, this.maxHull);
+      }
+    }
+
+    if (this.wallDamageCooldown > 0.0) {
+      this.wallDamageCooldown = this.wallDamageCooldown - dt;
+    }
+
     let cruiseTop = this.maxSpeed;
     let boostTop = this.boostSpeed;
 
@@ -156,7 +187,7 @@ export class Vehicle {
     // Gentle curve feeling at higher speeds (subtle, never forces car into wall)
     if (this.speed > 40.0) {
       let curvature = track.getCurvature(0.0, this.trackDistance);
-      let subtlePull = -curvature * (this.speed / 100.0) * 1.8 * dt;
+      let subtlePull = -curvature * (this.speed / 100.0) * 1.0 * dt;
       this.x = this.x + subtlePull;
     }
 
@@ -170,21 +201,29 @@ export class Vehicle {
     // 4. Track Boundary Collisions (Guardrails with bounce)
     let halfRoad = (track.roadWidth * 0.5) - 0.95;
     if (this.x < -halfRoad) {
-      this.x = -halfRoad + 0.30; // Gentle bounce back onto tarmac!
+      this.x = -halfRoad + 0.35; // Gentle bounce back onto tarmac
       this.steer = 0.0;
-      this.speed = this.speed * 0.92;
-      this.hull = this.hull - 4.0;
-      this.hitFlash = 0.25;
-      particles.emitSparks(this.worldX - 0.8, 0.4, this.z, 6);
-      assets.playSfx(assets.sndCrash);
+      this.speed = this.speed * 0.94;
+      if (this.wallDamageCooldown <= 0.0) {
+        this.hull = this.hull - 1.5;
+        this.wallDamageCooldown = 0.35;
+        this.shieldRegenDelay = 1.5;
+        this.hitFlash = 0.20;
+        particles.emitSparks(this.worldX - 0.8, 0.4, this.z, 5);
+        assets.playSfx(assets.sndCrash);
+      }
     } else if (this.x > halfRoad) {
-      this.x = halfRoad - 0.30; // Gentle bounce back onto tarmac!
+      this.x = halfRoad - 0.35; // Gentle bounce back onto tarmac
       this.steer = 0.0;
-      this.speed = this.speed * 0.92;
-      this.hull = this.hull - 4.0;
-      this.hitFlash = 0.25;
-      particles.emitSparks(this.worldX + 0.8, 0.4, this.z, 6);
-      assets.playSfx(assets.sndCrash);
+      this.speed = this.speed * 0.94;
+      if (this.wallDamageCooldown <= 0.0) {
+        this.hull = this.hull - 1.5;
+        this.wallDamageCooldown = 0.35;
+        this.shieldRegenDelay = 1.5;
+        this.hitFlash = 0.20;
+        particles.emitSparks(this.worldX + 0.8, 0.4, this.z, 5);
+        assets.playSfx(assets.sndCrash);
+      }
     }
 
     if (this.hitFlash > 0.0) this.hitFlash = this.hitFlash - dt;

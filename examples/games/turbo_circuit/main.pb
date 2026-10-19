@@ -362,9 +362,10 @@ while (!gui.windowShouldClose()) {
       if (!hz["hit"] and hz["z"] > -2.2 and hz["z"] < 2.0) {
         if (math.abs(player.x - hz["x"]) < 1.4) {
           hz["hit"] = true;
-          player.speed = player.speed * 0.88;
-          player.hull = player.hull - 14.0;
-          cam.addShake(0.5);
+          player.speed = player.speed * 0.90;
+          player.hull = player.hull - 5.0;
+          player.shieldRegenDelay = 2.0;
+          cam.addShake(0.4);
           particles.emitSparks(player.worldX, 0.4, hz["z"], 6);
           assets.playSfx(assets.sndCrash);
         }
@@ -388,9 +389,10 @@ while (!gui.windowShouldClose()) {
           let pushX = (player.x - rCar.x) * 12.0 * dt;
           player.x = player.x + pushX;
           rCar.x = rCar.x - pushX;
-          player.speed = player.speed * 0.96;
-          player.hull = player.hull - 8.0 * dt;
-          cam.addShake(0.4);
+          player.speed = player.speed * 0.97;
+          player.hull = player.hull - 3.0 * dt;
+          player.shieldRegenDelay = 1.5;
+          cam.addShake(0.3);
           particles.emitSparks(player.worldX, 0.4, player.z, 3);
           assets.playSfx(assets.sndCrash);
         }
@@ -435,20 +437,27 @@ while (!gui.windowShouldClose()) {
 
         // Collision with Traffic Car
         if (tf.z > -2.4 and tf.z < 2.4 and math.abs(player.x - tf.x) < 1.6) {
-          player.hull = player.hull - 45.0 * dt;
-          player.speed = player.speed * 0.90;
-          player.hitFlash = 0.4;
-          cam.addShake(0.7);
+          player.hull = player.hull - 12.0 * dt;
+          player.shieldRegenDelay = 2.0;
+          player.speed = player.speed * 0.92;
+          player.hitFlash = 0.3;
+          cam.addShake(0.5);
           particles.emitSparks(player.worldX, 0.5, player.z, 5);
           assets.playSfx(assets.sndCrash);
         }
       }
     }
 
-    // 9. Check Health Condition
+    // 9. Check Health Condition -> ARCADE AUTO-REBOOT & SPIN-OUT (No Permadeath!)
     if (player.hull <= 0.0) {
-      state = const.STATE_CRASHED;
-      assets.playSfx(assets.sndCrash);
+      if (player.spinTimer <= 0.0) {
+        player.spinTimer = 1.1;
+        player.hull = player.maxHull * 0.70; // Auto-reboot shield to 70%!
+        player.shieldRegenDelay = 3.0;
+        cam.addShake(0.7);
+        assets.playSfx(assets.sndCrash);
+        ui.setBanner("SHIELD OVERLOAD // AUTO-REBOOT!", "STABILIZERS ENGAGED // +70% REPAIR", 2.5, 255, 60, 60);
+      }
     }
   }
   else if (state == const.STATE_PAUSED) {
@@ -482,6 +491,8 @@ while (!gui.windowShouldClose()) {
   // ---------------------------------------------------------------------------
   let tSpec = const.getTrackSpec(selectedTrack);
   let sky = tSpec["skyColor"];
+  let ground = tSpec["groundColor"];
+  if (ground == nil) ground = [10, 12, 18];
 
   gui.beginDrawing();
   gui.clearBackground(sky[0], sky[1], sky[2]);
@@ -489,7 +500,7 @@ while (!gui.windowShouldClose()) {
   cam.begin3DPass();
 
   // Draw Ground Horizon Plane
-  gui.drawPlane3D(0.0, -0.2, -140.0, 220.0, 460.0, sky[0], sky[1], sky[2]);
+  gui.drawPlane3D(0.0, -0.2, -140.0, 260.0, 480.0, ground[0], ground[1], ground[2]);
 
   // Draw Track & Roadside Props
   track.draw(roadScroll, distance, t, assets);
