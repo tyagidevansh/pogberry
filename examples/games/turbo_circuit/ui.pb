@@ -19,6 +19,11 @@ export class UIRenderer {
     this.timeAttackDelta = 0.0;
     this.outrunDistance = 0.0;
     this.totalNearMisses = 0;
+    this.trackId = 0;
+  }
+
+  setTrackId(trackId) {
+    this.trackId = trackId;
   }
 
   updateDimensions() {
@@ -178,23 +183,77 @@ export class UIRenderer {
       if (recordManager != nil) recTime = recordManager.getRecord(i);
 
       if (isSel) {
-        gui.drawRectangleAlpha(tX, tY, 860, 106, 24, 38, 70, 230);
-        gui.drawRectangleLines(tX, tY, 860, 106, 255, 80, 180);
+        gui.drawRectangleAlpha(tX, tY, 810, 106, 24, 38, 70, 230);
+        gui.drawRectangleLines(tX, tY, 810, 106, 255, 80, 180);
         gui.drawText(tInfo["name"], tX + 24, tY + 14, 28, 255, 240, 90);
         gui.drawText(tInfo["subtitle"], tX + 24, tY + 48, 16, 200, 230, 255);
-        gui.drawText("DIFFICULTY: " + tInfo["difficulty"] + "  //  " + str(tInfo["laps"]) + " LAPS", tX + 460, tY + 18, 17, 0, 240, 255);
-        gui.drawText("RECORD: " + str(recTime) + "s", tX + 460, tY + 48, 18, 255, 220, 60);
+        gui.drawText("DIFFICULTY: " + tInfo["difficulty"] + "  //  " + str(tInfo["laps"]) + " LAPS", tX + 430, tY + 18, 17, 0, 240, 255);
+        gui.drawText("RECORD: " + str(recTime) + "s", tX + 430, tY + 48, 18, 255, 220, 60);
       } else {
-        gui.drawRectangleAlpha(tX, tY, 860, 106, 12, 16, 32, 170);
-        gui.drawRectangleLines(tX, tY, 860, 106, 60, 70, 90);
+        gui.drawRectangleAlpha(tX, tY, 810, 106, 12, 16, 32, 170);
+        gui.drawRectangleLines(tX, tY, 810, 106, 60, 70, 90);
         gui.drawText(tInfo["name"], tX + 24, tY + 14, 24, 170, 190, 210);
         gui.drawText(tInfo["subtitle"], tX + 24, tY + 48, 16, 120, 140, 160);
-        gui.drawText("DIFFICULTY: " + tInfo["difficulty"], tX + 460, tY + 18, 17, 140, 160, 180);
-        gui.drawText("RECORD: " + str(recTime) + "s", tX + 460, tY + 48, 17, 180, 170, 100);
+        gui.drawText("DIFFICULTY: " + tInfo["difficulty"], tX + 430, tY + 18, 17, 140, 160, 180);
+        gui.drawText("RECORD: " + str(recTime) + "s", tX + 430, tY + 48, 17, 180, 170, 100);
       }
     }
 
-    gui.drawText("W / S  CHOOSE TRACK     ENTER  IGNITE ENGINES     ESC  BACK", 80, 655, 22, 255, 230, 90);
+    // Circuit Map Preview Card (Right Side)
+    let curInfo = const.getTrackSpec(selectedTrack);
+    let pX = 920;
+    let pY = 145;
+    let pW = 290;
+    let pH = 472;
+    let railCol = curInfo["railColorA"];
+
+    gui.drawRectangleAlpha(pX, pY, pW, pH, 10, 16, 36, 235);
+    gui.drawRectangleLines(pX, pY, pW, pH, railCol[0], railCol[1], railCol[2]);
+
+    gui.drawText("// CIRCUIT TOPOLOGY", pX + 16, pY + 16, 13, 0, 240, 255);
+    gui.drawText(curInfo["name"], pX + 16, pY + 38, 22, 255, 235, 90);
+    gui.drawText(curInfo["shape"], pX + 16, pY + 66, 14, 200, 220, 245);
+
+    // Render 2D Circuit Map Outline in Preview Card
+    let bnds = const.getTrackBounds(selectedTrack);
+    let spanX = bnds[1] - bnds[0];
+    let spanZ = bnds[3] - bnds[2];
+    let maxSpan = spanX;
+    if (spanZ > maxSpan) maxSpan = spanZ;
+    let mScale = 170.0 / maxSpan;
+    let midX = (bnds[0] + bnds[1]) * 0.5;
+    let midZ = (bnds[2] + bnds[3]) * 0.5;
+    let mapCX = pX + pW * 0.5;
+    let mapCY = pY + 185.0;
+
+    let numPts = 48;
+    for (let k = 0; k < numPts; k += 1) {
+      let sA = (k / numPts) * curInfo["length"];
+      let sB = ((k + 1) / numPts) * curInfo["length"];
+      let ptA = const.getTrackWorldPoint(selectedTrack, sA);
+      let ptB = const.getTrackWorldPoint(selectedTrack, sB);
+      let ax = mapCX + (ptA[0] - midX) * mScale;
+      let ay = mapCY + (ptA[1] - midZ) * mScale;
+      let bx = mapCX + (ptB[0] - midX) * mScale;
+      let by = mapCY + (ptB[1] - midZ) * mScale;
+      gui.drawLine(math.floor(ax), math.floor(ay), math.floor(bx), math.floor(by), railCol[0], railCol[1], railCol[2]);
+    }
+
+    // Start / Finish Line Marker
+    let pt0 = const.getTrackWorldPoint(selectedTrack, 0.0);
+    let p0x = mapCX + (pt0[0] - midX) * mScale;
+    let p0y = mapCY + (pt0[1] - midZ) * mScale;
+    gui.drawCircle(math.floor(p0x), math.floor(p0y), 4.0, 255, 220, 60);
+
+    // Track Specs below circuit preview
+    gui.drawText("CHICANES / TURNS: " + str(curInfo["turns"]), pX + 18, pY + 300, 14, 210, 230, 255);
+    gui.drawText("CIRCUIT LENGTH: " + str(math.floor(curInfo["length"])) + " M", pX + 18, pY + 328, 14, 0, 240, 255);
+    gui.drawText("ROAD WIDTH: " + str(math.floor(curInfo["roadWidth"])) + " METERS", pX + 18, pY + 356, 14, 210, 230, 255);
+    gui.drawText("ELEVATION PROFILE:", pX + 18, pY + 384, 13, 255, 120, 180);
+    gui.drawText(curInfo["elevationProfile"], pX + 18, pY + 406, 13, 240, 240, 255);
+    gui.drawText("CHAMPIONSHIP CLASS: " + curInfo["difficulty"], pX + 18, pY + 434, 14, 255, 220, 60);
+
+    gui.drawText("W / S  CHOOSE TRACK     ENTER  IGNITE ENGINES     ESC  BACK", 80, 665, 22, 255, 230, 90);
   }
 
   drawStatBar(x, y, label, ratio, r, g, b) {
@@ -415,46 +474,87 @@ export class UIRenderer {
       gui.drawText(dText, math.floor(this.w * 0.5) - 80, this.h - 110, 24, 255, 220, 50);
     }
 
-    // 9. Minimap Track Progress Rail (Left Edge)
-    let mapX = 30;
-    let mapY = 160;
-    let mapH = 260;
-    let mapW = 28;
+    // 9. 2D Circuit Radar Minimap (Top Right Corner below Clock)
+    let mapX = this.w - 280;
+    let mapY = 112;
+    let mapW = 250;
+    let mapH = 175;
 
-    gui.drawRectangleAlpha(mapX - 6, mapY - 16, mapW + 12, mapH + 32, 8, 12, 26, 190);
-    gui.drawRectangleLines(mapX - 6, mapY - 16, mapW + 12, mapH + 32, 40, 60, 90);
+    let curTrackId = this.trackId;
+    if (lapLength > 2500.0) curTrackId = 2;
+    else if (lapLength > 2300.0) curTrackId = 3;
+    else if (lapLength > 2000.0) curTrackId = 1;
+    else if (lapLength > 1500.0) curTrackId = 0;
 
-    let railCenterX = mapX + math.floor(mapW * 0.5);
-    gui.drawLine(railCenterX, mapY, railCenterX, mapY + mapH, 0, 220, 255);
+    let tSpec = const.getTrackSpec(curTrackId);
+    let railCol = tSpec["railColorA"];
 
-    // Finish Gate
-    gui.drawRectangle(mapX, mapY - 4, mapW, 6, 255, 220, 40);
-    gui.drawText("FIN", mapX + 3, mapY - 18, 11, 255, 220, 60);
+    // Semi-transparent radar background card
+    gui.drawRectangleAlpha(mapX, mapY, mapW, mapH, 8, 12, 26, 220);
+    gui.drawRectangleLines(mapX, mapY, mapW, mapH, railCol[0], railCol[1], railCol[2]);
+    gui.drawText("// " + tSpec["name"] + " RADAR", mapX + 14, mapY + 10, 13, 0, 240, 255);
 
-    // Start Line
-    gui.drawRectangle(mapX, mapY + mapH - 2, mapW, 6, 0, 240, 255);
+    // 2D Circuit Outline
+    let bnds = const.getTrackBounds(curTrackId);
+    let spanX = bnds[1] - bnds[0];
+    let spanZ = bnds[3] - bnds[2];
+    let maxSpan = spanX;
+    if (spanZ > maxSpan) maxSpan = spanZ;
 
-    if (lapLength > 0.0) {
-      // Draw AI Rivals
-      if (this.gameMode == const.MODE_GRAND_PRIX and rivals != nil) {
-        for (let i = 0; i < len(rivals); i += 1) {
-          let rCar = rivals[i];
-          let rProg = (rCar.trackDistance - math.floor(rCar.trackDistance / lapLength) * lapLength) / lapLength;
-          if (rProg >= 0.0 and rProg <= 1.0) {
-            let rDotY = mapY + mapH - math.floor(rProg * mapH);
-            gui.drawCircle(railCenterX, rDotY, 4.0, 255, 90, 90);
-          }
-        }
-      }
+    let drawW = mapW - 36.0;
+    let drawH = mapH - 42.0;
+    let rScale = drawW / maxSpan;
+    if (drawH / maxSpan < rScale) rScale = drawH / maxSpan;
 
-      // Draw Player Position
-      let lapProg = (distance - math.floor(distance / lapLength) * lapLength) / lapLength;
-      if (lapProg < 0.0) lapProg = 0.0;
-      if (lapProg > 1.0) lapProg = 1.0;
-      let pY = mapY + mapH - math.floor(lapProg * mapH);
-      gui.drawCircle(railCenterX, pY, 7.0, 0, 240, 255);
-      gui.drawCircle(railCenterX, pY, 4.0, 255, 255, 255);
+    let midX = (bnds[0] + bnds[1]) * 0.5;
+    let midZ = (bnds[2] + bnds[3]) * 0.5;
+    let cx = mapX + mapW * 0.5;
+    let cy = mapY + 22.0 + drawH * 0.5;
+
+    let numPts = 48;
+    for (let k = 0; k < numPts; k += 1) {
+      let sA = (k / numPts) * lapLength;
+      let sB = ((k + 1) / numPts) * lapLength;
+      let ptA = const.getTrackWorldPoint(curTrackId, sA);
+      let ptB = const.getTrackWorldPoint(curTrackId, sB);
+      let ax = cx + (ptA[0] - midX) * rScale;
+      let ay = cy + (ptA[1] - midZ) * rScale;
+      let bx = cx + (ptB[0] - midX) * rScale;
+      let by = cy + (ptB[1] - midZ) * rScale;
+      gui.drawLine(math.floor(ax), math.floor(ay), math.floor(bx), math.floor(by), 120, 140, 175);
     }
+
+    // Start / Finish Line Marker
+    let pt0 = const.getTrackWorldPoint(curTrackId, 0.0);
+    let p0x = cx + (pt0[0] - midX) * rScale;
+    let p0y = cy + (pt0[1] - midZ) * rScale;
+    gui.drawCircle(math.floor(p0x), math.floor(p0y), 3.5, 255, 220, 60);
+
+    // AI Rivals (Grand Prix)
+    if (this.gameMode == const.MODE_GRAND_PRIX and rivals != nil) {
+      for (let i = 0; i < len(rivals); i += 1) {
+        let rCar = rivals[i];
+        let rPt = const.getTrackWorldPoint(curTrackId, rCar.trackDistance);
+        let rx = cx + (rPt[0] - midX) * rScale;
+        let ry = cy + (rPt[1] - midZ) * rScale;
+        gui.drawCircle(math.floor(rx), math.floor(ry), 3.0, 255, 90, 80);
+      }
+    }
+
+    // Player Blip & Heading Direction Tick
+    let pPt = const.getTrackWorldPoint(curTrackId, distance);
+    let px = cx + (pPt[0] - midX) * rScale;
+    let py = cy + (pPt[1] - midZ) * rScale;
+    let pTan = const.getTrackTangent(curTrackId, distance);
+    let tLen = math.sqrt(pTan[0] * pTan[0] + pTan[1] * pTan[1]);
+    if (tLen < 0.001) tLen = 1.0;
+    let dirX = (pTan[0] / tLen) * 7.0;
+    let dirY = (pTan[1] / tLen) * 7.0;
+
+    let pPulse = 4.5 + math.sin(t * 8.0) * 1.0;
+    gui.drawCircle(math.floor(px), math.floor(py), pPulse, 0, 240, 255);
+    gui.drawCircle(math.floor(px), math.floor(py), 2.0, 255, 255, 255);
+    gui.drawLine(math.floor(px), math.floor(py), math.floor(px + dirX), math.floor(py + dirY), 255, 255, 255);
 
     // 10. Near Miss Alert
     if (player.nearMissTimer > 0.0) {

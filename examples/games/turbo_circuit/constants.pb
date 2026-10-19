@@ -1,4 +1,5 @@
 // TURBO CIRCUIT: OVERDRIVE — Game Constants & Configuration
+use "std.math" as math;
 
 export let SCREEN_WIDTH = 1280;
 export let SCREEN_HEIGHT = 720;
@@ -126,7 +127,10 @@ export fun getTrackSpec(id) {
       "roadColor": [14, 16, 26],
       "railColorA": [0, 240, 255],
       "railColorB": [255, 40, 160],
-      "theme": "city"
+      "theme": "city",
+      "shape": "URBAN RECTANGLE",
+      "turns": 6,
+      "elevationProfile": "Flyovers & Subway Dips"
     };
   }
   if (id == 1) {
@@ -141,7 +145,10 @@ export fun getTrackSpec(id) {
       "roadColor": [26, 18, 30],
       "railColorA": [255, 150, 40],
       "railColorB": [255, 60, 160],
-      "theme": "sunset"
+      "theme": "sunset",
+      "shape": "COASTAL PENINSULA",
+      "turns": 4,
+      "elevationProfile": "Rolling Ocean Bluffs"
     };
   }
   if (id == 2) {
@@ -156,7 +163,10 @@ export fun getTrackSpec(id) {
       "roadColor": [28, 16, 22],
       "railColorA": [255, 200, 40],
       "railColorB": [160, 40, 255],
-      "theme": "canyon"
+      "theme": "canyon",
+      "shape": "SERPENTINE SWITCHBACK",
+      "turns": 8,
+      "elevationProfile": "Extreme Mountain Drops"
     };
   }
   return {
@@ -170,7 +180,78 @@ export fun getTrackSpec(id) {
     "roadColor": [10, 14, 24],
     "railColorA": [0, 255, 170],
     "railColorB": [0, 210, 255],
-    "theme": "orbital"
+    "theme": "orbital",
+    "shape": "ORBITAL TRI-OVAL",
+    "turns": 3,
+    "elevationProfile": "Parabolic Banking"
   };
+}
+
+// -----------------------------------------------------------------------------
+// Closed Circuit Loop Geometry for 3D Road Curves & 2D Minimap Radar
+// -----------------------------------------------------------------------------
+export fun getTrackWorldPoint(id, s) {
+  let lapLen = 1800.0;
+  if (id == 1) lapLen = 2200.0;
+  else if (id == 2) lapLen = 2600.0;
+  else if (id == 3) lapLen = 2400.0;
+
+  let u = (s / lapLen) * 6.2831853;
+  if (id == 0) {
+    // Neo Shibuya: Tokyo Metropolis Circuit (elongated rectangle with chicane waist)
+    let x = 240.0 * math.sin(u) + 35.0 * math.sin(3.0 * u) - 10.0 * math.sin(5.0 * u);
+    let z = 380.0 * math.cos(u) + 40.0 * math.cos(3.0 * u);
+    return [x, z];
+  }
+  if (id == 1) {
+    // Sunset Horizon: Pacific Coast Ocean Loop (flowing kidney peninsula)
+    let x = 300.0 * math.sin(u) + 75.0 * math.sin(2.0 * u);
+    let z = 360.0 * math.cos(u) + 55.0 * math.cos(2.0 * u) - 25.0 * math.sin(u);
+    return [x, z];
+  }
+  if (id == 2) {
+    // Nebula Canyon: Titan Mountain Switchback (serpentine figure-8 with hairpins)
+    let x = 200.0 * math.sin(u) + 120.0 * math.sin(3.0 * u) - 20.0 * math.sin(5.0 * u);
+    let z = 380.0 * math.cos(u) + 30.0 * math.cos(2.0 * u);
+    return [x, z];
+  }
+  // Hyperion Speedway: Orbital Tri-Oval Superspeedway
+  let x = 320.0 * math.sin(u) + 80.0 * math.sin(2.0 * u);
+  let z = 320.0 * math.cos(u) - 80.0 * math.cos(2.0 * u);
+  return [x, z];
+}
+
+export fun getTrackTangent(id, s) {
+  let lapLen = 1800.0;
+  if (id == 1) lapLen = 2200.0;
+  else if (id == 2) lapLen = 2600.0;
+  else if (id == 3) lapLen = 2400.0;
+
+  let u = (s / lapLen) * 6.2831853;
+  if (id == 0) {
+    let dx = 240.0 * math.cos(u) + 105.0 * math.cos(3.0 * u) - 50.0 * math.cos(5.0 * u);
+    let dz = -380.0 * math.sin(u) - 120.0 * math.sin(3.0 * u);
+    return [dx, dz];
+  }
+  if (id == 1) {
+    let dx = 300.0 * math.cos(u) + 150.0 * math.cos(2.0 * u);
+    let dz = -360.0 * math.sin(u) - 110.0 * math.sin(2.0 * u) - 25.0 * math.cos(u);
+    return [dx, dz];
+  }
+  if (id == 2) {
+    let dx = 200.0 * math.cos(u) + 360.0 * math.cos(3.0 * u) - 100.0 * math.cos(5.0 * u);
+    let dz = -380.0 * math.sin(u) - 60.0 * math.sin(2.0 * u);
+    return [dx, dz];
+  }
+  let dx = 320.0 * math.cos(u) + 160.0 * math.cos(2.0 * u);
+  let dz = -320.0 * math.sin(u) + 160.0 * math.sin(2.0 * u);
+  return [dx, dz];
+}
+
+export fun getTrackBounds(id) {
+  if (id == 0) return [-216.0, 216.0, -420.0, 420.0];
+  if (id == 1) return [-330.0, 330.0, -360.0, 360.0];
+  if (id == 2) return [-240.0, 240.0, -380.0, 380.0];
+  return [-352.0, 352.0, -320.0, 320.0];
 }
 

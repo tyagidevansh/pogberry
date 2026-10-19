@@ -61,6 +61,7 @@ let totalNearMisses = 0;
 
 fun startRace() {
   track = track_mod.Track(selectedTrack);
+  ui.setTrackId(selectedTrack);
   let tSpec = const.getTrackSpec(selectedTrack);
   totalLaps = tSpec["laps"];
   currentLap = 1;

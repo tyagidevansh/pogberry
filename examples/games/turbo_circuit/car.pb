@@ -154,9 +154,9 @@ export class Vehicle {
     this.x = this.x + this.steer * steerSpeed * dt;
 
     // Gentle curve feeling at higher speeds (subtle, never forces car into wall)
-    if (this.speed > 50.0) {
+    if (this.speed > 40.0) {
       let curvature = track.getCurvature(0.0, this.trackDistance);
-      let subtlePull = -curvature * (this.speed / 100.0) * 0.40 * dt;
+      let subtlePull = -curvature * (this.speed / 100.0) * 1.8 * dt;
       this.x = this.x + subtlePull;
     }
 

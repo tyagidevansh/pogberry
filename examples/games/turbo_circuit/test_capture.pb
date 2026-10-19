@@ -101,10 +101,11 @@ for (let i = 0; i < 4; i += 1) {
 
 // 3. Capture Track 0: Neo Shibuya
 let track0 = track_mod.Track(const.TRACK_SHIBUYA);
+ui.setTrackId(const.TRACK_SHIBUYA);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 1.0 + i * dt;
-  let dist = 220.0;
+  let dist = 140.0;
   player.trackDistance = dist;
   player.worldX = player.x;
 
@@ -138,10 +139,11 @@ print("Captured track_shibuya.png");
 
 // 4. Capture Track 1: Sunset Horizon (Coastal Ocean Highway)
 let track1 = track_mod.Track(const.TRACK_SUNSET);
+ui.setTrackId(const.TRACK_SUNSET);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 2.0 + i * dt;
-  let dist = 350.0;
+  let dist = 180.0;
   player.trackDistance = dist;
   player.worldX = player.x;
 
@@ -172,10 +174,11 @@ print("Captured track_sunset.png");
 
 // 5. Capture Track 2: Nebula Canyon (Titan Badlands)
 let track2 = track_mod.Track(const.TRACK_CANYON);
+ui.setTrackId(const.TRACK_CANYON);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 3.0 + i * dt;
-  let dist = 420.0;
+  let dist = 220.0;
   player.trackDistance = dist;
   player.worldX = player.x;
 
@@ -206,10 +209,11 @@ print("Captured track_canyon.png");
 
 // 6. Capture Track 3: Hyperion Speedway (Orbital Superspeedway)
 let track3 = track_mod.Track(const.TRACK_HYPERION);
+ui.setTrackId(const.TRACK_HYPERION);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 4.0 + i * dt;
-  let dist = 600.0;
+  let dist = 360.0;
   player.trackDistance = dist;
   player.worldX = player.x;
 

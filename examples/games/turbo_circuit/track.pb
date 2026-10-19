@@ -15,6 +15,30 @@ export class Track {
     this.segmentLength = 20.0;
     this.drawDistance = 24; // visible segments ahead
 
+    // Curve scaling for optimal visual perspective
+    this.curveScale = 0.78;
+    if (this.trackId == 1) this.curveScale = 0.85;
+    else if (this.trackId == 2) this.curveScale = 0.82;
+    else if (this.trackId == 3) this.curveScale = 0.90;
+
+    // Precompute 64 2D minimap radar points around closed circuit loop
+    this.mapPoints = [];
+    let numMapPoints = 64;
+    let lapLen = this.spec["length"];
+    let minX = 999999.0; let maxX = -999999.0;
+    let minZ = 999999.0; let maxZ = -999999.0;
+
+    for (let i = 0; i < numMapPoints; i += 1) {
+      let s = (i / numMapPoints) * lapLen;
+      let p = const.getTrackWorldPoint(this.trackId, s);
+      if (p[0] < minX) minX = p[0];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] < minZ) minZ = p[1];
+      if (p[1] > maxZ) maxZ = p[1];
+      this.mapPoints.push([p[0], p[1]]);
+    }
+    this.mapBounds = [minX, maxX, minZ, maxZ];
+
     // Checkpoint gate
     this.gateZ = -220.0;
     this.gateInterval = 320.0;
@@ -67,79 +91,65 @@ export class Track {
   }
 
   // ---------------------------------------------------------------------------
-  // PROCEDURAL CURVES PER TRACK
+  // GEOMETRIC CLOSED CIRCUIT CURVES (2D WORLD PATH ROTATION)
   // ---------------------------------------------------------------------------
   getCurveOffset(z, distance) {
-    if (this.trackId == 0) {
-      // Neo Shibuya: Cyber city grid with downtown straights and 90-degree chicanes
-      let k = 0.0035;
-      let amt = 4.5;
-      let b_p = distance * k;
-      let s_p = (distance - z) * k;
-      let base = (math.sin(b_p) + math.sin(b_p * 3.0) * 0.35) * amt;
-      let ahead = (math.sin(s_p) + math.sin(s_p * 3.0) * 0.35) * amt;
-      return ahead - base;
-    }
-    if (this.trackId == 1) {
-      // Sunset Horizon: Sweeping high-speed ocean highway coastal curves
-      let k = 0.0022;
-      let amt = 5.8;
-      let b_p = distance * k;
-      let s_p = (distance - z) * k;
-      let base = (math.sin(b_p) + math.sin(b_p * 0.5) * 0.40) * amt;
-      let ahead = (math.sin(s_p) + math.sin(s_p * 0.5) * 0.40) * amt;
-      return ahead - base;
-    }
-    if (this.trackId == 2) {
-      // Nebula Canyon: Mountain switchback hairpins and rapid chicanes
-      let k = 0.0045;
-      let amt = 5.0;
-      let b_p = distance * k;
-      let s_p = (distance - z) * k;
-      let base = (math.sin(b_p) + math.sin(b_p * 2.0) * 0.45) * amt;
-      let ahead = (math.sin(s_p) + math.sin(s_p * 2.0) * 0.45) * amt;
-      return ahead - base;
-    }
-    // Hyperion Speedway: Superspeedway high-velocity banked oval
-    let k = 0.0025;
-    let amt = 6.2;
-    let b_p = distance * k;
-    let s_p = (distance - z) * k;
-    return (math.sin(s_p) - math.sin(b_p)) * amt;
+    let p0 = const.getTrackWorldPoint(this.trackId, distance);
+    let t0 = const.getTrackTangent(this.trackId, distance);
+    let h0 = math.sqrt(t0[0] * t0[0] + t0[1] * t0[1]);
+    if (h0 < 0.001) h0 = 1.0;
+    let fx = t0[0] / h0;
+    let fz = t0[1] / h0;
+    let rx = fz;
+    let rz = -fx;
+
+    let p1 = const.getTrackWorldPoint(this.trackId, distance - z);
+    let dx = p1[0] - p0[0];
+    let dz = p1[1] - p0[1];
+
+    let lat = dx * rx + dz * rz;
+    return lat * this.curveScale;
   }
 
   // ---------------------------------------------------------------------------
   // PROCEDURAL 3D ELEVATION (HILLS & VALLEYS) PER TRACK
   // ---------------------------------------------------------------------------
   getYOffset(z, distance) {
+    let d = -z;
     if (this.trackId == 0) {
-      // Shibuya: Mild expressway overpass flyover humps
-      let k = 0.006;
+      // Shibuya: Mild expressway overpass flyover humps and subway descent
+      let k = 0.007;
       let b_p = distance * k;
-      let s_p = (distance - z) * k;
-      return (math.sin(s_p) - math.sin(b_p)) * 1.5;
+      let s_p = (distance + d) * k;
+      let base = (math.sin(b_p) + math.sin(b_p * 2.0) * 0.4) * 1.8;
+      let ahead = (math.sin(s_p) + math.sin(s_p * 2.0) * 0.4) * 1.8;
+      return ahead - base;
     }
     if (this.trackId == 1) {
       // Sunset: Scenic rolling coastal hills and ocean drops
-      let k = 0.010;
+      let k = 0.009;
       let b_p = distance * k;
-      let s_p = (distance - z) * k;
-      return (math.sin(s_p) - math.sin(b_p)) * 3.2;
+      let s_p = (distance + d) * k;
+      let base = (math.sin(b_p) + math.cos(b_p * 0.5) * 0.5) * 3.4;
+      let ahead = (math.sin(s_p) + math.cos(s_p * 0.5) * 0.5) * 3.4;
+      return ahead - base;
     }
     if (this.trackId == 2) {
       // Canyon: Steep mountain climbs, dips and roller-coaster drops
       let k = 0.008;
       let b_p = distance * k;
-      let s_p = (distance - z) * k;
-      let base = math.sin(b_p) * 4.8 + math.cos(b_p * 2.2) * 2.0;
-      let ahead = math.sin(s_p) * 4.8 + math.cos(s_p * 2.2) * 2.0;
+      let s_p = (distance + d) * k;
+      let base = math.sin(b_p) * 5.2 + math.cos(b_p * 2.2) * 2.2;
+      let ahead = math.sin(s_p) * 5.2 + math.cos(s_p * 2.2) * 2.2;
       return ahead - base;
     }
-    // Hyperion: Orbital ring zero-G undulations
-    let k = 0.005;
+    // Hyperion: Orbital ring high-speed parabolic banking
+    let k = 0.006;
     let b_p = distance * k;
-    let s_p = (distance - z) * k;
-    return (math.sin(s_p) - math.sin(b_p)) * 2.2;
+    let s_p = (distance + d) * k;
+    let base = math.sin(b_p) * 2.8;
+    let ahead = math.sin(s_p) * 2.8;
+    return ahead - base;
   }
 
   getCurvature(z, distance) {
@@ -175,17 +185,41 @@ export class Track {
     // -------------------------------------------------------------------------
     // 0. Distant Atmospheric Backdrop per Track
     // -------------------------------------------------------------------------
-    if (this.trackId == 1) {
+    if (this.trackId == 0) {
+      // Shibuya Tokyo Midnight Metropolis Skyline (9 towers across horizon)
+      for (let k = -4; k <= 4; k += 1) {
+        let bldX = k * 36.0;
+        let bldH = 34.0 + math.abs(k * 7) + ((k * 3) % 11) * 2.0;
+        gui.drawCube3D(bldX, bldH * 0.5 - 4.0, -260.0, 18.0, bldH, 18.0, 12, 16, 28);
+        gui.drawCube3D(bldX, bldH * 0.5 - 4.0, -259.0, 14.0, bldH * 0.85, 0.2, 0, 160 + math.abs(k * 10), 220);
+        gui.drawCylinder3D(bldX, bldH - 4.0, -260.0, 0.1, 0.2, 10.0, 4, 180, 190, 210);
+        gui.drawSphere3D(bldX, bldH + 1.5, -260.0, 0.7, 255, 50, 60);
+      }
+    } else if (this.trackId == 1) {
       // Sunset Horizon: Giant glowing Synthwave Sunset Sun & Pacific Ocean
-      // Giant Sun Disk on distant ocean horizon
-      gui.drawSphere3D(65.0, 22.0, -250.0, 36.0, 255, 110, 40);
-      gui.drawSphere3D(65.0, 22.0, -249.0, 22.0, 255, 210, 80);
-      // Ocean water plane extending to right horizon
-      gui.drawPlane3D(75.0, -1.2, -120.0, 160.0, 480.0, 24, 14, 46);
-    } else if (this.trackId == 3) {
-      // Hyperion Speedway: Earth globe in orbital space
-      gui.drawSphere3D(-75.0, -35.0, -260.0, 55.0, 20, 80, 210);
-      gui.drawSphere3D(-73.0, -33.0, -258.0, 40.0, 40, 140, 240);
+      gui.drawSphere3D(55.0, 20.0, -250.0, 36.0, 255, 110, 40);
+      gui.drawSphere3D(55.0, 20.0, -249.0, 22.0, 255, 210, 80);
+      // Ocean water plane extending across horizon
+      gui.drawPlane3D(65.0, -1.2, -120.0, 200.0, 480.0, 24, 14, 46);
+      for (let k = -3; k <= 3; k += 1) {
+        let mX = k * 52.0 - 40.0;
+        let mH = 22.0 + math.abs(k * 5);
+        gui.drawCylinder3D(mX, mH * 0.5 - 6.0, -255.0, 0.1, 24.0, mH, 5, 48, 18, 42);
+      }
+    } else if (this.trackId == 2) {
+      // Nebula Canyon: Titan Sandstone Mountain Massifs Backdrop
+      for (let k = -4; k <= 4; k += 1) {
+        let cX = k * 45.0;
+        let cH = 36.0 + ((k * 5) % 13) * 3.0;
+        gui.drawCylinder3D(cX, cH * 0.5 - 6.0, -255.0, 0.2, 22.0, cH, 6, 110, 40, 32);
+        gui.drawSphere3D(cX, cH - 4.0, -254.0, 2.2, 220, 50, 255);
+      }
+    } else {
+      // Hyperion Speedway: Earth globe & Orbital Station Trusses
+      gui.drawSphere3D(-75.0, -32.0, -260.0, 55.0, 20, 80, 210);
+      gui.drawSphere3D(-73.0, -30.0, -258.0, 42.0, 40, 140, 240);
+      gui.drawCube3D(0.0, 32.0, -240.0, 260.0, 2.5, 3.0, 40, 60, 90);
+      gui.drawCylinderWires3D(0.0, 32.0, -240.0, 26.0, 26.0, 2.0, 16, 0, 240, 255);
     }
 
     // -------------------------------------------------------------------------
@@ -205,6 +239,20 @@ export class Track {
       // Road Surface Plane
       gui.drawPlane3D(midCurve, midHill, segZ, this.roadWidth, this.segmentLength + 0.2,
                       roadCol[0], roadCol[1], roadCol[2]);
+
+      // Racing Curbs / Rumble Strips (Left & Right Shoulders)
+      let curbPulse = (math.floor(segDist / 6.0)) % 2;
+      let curbCol = [255, 255, 255];
+      if (curbPulse == 0) {
+        if (this.trackId == 0) curbCol = [0, 240, 255];
+        else if (this.trackId == 1) curbCol = [245, 50, 60];
+        else if (this.trackId == 2) curbCol = [255, 200, 30];
+        else curbCol = [0, 255, 170];
+      }
+      gui.drawCube3D(curve - halfW + 0.35, hill + 0.08, segZ, 0.70, 0.08, this.segmentLength,
+                     curbCol[0], curbCol[1], curbCol[2]);
+      gui.drawCube3D(curve + halfW - 0.35, hill + 0.08, segZ, 0.70, 0.08, this.segmentLength,
+                     curbCol[0], curbCol[1], curbCol[2]);
 
       // Neon Guardrails (Left & Right)
       let railPulse = 200 + math.floor(math.sin(t * 3.0 + i * 0.4) * 55.0);
