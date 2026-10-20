@@ -341,17 +341,17 @@ while (!gui.windowShouldClose()) {
       ui.setBanner("ENERGY CORE HARVESTED!", "+35 NITRO  //  +18 REPAIR", 1.8, 0, 255, 230);
     }
 
-    // 5b. Boost Pad Collision (Hyperion Speedway)
+    // 5b. Boost Pad Collision (Monza GP DRS Boosters)
     if (selectedTrack == 3) {
-      let padProg = distance - math.floor(distance / 100.0) * 100.0;
-      if (padProg > 34.0 and padProg < 46.0 and math.abs(player.x) < track.roadWidth * 0.25) {
+      let padProg = distance - math.floor(distance / 600.0) * 600.0;
+      if (padProg > 280.0 and padProg < 300.0 and math.abs(player.x) < track.roadWidth * 0.25) {
         if (!player.isBoosting) {
           player.speed = mu.clamp(player.speed + 22.0, 0.0, player.boostSpeed);
           player.nitro = mu.clamp(player.nitro + 18.0, 0.0, player.maxNitro);
           particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
           assets.playSfx(assets.sndNitro);
           cam.addShake(0.25);
-          ui.setBanner("SUPERCHARGE BOOST PAD!", "+22 MPH  //  +18 NITRO", 1.2, 0, 255, 170);
+          ui.setBanner("DRS SUPERCHARGE BOOST PAD!", "+22 MPH  //  +18 NITRO", 1.2, 0, 255, 170);
         }
       }
     }

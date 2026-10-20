@@ -39,6 +39,7 @@ export class Vehicle {
     this.wallDamageCooldown = 0.0;
     this.shieldRegenDelay = 0.0;
     this.spinTimer = 0.0;
+    this.brakeWarning = 0;
 
     // AI parameters
     this.aiLane = 0.0;
@@ -153,8 +154,8 @@ export class Vehicle {
     } else if (brakeInput and !this.isDrifting) {
       this.isBoosting = false;
       if (this.speed > 2.0) {
-        // Active braking
-        this.speed = mu.approach(this.speed, 0.0, dt * 55.0);
+        // Active braking (snappy, responsive deceleration)
+        this.speed = mu.approach(this.speed, 0.0, dt * 65.0);
         this.isReversing = false;
       } else {
         // Reverse gear
@@ -178,17 +179,32 @@ export class Vehicle {
     let effectiveSteerInput = steerInput;
     if (this.isReversing) effectiveSteerInput = -effectiveSteerInput;
 
-    // Dialed-in lateral speed: smooth, controllable lane changing (~6-7 m/s)
+    // Dialed-in lateral speed: smooth lane changing, high drift slip
     let steerSpeed = this.handling * 0.22;
-    if (this.isDrifting) steerSpeed = steerSpeed * 1.35;
+    if (this.isDrifting) steerSpeed = steerSpeed * 1.45;
     this.steer = mu.approach(this.steer, effectiveSteerInput, dt * 10.0);
     this.x = this.x + this.steer * steerSpeed * dt;
 
-    // Gentle curve feeling at higher speeds (subtle, never forces car into wall)
-    if (this.speed > 40.0) {
+    // Dynamic Centrifugal Cornering Force (Must Brake or Drift through Sharp Corners!)
+    if (this.speed > 25.0) {
       let curvature = track.getCurvature(0.0, this.trackDistance);
-      let subtlePull = -curvature * (this.speed / 100.0) * 1.0 * dt;
-      this.x = this.x + subtlePull;
+      let vRatio = this.speed / 48.0;
+      let vFactor = vRatio * vRatio;
+      if (vFactor > 4.2) vFactor = 4.2;
+      let centrifugalPush = -(curvature / 0.030) * vFactor * 1.55 * dt;
+      this.x = this.x + centrifugalPush;
+    }
+
+    // Look ahead 48m for upcoming sharp corners (Braking Zones)
+    let lookAheadCurv = track.getCurvature(-48.0, this.trackDistance);
+    let absCurv = math.abs(lookAheadCurv);
+    this.brakeWarning = 0;
+    if (absCurv > 0.018 and this.speed > 55.0) {
+      if (lookAheadCurv > 0.0) {
+        this.brakeWarning = 2; // Sharp Right Turn Ahead!
+      } else {
+        this.brakeWarning = 1; // Sharp Left Turn Ahead!
+      }
     }
 
     // Track Distance accumulation

@@ -74,20 +74,23 @@ ui.drawTrackSelectScreen(0, tSpec, recordManager, 0.5);
 
 // Test Grand Prix HUD
 ui.setMode(const.MODE_GRAND_PRIX);
+ui.setTrackId(const.TRACK_SUZUKA);
 ui.setBanner("OBJECTIVE: PODIUM FINISH", "TOP 3", 3.0, 255, 220, 40);
 ui.updateBanners(0.016);
-ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 41.2, 1, 5, true, 0.5, 200.0, 1800.0, [rival]);
+ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 88.5, 1, 5, true, 0.5, 200.0, 5807.0, [rival]);
 
 // Test Outrun HUD & Timeout
 ui.setMode(const.MODE_OUTRUN);
+ui.setTrackId(const.TRACK_MONACO);
 ui.setOutrunState(38.5, 2, 600.0, 450.0, 3);
-ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 41.2, 1, 5, false, 0.5, 450.0, 1800.0, nil);
+ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 54.2, 1, 5, false, 0.5, 450.0, 3337.0, nil);
 ui.drawTimeoutScreen(0.5);
 
 // Test Time Attack HUD
 ui.setMode(const.MODE_TIME_ATTACK);
+ui.setTrackId(const.TRACK_SPA);
 ui.setTimeAttackDelta(-0.45);
-ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 2, 3, 21.0, 41.2, 1, 1, false, 0.5, 800.0, 1800.0, nil);
+ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 2, 3, 21.0, 102.5, 1, 1, false, 0.5, 800.0, 7004.0, nil);
 
 ui.drawPauseMenu(0);
 ui.drawResultsScreen(1, 5, 41.2, 42.5, true, 0.5);

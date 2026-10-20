@@ -4,8 +4,8 @@ use "pb_file" as file;
 export class RecordManager {
   init(filepath) {
     this.path = filepath;
-    // Default best lap times in seconds for each track
-    this.records = [42.50, 52.80, 63.40, 36.20];
+    // Default best lap times in seconds for each F1 track
+    this.records = [88.50, 54.20, 102.50, 78.40];
     this.load();
   }
 

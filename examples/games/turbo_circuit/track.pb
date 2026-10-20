@@ -18,9 +18,9 @@ export class Track {
     // Curve scaling for optimal visual perspective
     this.curveScale = 1.0;
 
-    // Precompute 64 2D minimap radar points around closed circuit loop
+    // Precompute 128 2D minimap radar points around closed F1 circuit loop
     this.mapPoints = [];
-    let numMapPoints = 64;
+    let numMapPoints = 128;
     let lapLen = this.spec["length"];
     let minX = 999999.0; let maxX = -999999.0;
     let minZ = 999999.0; let maxZ = -999999.0;
@@ -38,7 +38,7 @@ export class Track {
 
     // Checkpoint gate
     this.gateZ = -220.0;
-    this.gateInterval = 320.0;
+    this.gateInterval = 600.0;
 
     // Energy cores
     this.coreX = 0.0;
@@ -119,41 +119,51 @@ export class Track {
     let base = 0.0;
     let ahead = 0.0;
     if (this.trackId == 0) {
-      // Shibuya: Mild expressway overpass flyover humps and subway descent
-      let k = 0.007;
+      // Suzuka: S-Curves climb, Dunlop downhill sweep, Spoon undulations
+      let k = 0.005;
       let b_p = distance * k;
       let s_p = (distance + d) * k;
-      base = (math.sin(b_p) + math.sin(b_p * 2.0) * 0.4) * 1.5;
-      ahead = (math.sin(s_p) + math.sin(s_p * 2.0) * 0.4) * 1.5;
+      base = (math.sin(b_p) + math.sin(b_p * 2.0) * 0.5) * 2.2;
+      ahead = (math.sin(s_p) + math.sin(s_p * 2.0) * 0.5) * 2.2;
     } else if (this.trackId == 1) {
-      // Sunset: Scenic rolling coastal hills and ocean drops
-      let k = 0.008;
-      let b_p = distance * k;
-      let s_p = (distance + d) * k;
-      base = (math.sin(b_p) + math.cos(b_p * 0.5) * 0.5) * 2.2;
-      ahead = (math.sin(s_p) + math.cos(s_p * 0.5) * 0.5) * 2.2;
-    } else if (this.trackId == 2) {
-      // Canyon: Steep mountain climbs, dips and roller-coaster drops
+      // Monaco: Beau Rivage steep uphill climb, Casino crest, harbor drop
       let k = 0.007;
       let b_p = distance * k;
       let s_p = (distance + d) * k;
-      base = math.sin(b_p) * 3.2 + math.cos(b_p * 2.0) * 1.5;
-      ahead = math.sin(s_p) * 3.2 + math.cos(s_p * 2.0) * 1.5;
-    } else {
-      // Hyperion: Orbital ring high-speed parabolic banking
-      let k = 0.006;
+      base = (math.sin(b_p) + math.cos(b_p * 0.6) * 0.6) * 2.8;
+      ahead = (math.sin(s_p) + math.cos(s_p * 0.6) * 0.6) * 2.8;
+    } else if (this.trackId == 2) {
+      // Spa-Francorchamps: Eau Rouge 17% steep climb, Pouhon & Blanchimont roller-coaster
+      let k = 0.004;
       let b_p = distance * k;
       let s_p = (distance + d) * k;
-      base = math.sin(b_p) * 2.0;
-      ahead = math.sin(s_p) * 2.0;
+      base = math.sin(b_p) * 3.6 + math.cos(b_p * 2.0) * 1.8;
+      ahead = math.sin(s_p) * 3.6 + math.cos(s_p * 2.0) * 1.8;
+    } else {
+      // Monza: Royal parkland high-speed straight undulations
+      let k = 0.005;
+      let b_p = distance * k;
+      let s_p = (distance + d) * k;
+      base = math.sin(b_p) * 1.6;
+      ahead = math.sin(s_p) * 1.6;
     }
     let rawY = ahead - base;
     return rawY / (1.0 + math.abs(rawY) / 10.0);
   }
 
   getCurvature(z, distance) {
-    let lookAhead = this.getCurveOffset(-30.0, distance);
-    return lookAhead * 0.015;
+    let s0 = distance - z;
+    let s1 = s0 + 16.0;
+    let h0 = const.getTrackHeading(this.trackId, s0);
+    let h1 = const.getTrackHeading(this.trackId, s1);
+    let diff = h1 - h0;
+    while (diff > 3.14159265) {
+      diff = diff - 6.2831853;
+    }
+    while (diff < -3.14159265) {
+      diff = diff + 6.2831853;
+    }
+    return diff / 16.0;
   }
 
   // Check if position is inside an enclosed tunnel section
@@ -161,14 +171,26 @@ export class Track {
     let lapLen = this.spec["length"];
     let prog = dist - math.floor(dist / lapLen) * lapLen;
     if (this.trackId == 0) {
-      // Shibuya Underground Expressways
-      if ((prog > 380.0 and prog < 680.0) or (prog > 1180.0 and prog < 1480.0)) {
+      // Suzuka Circuit: Bridge Crossover Underpass
+      if (prog > 2420.0 and prog < 2580.0) {
+        return true;
+      }
+    }
+    if (this.trackId == 1) {
+      // Circuit de Monaco: World-famous Monte Carlo Harbor Tunnel
+      if (prog > 620.0 and prog < 980.0) {
         return true;
       }
     }
     if (this.trackId == 2) {
-      // Canyon Geothermal Mine Trenches
-      if ((prog > 480.0 and prog < 760.0) or (prog > 1580.0 and prog < 1860.0)) {
+      // Spa-Francorchamps: Stavelot Forest Covered Trench
+      if (prog > 4100.0 and prog < 4450.0) {
+        return true;
+      }
+    }
+    if (this.trackId == 3) {
+      // Monza: Royal Park Serraglio Railway Underpass
+      if (prog > 2550.0 and prog < 2750.0) {
         return true;
       }
     }
@@ -283,10 +305,10 @@ export class Track {
         gui.drawSphere3D(curve, midHill + tunnelH - 0.3, segZ, 0.35, 255, 200, 50);
       }
 
-      // Boost Pads on Hyperion Speedway (Fixed world coordinates matching main.pb collision)
+      // Boost Pads on Monza GP (DRS Straightaway Boosters)
       if (this.trackId == 3) {
-        let segPadProg = segDist - math.floor(segDist / 100.0) * 100.0;
-        if (segPadProg >= 34.0 and segPadProg <= 46.0) {
+        let segPadProg = segDist - math.floor(segDist / 600.0) * 600.0;
+        if (segPadProg >= 280.0 and segPadProg <= 300.0) {
           let padGlow = 200 + math.floor(math.sin(t * 8.0) * 55.0);
           gui.drawPlane3D(midCurve, midHill + 0.04, segZ, this.roadWidth * 0.45, this.segmentLength + 0.1, 0, padGlow, 180);
           gui.drawCube3D(midCurve, midHill + 0.06, segZ, this.roadWidth * 0.35, 0.05, 1.2, 240, 255, 255);
@@ -305,6 +327,21 @@ export class Track {
         // Glowing lights
         gui.drawSphere3D(curve - 3.0, midHill + archH - 0.2, segZ, 0.35, 255, 240, 180);
         gui.drawSphere3D(curve + 3.0, midHill + archH - 0.2, segZ, 0.35, 255, 240, 180);
+      }
+
+      // Illuminated Directional Chevron Warning Signs along Outside Rail of Sharp Corners
+      let segCurv = this.getCurvature(segZ, distance);
+      if (math.abs(segCurv) > 0.018 and i % 2 == 0) {
+        let signSide = 1.0;
+        if (segCurv > 0.0) {
+          signSide = -1.0; // Turning right -> outside barrier is on the left
+        }
+        let signX = curve + signSide * (halfW + 0.65);
+        let signH = 2.4;
+        gui.drawCube3D(signX, midHill + signH * 0.5, segZ, 0.2, signH, 3.2, 20, 24, 34);
+        gui.drawCube3D(signX, midHill + signH * 0.5, segZ, 0.22, signH - 0.2, 3.0, 255, 40, 50);
+        let chvPulse = 200 + math.floor(math.sin(t * 12.0 + i) * 55.0);
+        gui.drawSphere3D(signX, midHill + signH * 0.5, segZ, 0.45, 255, chvPulse, 30);
       }
     }
 

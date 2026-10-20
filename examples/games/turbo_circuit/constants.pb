@@ -1,5 +1,6 @@
 // TURBO CIRCUIT: OVERDRIVE — Game Constants & Configuration
 use "std.math" as math;
+use "f1_data" as f1;
 
 export let SCREEN_WIDTH = 1280;
 export let SCREEN_HEIGHT = 720;
@@ -28,11 +29,15 @@ export let CAR_SHINOBI = 2;   // Tuner sports drift coupe (nimble, drift nitro b
 export let CAR_VANTA = 3;     // Police cruiser interceptor (balanced pursuit machine)
 export let TOTAL_CARS = 4;
 
-// Track IDs
-export let TRACK_SHIBUYA = 0; // Neo Shibuya Expressway (rainy cyber city, high-rises)
-export let TRACK_SUNSET = 1;  // Sunset Coastline Highway (synthwave golden hour, ocean)
-export let TRACK_CANYON = 2;  // Nebula Canyon Badlands (energy pylons, hazard chicanes)
-export let TRACK_HYPERION = 3;// Hyperion Orbital Speedway (Zero-G ring, boost pads)
+// Official FIA Formula 1 Track IDs
+export let TRACK_SUZUKA = 0;   // Suzuka International Circuit (Japanese GP // Figure-8 & Esses)
+export let TRACK_MONACO = 1;   // Circuit de Monaco (Riviera GP // Harbor & Casino Hairpin)
+export let TRACK_SPA = 2;      // Circuit de Spa-Francorchamps (Ardennes GP // Eau Rouge & Kemmel)
+export let TRACK_MONZA = 3;    // Autodromo Nazionale Monza (Italian GP // Temple of Speed & Chicanes)
+export let TRACK_SHIBUYA = 0;  // Legacy alias
+export let TRACK_SUNSET = 1;   // Legacy alias
+export let TRACK_CANYON = 2;   // Legacy alias
+export let TRACK_HYPERION = 3; // Legacy alias
 export let TOTAL_TRACKS = 4;
 
 // Machine Specs: [name, subtitle, topSpeed, accel, driftGrip, maxHull, nitroCapacity, modelName, scale]
@@ -117,150 +122,96 @@ export fun getCarSpec(id) {
 export fun getTrackSpec(id) {
   if (id == 0) {
     return {
-      "name": "NEO SHIBUYA",
-      "subtitle": "Midnight Expressway // Tokyo Sector 4",
-      "difficulty": "EASY",
+      "name": "SUZUKA GP",
+      "subtitle": "Japanese Grand Prix // Suzuka International",
+      "difficulty": "HARD",
       "laps": 3,
-      "length": 1800.0,
-      "roadWidth": 12.0,
-      "skyColor": [4, 6, 16],
-      "roadColor": [14, 16, 26],
-      "railColorA": [0, 240, 255],
-      "railColorB": [255, 40, 160],
+      "length": 5807.0,
+      "roadWidth": 11.4,
+      "skyColor": [4, 8, 20],
+      "roadColor": [16, 18, 28],
+      "railColorA": [255, 40, 60],
+      "railColorB": [255, 255, 255],
       "theme": "city",
-      "shape": "URBAN RECTANGLE",
-      "turns": 6,
-      "elevationProfile": "Flyovers & Subway Dips",
-      "groundColor": [8, 10, 16]
+      "shape": "SUZUKA FIGURE-8 & ESSES",
+      "turns": 18,
+      "elevationProfile": "S-Curves & Dunlop Rollercoaster",
+      "groundColor": [8, 12, 18]
     };
   }
   if (id == 1) {
     return {
-      "name": "SUNSET HORIZON",
-      "subtitle": "Coastal Grand Highway // Pacific Route 1",
-      "difficulty": "MEDIUM",
+      "name": "MONACO GP",
+      "subtitle": "Monaco Grand Prix // Circuit de Monaco",
+      "difficulty": "EXPERT",
       "laps": 3,
-      "length": 2200.0,
-      "roadWidth": 10.6,
+      "length": 3337.0,
+      "roadWidth": 9.4,
       "skyColor": [45, 14, 38],
       "roadColor": [26, 18, 30],
-      "railColorA": [255, 150, 40],
-      "railColorB": [255, 60, 160],
+      "railColorA": [255, 60, 80],
+      "railColorB": [255, 210, 40],
       "theme": "sunset",
-      "shape": "COASTAL PENINSULA",
-      "turns": 4,
-      "elevationProfile": "Rolling Ocean Bluffs",
+      "shape": "MONTE CARLO HARBOR CIRCUIT",
+      "turns": 19,
+      "elevationProfile": "Beau Rivage Climb & Harbor Descents",
       "groundColor": [22, 12, 28]
     };
   }
   if (id == 2) {
     return {
-      "name": "NEBULA CANYON",
-      "subtitle": "Industrial Badlands // Titan Rift",
-      "difficulty": "HARD",
-      "laps": 4,
-      "length": 2600.0,
-      "roadWidth": 9.6,
-      "skyColor": [14, 8, 24],
-      "roadColor": [28, 16, 22],
-      "railColorA": [255, 200, 40],
-      "railColorB": [160, 40, 255],
+      "name": "SPA GP",
+      "subtitle": "Belgian Grand Prix // Spa-Francorchamps",
+      "difficulty": "EXPERT",
+      "laps": 3,
+      "length": 7004.0,
+      "roadWidth": 12.0,
+      "skyColor": [10, 14, 26],
+      "roadColor": [22, 18, 24],
+      "railColorA": [255, 215, 0],
+      "railColorB": [220, 20, 60],
       "theme": "canyon",
-      "shape": "SERPENTINE SWITCHBACK",
-      "turns": 8,
-      "elevationProfile": "Extreme Mountain Drops",
-      "groundColor": [26, 12, 14]
+      "shape": "ARDENNES FOREST ROLLERCOASTER",
+      "turns": 19,
+      "elevationProfile": "Eau Rouge & Raidillon 17% Climb",
+      "groundColor": [14, 18, 14]
     };
   }
   return {
-    "name": "HYPERION SPEEDWAY",
-    "subtitle": "Orbital Superspeedway // Geo Ring 01",
-    "difficulty": "EXPERT",
-    "laps": 4,
-    "length": 2400.0,
-    "roadWidth": 14.0,
-    "skyColor": [2, 4, 14],
-    "roadColor": [10, 14, 24],
-    "railColorA": [0, 255, 170],
-    "railColorB": [0, 210, 255],
+    "name": "MONZA GP",
+    "subtitle": "Italian Grand Prix // Temple of Speed",
+    "difficulty": "HARD",
+    "laps": 3,
+    "length": 5793.0,
+    "roadWidth": 13.0,
+    "skyColor": [2, 6, 16],
+    "roadColor": [12, 16, 26],
+    "railColorA": [0, 255, 140],
+    "railColorB": [255, 40, 50],
     "theme": "orbital",
-    "shape": "ORBITAL TRI-OVAL",
-    "turns": 3,
-    "elevationProfile": "Parabolic Banking",
-    "groundColor": [3, 5, 12]
+    "shape": "TEMPLE OF SPEED & CHICANES",
+    "turns": 11,
+    "elevationProfile": "Flat-out Straights & Heavy Braking Chicanes",
+    "groundColor": [6, 10, 16]
   };
 }
 
 // -----------------------------------------------------------------------------
-// Closed Circuit Loop Geometry for 3D Road Curves & 2D Minimap Radar
+// Official FIA Formula 1 Closed Circuit Geometry (via f1_data.pb)
 // -----------------------------------------------------------------------------
 export fun getTrackWorldPoint(id, s) {
-  let lapLen = 1800.0;
-  if (id == 1) lapLen = 2200.0;
-  else if (id == 2) lapLen = 2600.0;
-  else if (id == 3) lapLen = 2400.0;
-
-  let u = (s / lapLen) * 6.2831853;
-  if (id == 0) {
-    // Neo Shibuya: Tokyo Metropolis Circuit (elongated rectangle with chicane waist)
-    let x = 240.0 * math.sin(u) + 35.0 * math.sin(3.0 * u) - 10.0 * math.sin(5.0 * u);
-    let z = 380.0 * math.cos(u) + 40.0 * math.cos(3.0 * u);
-    return [x, z];
-  }
-  if (id == 1) {
-    // Sunset Horizon: Pacific Coast Ocean Loop (flowing kidney peninsula)
-    let x = 300.0 * math.sin(u) + 75.0 * math.sin(2.0 * u);
-    let z = 360.0 * math.cos(u) + 55.0 * math.cos(2.0 * u) - 25.0 * math.sin(u);
-    return [x, z];
-  }
-  if (id == 2) {
-    // Nebula Canyon: Titan Mountain Switchback (serpentine figure-8 with hairpins)
-    let x = 200.0 * math.sin(u) + 120.0 * math.sin(3.0 * u) - 20.0 * math.sin(5.0 * u);
-    let z = 380.0 * math.cos(u) + 30.0 * math.cos(2.0 * u);
-    return [x, z];
-  }
-  // Hyperion Speedway: Orbital Tri-Oval Superspeedway
-  let x = 320.0 * math.sin(u) + 80.0 * math.sin(2.0 * u);
-  let z = 320.0 * math.cos(u) - 80.0 * math.cos(2.0 * u);
-  return [x, z];
+  return f1.getTrackWorldPoint(id, s);
 }
 
 export fun getTrackTangent(id, s) {
-  let lapLen = 1800.0;
-  if (id == 1) lapLen = 2200.0;
-  else if (id == 2) lapLen = 2600.0;
-  else if (id == 3) lapLen = 2400.0;
-
-  let u = (s / lapLen) * 6.2831853;
-  if (id == 0) {
-    let dx = 240.0 * math.cos(u) + 105.0 * math.cos(3.0 * u) - 50.0 * math.cos(5.0 * u);
-    let dz = -380.0 * math.sin(u) - 120.0 * math.sin(3.0 * u);
-    return [dx, dz];
-  }
-  if (id == 1) {
-    let dx = 300.0 * math.cos(u) + 150.0 * math.cos(2.0 * u);
-    let dz = -360.0 * math.sin(u) - 110.0 * math.sin(2.0 * u) - 25.0 * math.cos(u);
-    return [dx, dz];
-  }
-  if (id == 2) {
-    let dx = 200.0 * math.cos(u) + 360.0 * math.cos(3.0 * u) - 100.0 * math.cos(5.0 * u);
-    let dz = -380.0 * math.sin(u) - 60.0 * math.sin(2.0 * u);
-    return [dx, dz];
-  }
-  let dx = 320.0 * math.cos(u) + 160.0 * math.cos(2.0 * u);
-  let dz = -320.0 * math.sin(u) + 160.0 * math.sin(2.0 * u);
-  return [dx, dz];
+  return f1.getTrackTangent(id, s);
 }
 
 export fun getTrackHeading(id, s) {
-  let tan = getTrackTangent(id, s);
-  return math.atan2(tan[0], tan[1]);
+  return f1.getTrackHeading(id, s);
 }
 
 export fun getTrackBounds(id) {
-  if (id == 0) return [-216.0, 216.0, -420.0, 420.0];
-  if (id == 1) return [-330.0, 330.0, -360.0, 360.0];
-  if (id == 2) return [-240.0, 240.0, -380.0, 380.0];
-  return [-352.0, 352.0, -320.0, 320.0];
+  return f1.getF1Bounds(id);
 }
 

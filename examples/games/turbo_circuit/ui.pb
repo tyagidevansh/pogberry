@@ -468,6 +468,30 @@ export class UIRenderer {
       gui.drawText(this.bannerSub, math.floor((this.w - sw) * 0.5), bY + 48, 18, 220, 235, 255);
     }
 
+    // 7b. Corner Braking Warning (Flashing Chevron Indicator when speed is excessive)
+    if (player.brakeWarning != 0 and this.bannerTimer <= 0.0) {
+      let warnW = 440;
+      let warnH = 68;
+      let warnX = math.floor((this.w - warnW) * 0.5);
+      let warnY = 160;
+
+      let pulse = 180 + math.floor(math.sin(t * 16.0) * 75.0);
+      gui.drawRectangleAlpha(warnX, warnY, warnW, warnH, 20, 10, 16, 235);
+      gui.drawRectangleLines(warnX, warnY, warnW, warnH, 255, 40, pulse);
+
+      let warnText = "<<< BRAKE! <<<";
+      let subText = "SHARP LEFT CORNER // BRAKE OR POWER-DRIFT";
+      if (player.brakeWarning == 2) {
+        warnText = ">>> BRAKE! >>>";
+        subText = "SHARP RIGHT CORNER // BRAKE OR POWER-DRIFT";
+      }
+
+      let tw = gui.measureText(warnText, 30);
+      gui.drawText(warnText, math.floor((this.w - tw) * 0.5), warnY + 10, 30, 255, 40, pulse);
+      let sw = gui.measureText(subText, 14);
+      gui.drawText(subText, math.floor((this.w - sw) * 0.5), warnY + 44, 14, 255, 230, 80);
+    }
+
     // 8. Drift Combo Notification
     if (player.driftPoints > 0) {
       let dText = "DRIFT +" + str(player.driftPoints) + " PTS";
@@ -481,10 +505,6 @@ export class UIRenderer {
     let mapH = 175;
 
     let curTrackId = this.trackId;
-    if (lapLength > 2500.0) curTrackId = 2;
-    else if (lapLength > 2300.0) curTrackId = 3;
-    else if (lapLength > 2000.0) curTrackId = 1;
-    else if (lapLength > 1500.0) curTrackId = 0;
 
     let tSpec = const.getTrackSpec(curTrackId);
     let railCol = tSpec["railColorA"];
