@@ -492,6 +492,37 @@ export class UIRenderer {
       gui.drawText(subText, math.floor((this.w - sw) * 0.5), warnY + 44, 14, 255, 230, 80);
     }
 
+    // 7c. Off-Track Gravel Drag / Barrier Spin-Out Notification
+    if (player.spinTimer > 0.0) {
+      let spPulse = 200 + math.floor(math.sin(t * 18.0) * 55.0);
+      let spText = "CRASH! VEHICLE SPIN-OUT!";
+      let spSub = "LOSS OF TRACTION // RECOVERING HEADING";
+      let spW = 460;
+      let spH = 68;
+      let spX = math.floor((this.w - spW) * 0.5);
+      let spY = 160;
+      gui.drawRectangleAlpha(spX, spY, spW, spH, 40, 8, 12, 240);
+      gui.drawRectangleLines(spX, spY, spW, spH, 255, spPulse, 40);
+      let tw = gui.measureText(spText, 28);
+      gui.drawText(spText, math.floor((this.w - tw) * 0.5), spY + 12, 28, 255, spPulse, 40);
+      let sw = gui.measureText(spSub, 14);
+      gui.drawText(spSub, math.floor((this.w - sw) * 0.5), spY + 44, 14, 255, 220, 200);
+    } else if (player.isOffTrack) {
+      let otPulse = 180 + math.floor(math.sin(t * 12.0) * 75.0);
+      let otText = "OFF TRACK // GRAVEL TRAP";
+      let otSub = "SEVERE ROLLING DRAG // RETURN TO TARMAC";
+      let otW = 440;
+      let otH = 66;
+      let otX = math.floor((this.w - otW) * 0.5);
+      let otY = 160;
+      gui.drawRectangleAlpha(otX, otY, otW, otH, 35, 20, 8, 235);
+      gui.drawRectangleLines(otX, otY, otW, otH, 255, otPulse, 30);
+      let tw = gui.measureText(otText, 26);
+      gui.drawText(otText, math.floor((this.w - tw) * 0.5), otY + 10, 26, 255, otPulse, 40);
+      let sw = gui.measureText(otSub, 13);
+      gui.drawText(otSub, math.floor((this.w - sw) * 0.5), otY + 42, 13, 255, 230, 90);
+    }
+
     // 8. Drift Combo Notification
     if (player.driftPoints > 0) {
       let dText = "DRIFT +" + str(player.driftPoints) + " PTS";

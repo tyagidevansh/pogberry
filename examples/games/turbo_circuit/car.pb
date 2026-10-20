@@ -40,6 +40,9 @@ export class Vehicle {
     this.shieldRegenDelay = 0.0;
     this.spinTimer = 0.0;
     this.brakeWarning = 0;
+    this.wallHitShake = 0.0;
+    this.isOffTrack = false;
+    this.onCurb = false;
 
     // AI parameters
     this.aiLane = 0.0;
@@ -114,12 +117,12 @@ export class Vehicle {
       let driftSign = 1.0;
       if (steerInput < 0.0) driftSign = -1.0;
       particles.emitDriftSmoke(this.worldX, 0.0, this.z, driftSign);
-      if (rand(8) == 0) assets.playSfx(assets.sndSkid);
+      if (rand(8) == 0 and assets != nil) assets.playSfx(assets.sndSkid);
     } else {
       // If we just finished a high-value drift, reward with mini-turbo boost!
       if (this.isDrifting and this.driftPoints > 75) {
         this.speed = mu.clamp(this.speed + 12.0, 0.0, this.boostSpeed);
-        assets.playSfx(assets.sndNitro);
+        if (assets != nil) assets.playSfx(assets.sndNitro);
         particles.emitNitroFlames(this.worldX, 0.0, this.z, this.speed, 1.2);
       }
       this.driftPoints = 0;
@@ -128,7 +131,15 @@ export class Vehicle {
     }
 
     // 2. Throttle, Brakes, Reverse & Nitro Overdrive
-    if (boostInput) {
+    if (this.isOffTrack) {
+      // Gravel Trap Drag Penalty: Rolling resistance drags car down hard towards ~45 MPH
+      let gravelTop = 20.0;
+      this.speed = mu.approach(this.speed, gravelTop, dt * 45.0);
+      particles.emitDust(this.worldX, 0.0, this.z);
+      if (rand(8) == 0 and assets != nil) assets.playSfx(assets.sndCrash);
+    }
+
+    if (boostInput and !this.isOffTrack) {
       this.isBoosting = true;
       this.isReversing = false;
       this.speed = mu.approach(this.speed, boostTop, dt * (this.accel * 2.4));
@@ -138,7 +149,7 @@ export class Vehicle {
       let boostTier = 1.0;
       if (this.speed > 130.0) boostTier = 1.5;
       particles.emitNitroFlames(this.worldX, 0.0, this.z, this.speed, boostTier);
-      if (rand(12) == 0) assets.playSfx(assets.sndNitro);
+      if (rand(12) == 0 and assets != nil) assets.playSfx(assets.sndNitro);
     } else if (throttleInput) {
       this.isBoosting = false;
       if (this.speed < 0.0) {
@@ -146,7 +157,13 @@ export class Vehicle {
         this.speed = mu.approach(this.speed, 0.0, dt * 50.0);
         this.isReversing = false;
       } else {
-        this.speed = mu.approach(this.speed, cruiseTop, dt * this.accel);
+        let effAccel = this.accel;
+        let effTop = cruiseTop;
+        if (this.isOffTrack) {
+          effAccel = this.accel * 0.30; // 70% throttle power loss in gravel!
+          effTop = 20.0;
+        }
+        this.speed = mu.approach(this.speed, effTop, dt * effAccel);
         this.isReversing = false;
       }
       // Trickle nitro refill when not boosting
@@ -155,7 +172,7 @@ export class Vehicle {
       this.isBoosting = false;
       if (this.speed > 2.0) {
         // Active braking (snappy, responsive deceleration)
-        this.speed = mu.approach(this.speed, 0.0, dt * 65.0);
+        this.speed = mu.approach(this.speed, 0.0, dt * 70.0);
         this.isReversing = false;
       } else {
         // Reverse gear
@@ -171,7 +188,7 @@ export class Vehicle {
       // Coasting (no throttle, no brake)
       this.isBoosting = false;
       this.isReversing = false;
-      this.speed = mu.approach(this.speed, 0.0, dt * 14.0);
+      this.speed = mu.approach(this.speed, 0.0, dt * 16.0);
       this.nitro = mu.clamp(this.nitro + this.spec["nitroRegen"] * 0.5 * dt, 0.0, this.maxNitro);
     }
 
@@ -182,24 +199,31 @@ export class Vehicle {
     // Dialed-in lateral speed: smooth lane changing, high drift slip
     let steerSpeed = this.handling * 0.22;
     if (this.isDrifting) steerSpeed = steerSpeed * 1.45;
+    if (this.isOffTrack) steerSpeed = steerSpeed * 0.65; // Loose gravel traction loss
     this.steer = mu.approach(this.steer, effectiveSteerInput, dt * 10.0);
     this.x = this.x + this.steer * steerSpeed * dt;
 
-    // Dynamic Centrifugal Cornering Force (Must Brake or Drift through Sharp Corners!)
-    if (this.speed > 25.0) {
+    // Dynamic Grand Prix Centrifugal Cornering Force (Must Brake or Drift through Sharp Corners!)
+    if (this.speed > 16.0) {
       let curvature = track.getCurvature(0.0, this.trackDistance);
-      let vRatio = this.speed / 48.0;
-      let vFactor = vRatio * vRatio;
-      if (vFactor > 4.2) vFactor = 4.2;
-      let centrifugalPush = -(curvature / 0.030) * vFactor * 1.55 * dt;
-      this.x = this.x + centrifugalPush;
+      let vRatio = this.speed / 40.0;
+      let centrifugalStrength = -curvature * (vRatio * vRatio) * 240.0;
+
+      // Braking or drifting gives tire grip to hold the apex
+      if (brakeInput or this.isDrifting) {
+        centrifugalStrength = centrifugalStrength * 0.38;
+      }
+      if (this.isOffTrack) {
+        centrifugalStrength = centrifugalStrength * 1.50;
+      }
+      this.x = this.x + centrifugalStrength * dt;
     }
 
-    // Look ahead 48m for upcoming sharp corners (Braking Zones)
-    let lookAheadCurv = track.getCurvature(-48.0, this.trackDistance);
+    // Look ahead 50m for upcoming sharp corners (Braking Zones)
+    let lookAheadCurv = track.getCurvature(-50.0, this.trackDistance);
     let absCurv = math.abs(lookAheadCurv);
     this.brakeWarning = 0;
-    if (absCurv > 0.018 and this.speed > 55.0) {
+    if (absCurv > 0.018 and this.speed > 42.0) {
       if (lookAheadCurv > 0.0) {
         this.brakeWarning = 2; // Sharp Right Turn Ahead!
       } else {
@@ -214,31 +238,71 @@ export class Vehicle {
     // Synchronize world X on curved track: at player's wheels (z=0), road center is 0.0
     this.worldX = this.x;
 
-    // 4. Track Boundary Collisions (Guardrails with bounce)
-    let halfRoad = (track.roadWidth * 0.5) - 0.95;
-    if (this.x < -halfRoad) {
-      this.x = -halfRoad + 0.35; // Gentle bounce back onto tarmac
+    // 4. Track Surface Zones & Barrier Collisions
+    let halfRoad = track.roadWidth * 0.5;
+    let curbW = track.curbWidth;
+    let runoffW = track.runoffWidth;
+    let wallLimit = halfRoad + curbW + runoffW - 0.45;
+    let absX = math.abs(this.x);
+
+    this.isOffTrack = false;
+    this.onCurb = false;
+
+    if (absX > halfRoad + curbW) {
+      this.isOffTrack = true;
+    } else if (absX > halfRoad) {
+      this.onCurb = true;
+      this.wallHitShake = 0.03; // Light rumble vibration on curb
+    }
+
+    if (absX >= wallLimit) {
+      let sign = 1.0;
+      if (this.x < 0.0) sign = -1.0;
+      this.x = sign * (wallLimit - 0.38); // Bounce back from barrier
       this.steer = 0.0;
-      this.speed = this.speed * 0.94;
+
       if (this.wallDamageCooldown <= 0.0) {
-        this.hull = this.hull - 1.5;
-        this.wallDamageCooldown = 0.35;
-        this.shieldRegenDelay = 1.5;
-        this.hitFlash = 0.20;
-        particles.emitSparks(this.worldX - 0.8, 0.4, this.z, 5);
-        assets.playSfx(assets.sndCrash);
-      }
-    } else if (this.x > halfRoad) {
-      this.x = halfRoad - 0.35; // Gentle bounce back onto tarmac
-      this.steer = 0.0;
-      this.speed = this.speed * 0.94;
-      if (this.wallDamageCooldown <= 0.0) {
-        this.hull = this.hull - 1.5;
-        this.wallDamageCooldown = 0.35;
-        this.shieldRegenDelay = 1.5;
-        this.hitFlash = 0.20;
-        particles.emitSparks(this.worldX + 0.8, 0.4, this.z, 5);
-        assets.playSfx(assets.sndCrash);
+        if (this.speed > 55.0) {
+          // Extreme high-speed impact (> 125 MPH) -> 50% speed scrub, 22 HP damage, violent 1.0s spin-out!
+          this.speed = this.speed * 0.50;
+          this.hull = this.hull - 22.0;
+          this.shieldRegenDelay = 4.8;
+          this.wallHitShake = 0.75;
+          this.spinTimer = 1.0;
+          this.hitFlash = 0.45;
+          particles.emitSparks(this.worldX + sign * 0.6, 0.5, this.z, 24);
+          if (assets != nil) assets.playSfx(assets.sndCrash);
+        } else if (this.speed > 35.0) {
+          // High-speed impact (80 - 125 MPH) -> 45% speed scrub, 16 HP damage, 0.80s tank-slapper spin-out!
+          this.speed = this.speed * 0.55;
+          this.hull = this.hull - 16.0;
+          this.shieldRegenDelay = 4.0;
+          this.wallHitShake = 0.55;
+          this.spinTimer = 0.80;
+          this.hitFlash = 0.35;
+          particles.emitSparks(this.worldX + sign * 0.6, 0.5, this.z, 16);
+          if (assets != nil) assets.playSfx(assets.sndCrash);
+        } else if (this.speed > 18.0) {
+          // Medium-speed impact (40 - 80 MPH) -> 30% speed scrub, 8 HP damage
+          this.speed = this.speed * 0.70;
+          this.hull = this.hull - 8.0;
+          this.shieldRegenDelay = 2.8;
+          this.wallHitShake = 0.35;
+          this.hitFlash = 0.20;
+          particles.emitSparks(this.worldX + sign * 0.6, 0.5, this.z, 8);
+          if (assets != nil) assets.playSfx(assets.sndCrash);
+        } else {
+          // Low-speed scrape
+          this.speed = this.speed * 0.82;
+          this.hull = this.hull - 3.0;
+          this.shieldRegenDelay = 1.8;
+          this.wallHitShake = 0.18;
+          this.hitFlash = 0.12;
+          particles.emitSparks(this.worldX + sign * 0.6, 0.4, this.z, 4);
+          if (assets != nil) assets.playSfx(assets.sndCrash);
+        }
+        if (this.hull < 0.0) this.hull = 0.0;
+        this.wallDamageCooldown = 0.45;
       }
     }
 

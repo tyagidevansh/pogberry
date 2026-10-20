@@ -127,16 +127,26 @@ export fun getTrackSpec(id) {
       "difficulty": "HARD",
       "laps": 3,
       "length": 5807.0,
-      "roadWidth": 11.4,
-      "skyColor": [4, 8, 20],
-      "roadColor": [16, 18, 28],
+      "roadWidth": 16.8,
+      "curbWidth": 1.4,
+      "runoffWidth": 4.5,
+      "skyColor": [6, 12, 32],
+      "skyTop": [4, 8, 22],
+      "skyBottom": [32, 50, 92],
+      "fogColor": [24, 38, 68],
+      "roadColor": [18, 20, 30],
+      "curbColor": [255, 40, 50],
+      "gravelColor": [135, 105, 75],
+      "grassColor": [22, 42, 26],
+      "barrierColor": [200, 205, 215],
+      "barrierTopColor": [255, 30, 40],
       "railColorA": [255, 40, 60],
       "railColorB": [255, 255, 255],
       "theme": "city",
       "shape": "SUZUKA FIGURE-8 & ESSES",
       "turns": 18,
       "elevationProfile": "S-Curves & Dunlop Rollercoaster",
-      "groundColor": [8, 12, 18]
+      "groundColor": [16, 28, 20]
     };
   }
   if (id == 1) {
@@ -146,16 +156,26 @@ export fun getTrackSpec(id) {
       "difficulty": "EXPERT",
       "laps": 3,
       "length": 3337.0,
-      "roadWidth": 9.4,
-      "skyColor": [45, 14, 38],
-      "roadColor": [26, 18, 30],
+      "roadWidth": 14.2,
+      "curbWidth": 1.2,
+      "runoffWidth": 3.4,
+      "skyColor": [65, 22, 55],
+      "skyTop": [50, 16, 44],
+      "skyBottom": [235, 105, 60],
+      "fogColor": [115, 45, 65],
+      "roadColor": [24, 20, 32],
+      "curbColor": [245, 45, 55],
+      "gravelColor": [110, 35, 48],
+      "grassColor": [18, 26, 45],
+      "barrierColor": [220, 220, 225],
+      "barrierTopColor": [255, 210, 30],
       "railColorA": [255, 60, 80],
       "railColorB": [255, 210, 40],
       "theme": "sunset",
       "shape": "MONTE CARLO HARBOR CIRCUIT",
       "turns": 19,
       "elevationProfile": "Beau Rivage Climb & Harbor Descents",
-      "groundColor": [22, 12, 28]
+      "groundColor": [16, 22, 36]
     };
   }
   if (id == 2) {
@@ -165,16 +185,26 @@ export fun getTrackSpec(id) {
       "difficulty": "EXPERT",
       "laps": 3,
       "length": 7004.0,
-      "roadWidth": 12.0,
-      "skyColor": [10, 14, 26],
-      "roadColor": [22, 18, 24],
+      "roadWidth": 18.4,
+      "curbWidth": 1.5,
+      "runoffWidth": 5.0,
+      "skyColor": [14, 22, 42],
+      "skyTop": [10, 16, 34],
+      "skyBottom": [70, 105, 138],
+      "fogColor": [38, 58, 78],
+      "roadColor": [20, 22, 28],
+      "curbColor": [255, 215, 0],
+      "gravelColor": [125, 95, 65],
+      "grassColor": [20, 48, 24],
+      "barrierColor": [195, 200, 210],
+      "barrierTopColor": [230, 25, 35],
       "railColorA": [255, 215, 0],
       "railColorB": [220, 20, 60],
       "theme": "canyon",
       "shape": "ARDENNES FOREST ROLLERCOASTER",
       "turns": 19,
       "elevationProfile": "Eau Rouge & Raidillon 17% Climb",
-      "groundColor": [14, 18, 14]
+      "groundColor": [18, 38, 20]
     };
   }
   return {
@@ -183,16 +213,26 @@ export fun getTrackSpec(id) {
     "difficulty": "HARD",
     "laps": 3,
     "length": 5793.0,
-    "roadWidth": 13.0,
-    "skyColor": [2, 6, 16],
-    "roadColor": [12, 16, 26],
+    "roadWidth": 18.0,
+    "curbWidth": 1.5,
+    "runoffWidth": 4.8,
+    "skyColor": [8, 14, 28],
+    "skyTop": [6, 10, 22],
+    "skyBottom": [40, 75, 105],
+    "fogColor": [22, 48, 70],
+    "roadColor": [16, 18, 28],
+    "curbColor": [0, 200, 100],
+    "gravelColor": [145, 120, 80],
+    "grassColor": [24, 46, 22],
+    "barrierColor": [210, 215, 220],
+    "barrierTopColor": [0, 220, 120],
     "railColorA": [0, 255, 140],
     "railColorB": [255, 40, 50],
     "theme": "orbital",
     "shape": "TEMPLE OF SPEED & CHICANES",
     "turns": 11,
     "elevationProfile": "Flat-out Straights & Heavy Braking Chicanes",
-    "groundColor": [6, 10, 16]
+    "groundColor": [18, 36, 18]
   };
 }
 
@@ -209,6 +249,10 @@ export fun getTrackTangent(id, s) {
 
 export fun getTrackHeading(id, s) {
   return f1.getTrackHeading(id, s);
+}
+
+export fun getTrackCurvature(id, s) {
+  return f1.getTrackCurvature(id, s);
 }
 
 export fun getTrackBounds(id) {

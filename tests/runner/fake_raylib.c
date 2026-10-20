@@ -491,6 +491,14 @@ RAYLIB_EXPORT void drawCubeWires3D(float x, float y, float z, float w, float h, 
 RAYLIB_EXPORT void drawPlane3D(float x, float y, float z, float w, float l, int r, int g, int b) {
   (void)x; (void)y; (void)z; (void)w; (void)l; (void)r; (void)g; (void)b;
 }
+RAYLIB_EXPORT void drawTriangle3D(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, int r, int g, int b) {
+  (void)x1; (void)y1; (void)z1; (void)x2; (void)y2; (void)z2; (void)x3; (void)y3; (void)z3; (void)r; (void)g; (void)b;
+}
+RAYLIB_EXPORT void drawQuad3D(float x1, float y1, float z1, float x2, float y2, float z2,
+                              float x3, float y3, float z3, float x4, float y4, float z4,
+                              int r, int g, int b) {
+  (void)x1; (void)y1; (void)z1; (void)x2; (void)y2; (void)z2; (void)x3; (void)y3; (void)z3; (void)x4; (void)y4; (void)z4; (void)r; (void)g; (void)b;
+}
 RAYLIB_EXPORT void drawSphere3D(float x, float y, float z, float radius, int r, int g, int b) {
   (void)x; (void)y; (void)z; (void)radius; (void)r; (void)g; (void)b;
 }

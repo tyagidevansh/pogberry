@@ -49,6 +49,14 @@ export class ParticleSystem {
               mu.randFloat(0.22, 0.45), 200, 215, 235, 0.40, 1);
   }
 
+  emitDust(carX, carY, carZ) {
+    for (let i = 0; i < 2; i += 1) {
+      this.emit(carX + mu.randFloat(-0.8, 0.8), carY + 0.1, carZ + 1.2,
+                mu.randFloat(-1.5, 1.5), mu.randFloat(0.3, 1.2), mu.randFloat(2.0, 5.0),
+                mu.randFloat(0.28, 0.55), 150, 120, 85, 0.45, 1);
+    }
+  }
+
   emitSparks(x, y, z, count) {
     for (let i = 0; i < count; i += 1) {
       this.emit(x, y, z,

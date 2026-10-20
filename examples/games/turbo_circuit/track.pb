@@ -8,12 +8,20 @@ export class Track {
   init(trackId) {
     this.trackId = trackId;
     this.spec = const.getTrackSpec(trackId);
-    this.roadWidth = 11.0;
+    this.roadWidth = 16.8;
     if (this.spec["roadWidth"] != nil) {
       this.roadWidth = this.spec["roadWidth"];
     }
+    this.curbWidth = 1.4;
+    if (this.spec["curbWidth"] != nil) {
+      this.curbWidth = this.spec["curbWidth"];
+    }
+    this.runoffWidth = 4.5;
+    if (this.spec["runoffWidth"] != nil) {
+      this.runoffWidth = this.spec["runoffWidth"];
+    }
     this.segmentLength = 6.0;
-    this.drawDistance = 48; // 288m visible road ahead (high fidelity, zero gaps)
+    this.drawDistance = 52; // 312m visible Grand Prix road ahead (gapless 3D mesh)
 
     // Curve scaling for optimal visual perspective
     this.curveScale = 1.0;
@@ -92,23 +100,30 @@ export class Track {
   }
 
   // ---------------------------------------------------------------------------
-  // GEOMETRIC CLOSED CIRCUIT CURVES (RELATIVE HEADING WITH SOFT SATURATION)
+  // ---------------------------------------------------------------------------
+  // GEOMETRIC CLOSED CIRCUIT CURVES (RIGID BODY RELATIVE ROAD PROJECTION)
   // ---------------------------------------------------------------------------
   getCurveOffset(z, distance) {
-    let h0 = const.getTrackHeading(this.trackId, distance);
-    let h1 = const.getTrackHeading(this.trackId, distance - z);
-    let diff = h1 - h0;
-    while (diff > 3.14159265) {
-      diff = diff - 6.2831853;
-    }
-    while (diff < -3.14159265) {
-      diff = diff + 6.2831853;
-    }
-
     let d = -z;
-    let raw = d * math.sin(diff * 0.5) * 0.75;
-    let lat = raw / (1.0 + math.abs(raw) / 16.0);
-    return lat * this.curveScale;
+    if (d < 0.1) return 0.0;
+
+    let p_car = const.getTrackWorldPoint(this.trackId, distance);
+    let p_ahead = const.getTrackWorldPoint(this.trackId, distance + d);
+    let tan = const.getTrackTangent(this.trackId, distance);
+    let mag = math.sqrt(tan[0] * tan[0] + tan[1] * tan[1]);
+    if (mag < 0.001) return 0.0;
+    let Tx = tan[0] / mag;
+    let Tz = tan[1] / mag;
+
+    let deltaX = p_ahead[0] - p_car[0];
+    let deltaZ = p_ahead[1] - p_car[1];
+
+    // Rigid body lateral offset in camera space (+X is right, -X is left):
+    let rawLat = -deltaX * Tz + deltaZ * Tx;
+
+    // Smooth algebraic saturation so distant segments (>150m) stay within the 3D frustum
+    let sFactor = rawLat / 70.0;
+    return (rawLat / math.sqrt(1.0 + sFactor * sFactor)) * this.curveScale;
   }
 
   // ---------------------------------------------------------------------------
@@ -152,18 +167,8 @@ export class Track {
   }
 
   getCurvature(z, distance) {
-    let s0 = distance - z;
-    let s1 = s0 + 16.0;
-    let h0 = const.getTrackHeading(this.trackId, s0);
-    let h1 = const.getTrackHeading(this.trackId, s1);
-    let diff = h1 - h0;
-    while (diff > 3.14159265) {
-      diff = diff - 6.2831853;
-    }
-    while (diff < -3.14159265) {
-      diff = diff + 6.2831853;
-    }
-    return diff / 16.0;
+    let s = distance - z;
+    return const.getTrackCurvature(this.trackId, s);
   }
 
   // Check if position is inside an enclosed tunnel section
@@ -202,146 +207,287 @@ export class Track {
     let rcB = this.spec["railColorB"];
     let roadCol = this.spec["roadColor"];
     let halfW = this.roadWidth * 0.5;
+    let curbW = this.curbWidth;
+    let runoffW = this.runoffWidth;
+    let outerW = halfW + curbW + runoffW;
+
+    let curbCol = this.spec["curbColor"];
+    if (curbCol == nil) curbCol = [255, 40, 50];
+    let gravelCol = this.spec["gravelColor"];
+    if (gravelCol == nil) gravelCol = [135, 105, 75];
+    let grassCol = this.spec["grassColor"];
+    if (grassCol == nil) grassCol = [20, 40, 22];
+    let barCol = this.spec["barrierColor"];
+    if (barCol == nil) barCol = [200, 205, 215];
+    let barTopCol = this.spec["barrierTopColor"];
+    if (barTopCol == nil) barTopCol = [255, 30, 40];
 
     // -------------------------------------------------------------------------
-    // 0. Distant Atmospheric Backdrop per Track
+    // 0. Authentic Grand Prix Atmospheric Backdrop per Circuit
     // -------------------------------------------------------------------------
     if (this.trackId == 0) {
-      // Shibuya Tokyo Midnight Metropolis Skyline (9 towers across horizon)
-      for (let k = -4; k <= 4; k += 1) {
-        let bldX = k * 36.0;
-        let bldH = 34.0 + math.abs(k * 7) + ((k * 3) % 11) * 2.0;
-        gui.drawCube3D(bldX, bldH * 0.5 - 4.0, -260.0, 18.0, bldH, 18.0, 12, 16, 28);
-        gui.drawCube3D(bldX, bldH * 0.5 - 4.0, -259.0, 14.0, bldH * 0.85, 0.2, 0, 160 + math.abs(k * 10), 220);
-        gui.drawCylinder3D(bldX, bldH - 4.0, -260.0, 0.1, 0.2, 10.0, 4, 180, 190, 210);
-        gui.drawSphere3D(bldX, bldH + 1.5, -260.0, 0.7, 255, 50, 60);
+      // SUZUKA INTERNATIONAL: Mie Mountain Ridge + Giant Suzuka Ferris Wheel
+      for (let k = -6; k <= 6; k += 1) {
+        let mX = k * 44.0;
+        let mH = 38.0 + math.abs(k * 7) + ((k * 4) % 11) * 3.0;
+        gui.drawCylinder3D(mX, mH * 0.5 - 6.0, -280.0, 0.1, 28.0, mH, 5, 20, 32, 54);
+      }
+      // Suzuka Circuit Landmark: Giant Illuminated Ferris Wheel
+      let fwX = 75.0;
+      let fwY = 36.0;
+      let fwZ = -240.0;
+      let fwRadius = 22.0;
+      gui.drawCylinderWires3D(fwX, fwY, fwZ, fwRadius, fwRadius, 2.0, 18, 0, 220, 255);
+      gui.drawSphere3D(fwX, fwY, fwZ, 2.8, 255, 220, 60);
+      for (let sp = 0; sp < 8; sp += 1) {
+        let spAng = t * 0.35 + sp * (3.14159265 / 4.0);
+        let gX = fwX + math.cos(spAng) * fwRadius;
+        let gY = fwY + math.sin(spAng) * fwRadius;
+        gui.drawSphere3D(gX, gY, fwZ, 1.4, 255, 50, 80);
+      }
+      // Grandstands along Pit Straight
+      for (let st = -3; st <= 3; st += 1) {
+        gui.drawCube3D(st * 32.0, 10.0, -220.0, 24.0, 14.0, 10.0, 32, 40, 58);
+        gui.drawCube3D(st * 32.0, 18.0, -220.0, 25.0, 1.2, 12.0, 255, 40, 60);
       }
     } else if (this.trackId == 1) {
-      // Sunset Horizon: Giant glowing Synthwave Sunset Sun & Pacific Ocean
-      gui.drawSphere3D(55.0, 20.0, -250.0, 36.0, 255, 110, 40);
-      gui.drawSphere3D(55.0, 20.0, -249.0, 22.0, 255, 210, 80);
-      // Ocean water plane extending across horizon
-      gui.drawPlane3D(65.0, -1.2, -120.0, 200.0, 480.0, 24, 14, 46);
-      for (let k = -3; k <= 3; k += 1) {
-        let mX = k * 52.0 - 40.0;
-        let mH = 22.0 + math.abs(k * 5);
-        gui.drawCylinder3D(mX, mH * 0.5 - 6.0, -255.0, 0.1, 24.0, mH, 5, 48, 18, 42);
+      // MONACO GP: French Riviera Cliffside Terraces, Villas & Port Hercule
+      for (let k = -5; k <= 5; k += 1) {
+        let cX = k * 48.0 - 20.0;
+        let cH = 44.0 + math.abs(k * 6);
+        gui.drawCylinder3D(cX, cH * 0.5 - 6.0, -280.0, 0.2, 32.0, cH, 6, 60, 28, 48);
+      }
+      // Mediterranean Sea water plane
+      gui.drawPlane3D(60.0, -1.8, -140.0, 260.0, 480.0, 20, 28, 62);
+      // Monte Carlo Villas with glowing warm windows
+      for (let v = -4; v <= 4; v += 1) {
+        let vX = v * 38.0 - 50.0;
+        let vH = 26.0 + ((v * 5) % 9) * 3.0;
+        gui.drawCube3D(vX, vH * 0.5 - 2.0, -250.0, 18.0, vH, 16.0, 95, 48, 56);
+        gui.drawCube3D(vX, vH * 0.5 - 2.0, -249.0, 14.0, vH * 0.7, 0.2, 255, 210, 120);
+      }
+      // Port Hercule Luxury Yachts
+      for (let yk = 0; yk < 4; yk += 1) {
+        let yX = 40.0 + yk * 30.0;
+        let yZ = -190.0 - yk * 22.0;
+        gui.drawCube3D(yX, 1.5, yZ, 12.0, 4.0, 26.0, 230, 235, 245);
+        gui.drawCylinder3D(yX, 8.0, yZ, 0.2, 0.3, 10.0, 4, 180, 190, 205);
+        gui.drawSphere3D(yX, 13.5, yZ, 0.6, 255, 220, 50);
       }
     } else if (this.trackId == 2) {
-      // Nebula Canyon: Titan Sandstone Mountain Massifs Backdrop
-      for (let k = -4; k <= 4; k += 1) {
-        let cX = k * 45.0;
-        let cH = 36.0 + ((k * 5) % 13) * 3.0;
-        gui.drawCylinder3D(cX, cH * 0.5 - 6.0, -255.0, 0.2, 22.0, cH, 6, 110, 40, 32);
-        gui.drawSphere3D(cX, cH - 4.0, -254.0, 2.2, 220, 50, 255);
+      // SPA-FRANCORCHAMPS: Ardennes Forest Highlands & Raidillon Grandstand
+      for (let k = -6; k <= 6; k += 1) {
+        let aX = k * 45.0;
+        let aH = 42.0 + math.abs(k * 8);
+        gui.drawCylinder3D(aX, aH * 0.5 - 6.0, -280.0, 0.1, 30.0, aH, 6, 22, 42, 32);
+      }
+      // Famous Red Raidillon Crest Grandstand perched atop Eau Rouge
+      gui.drawCube3D(65.0, 24.0, -230.0, 45.0, 22.0, 20.0, 40, 48, 56);
+      gui.drawCube3D(65.0, 36.0, -230.0, 48.0, 2.0, 22.0, 225, 30, 40);
+      // Ardennes pine tree clusters on the horizon
+      for (let pt = -5; pt <= 5; pt += 1) {
+        let pX = pt * 38.0;
+        gui.drawCylinder3D(pX, 12.0, -250.0, 0.2, 10.0, 24.0, 5, 16, 44, 22);
       }
     } else {
-      // Hyperion Speedway: Earth globe & Orbital Station Trusses
-      gui.drawSphere3D(-75.0, -32.0, -260.0, 55.0, 20, 80, 210);
-      gui.drawSphere3D(-73.0, -30.0, -258.0, 42.0, 40, 140, 240);
-      gui.drawCube3D(0.0, 32.0, -240.0, 260.0, 2.5, 3.0, 40, 60, 90);
-      gui.drawCylinderWires3D(0.0, 32.0, -240.0, 26.0, 26.0, 2.0, 16, 0, 240, 255);
+      // MONZA GP: Royal Parkland Canopy, Historic Banked Oval Ruins & Italian GP Gantries
+      for (let k = -6; k <= 6; k += 1) {
+        let pX = k * 46.0;
+        let pH = 50.0 + math.abs(k * 7);
+        gui.drawCylinder3D(pX, pH * 0.5 - 6.0, -285.0, 0.1, 26.0, pH, 5, 28, 48, 72);
+        gui.drawSphere3D(pX, pH - 6.0, -284.0, 4.0, 220, 235, 255);
+      }
+      // Historic Monza Concrete Banking Oval Ruins looming in background
+      gui.drawCylinderWires3D(0.0, 16.0, -230.0, 75.0, 75.0, 12.0, 24, 70, 85, 95);
+      // Italian GP Grandstands
+      gui.drawCube3D(-55.0, 14.0, -210.0, 48.0, 16.0, 16.0, 35, 42, 50);
+      gui.drawCube3D(-55.0, 23.0, -210.0, 50.0, 1.5, 18.0, 0, 200, 110);
+      gui.drawCube3D(55.0, 14.0, -210.0, 48.0, 16.0, 16.0, 35, 42, 50);
+      gui.drawCube3D(55.0, 23.0, -210.0, 50.0, 1.5, 18.0, 235, 40, 50);
     }
 
     // -------------------------------------------------------------------------
-    // 1. Render Road Segments & Elevation
+    // 1. Render Seamless Continuous 3D Quad Track Mesh
     // -------------------------------------------------------------------------
     for (let i = 0; i < this.drawDistance; i += 1) {
-      let segZ = 12.0 - i * this.segmentLength + scroll;
-      let segDist = distance - segZ;
-      let curve = this.getCurveOffset(segZ, distance);
-      let hill = this.getYOffset(segZ, distance);
-      let nextCurve = this.getCurveOffset(segZ - this.segmentLength, distance);
-      let nextHill = this.getYOffset(segZ - this.segmentLength, distance);
+      let segZ1 = 12.0 - i * this.segmentLength + scroll;
+      let segZ2 = segZ1 - this.segmentLength;
+      let segDist = distance - segZ1;
 
-      let midCurve = (curve + nextCurve) * 0.5;
-      let midHill = (hill + nextHill) * 0.5;
+      let curve1 = this.getCurveOffset(segZ1, distance);
+      let hill1 = this.getYOffset(segZ1, distance);
+      let curve2 = this.getCurveOffset(segZ2, distance);
+      let hill2 = this.getYOffset(segZ2, distance);
 
-      // Road Surface Plane
-      gui.drawPlane3D(midCurve, midHill, segZ, this.roadWidth, this.segmentLength + 0.35,
-                      roadCol[0], roadCol[1], roadCol[2]);
+      // Coordinates at Near Edge (segZ1) - wide 140m terrain apron hugging road elevation
+      let x_AL1 = curve1 - outerW - 140.0;
+      let x_OL1 = curve1 - outerW;
+      let x_CL1 = curve1 - halfW - curbW;
+      let x_RL1 = curve1 - halfW;
+      let x_RR1 = curve1 + halfW;
+      let x_CR1 = curve1 + halfW + curbW;
+      let x_OR1 = curve1 + outerW;
+      let x_AR1 = curve1 + outerW + 140.0;
 
-      // Racing Curbs / Rumble Strips (Left & Right Shoulders)
-      let curbPulse = (math.floor(segDist / 6.0)) % 2;
-      let curbCol = [255, 255, 255];
+      // Coordinates at Far Edge (segZ2)
+      let x_AL2 = curve2 - outerW - 140.0;
+      let x_OL2 = curve2 - outerW;
+      let x_CL2 = curve2 - halfW - curbW;
+      let x_RL2 = curve2 - halfW;
+      let x_RR2 = curve2 + halfW;
+      let x_CR2 = curve2 + halfW + curbW;
+      let x_OR2 = curve2 + outerW;
+      let x_AR2 = curve2 + outerW + 140.0;
+
+      // A. Outer Terrain Aprons (Left & Right, hugging road elevation)
+      let grR = grassCol[0]; let grG = grassCol[1]; let grB = grassCol[2];
+      if (i % 2 == 1) {
+        grR = math.floor(grR * 0.90); grG = math.floor(grG * 0.90); grB = math.floor(grB * 0.90);
+      }
+      gui.drawQuad3D(x_AL1, hill1 - 0.12, segZ1,  x_OL1, hill1 - 0.05, segZ1,
+                     x_OL2, hill2 - 0.05, segZ2,  x_AL2, hill2 - 0.12, segZ2,
+                     grR, grG, grB);
+      gui.drawQuad3D(x_OR1, hill1 - 0.05, segZ1,  x_AR1, hill1 - 0.12, segZ1,
+                     x_AR2, hill2 - 0.12, segZ2,  x_OR2, hill2 - 0.05, segZ2,
+                     grR, grG, grB);
+
+      // B. Authentic Grand Prix Runoff Zones:
+      // Straightaways feature clean green turf / paved shoulders.
+      // Corner braking & runoff zones feature real gravel traps on the outside of bends!
+      let segCurv = this.getCurvature(segZ1, distance);
+      let isCorner = math.abs(segCurv) >= 0.006;
+      let leftIsGravel = false;
+      let rightIsGravel = false;
+      if (isCorner) {
+        if (segCurv > 0.0) {
+          leftIsGravel = true;  // Turning right -> outside runoff is on the left
+        } else {
+          rightIsGravel = true; // Turning left -> outside runoff is on the right
+        }
+      }
+
+      // Left Runoff Quad
+      let lR = grassCol[0]; let lG = grassCol[1]; let lB = grassCol[2];
+      if (leftIsGravel) {
+        lR = gravelCol[0]; lG = gravelCol[1]; lB = gravelCol[2];
+      }
+      if (i % 2 == 1) {
+        lR = math.floor(lR * 0.92); lG = math.floor(lG * 0.92); lB = math.floor(lB * 0.92);
+      }
+      gui.drawQuad3D(x_OL1, hill1 - 0.04, segZ1,  x_CL1, hill1 - 0.02, segZ1,
+                     x_CL2, hill2 - 0.02, segZ2,  x_OL2, hill2 - 0.04, segZ2,
+                     lR, lG, lB);
+
+      // Right Runoff Quad
+      let rRCol = grassCol[0]; let rGCol = grassCol[1]; let rBCol = grassCol[2];
+      if (rightIsGravel) {
+        rRCol = gravelCol[0]; rGCol = gravelCol[1]; rBCol = gravelCol[2];
+      }
+      if (i % 2 == 1) {
+        rRCol = math.floor(rRCol * 0.92); rGCol = math.floor(rGCol * 0.92); rBCol = math.floor(rBCol * 0.92);
+      }
+      gui.drawQuad3D(x_CR1, hill1 - 0.02, segZ1,  x_OR1, hill1 - 0.04, segZ1,
+                     x_OR2, hill2 - 0.04, segZ2,  x_CR2, hill2 - 0.02, segZ2,
+                     rRCol, rGCol, rBCol);
+
+      // C. Rumble Strip Curbs (Left & Right)
+      let curbPulse = (math.floor(segDist / 4.0)) % 2;
+      let cR = 245; let cG = 245; let cB = 250;
       if (curbPulse == 0) {
-        if (this.trackId == 0) curbCol = [0, 240, 255];
-        else if (this.trackId == 1) curbCol = [245, 50, 60];
-        else if (this.trackId == 2) curbCol = [255, 200, 30];
-        else curbCol = [0, 255, 170];
+        cR = curbCol[0]; cG = curbCol[1]; cB = curbCol[2];
       }
-      gui.drawCube3D(curve - halfW + 0.35, hill + 0.08, segZ, 0.70, 0.08, this.segmentLength,
-                     curbCol[0], curbCol[1], curbCol[2]);
-      gui.drawCube3D(curve + halfW - 0.35, hill + 0.08, segZ, 0.70, 0.08, this.segmentLength,
-                     curbCol[0], curbCol[1], curbCol[2]);
+      gui.drawQuad3D(x_CL1, hill1 + 0.04, segZ1,  x_RL1, hill1 + 0.04, segZ1,
+                     x_RL2, hill2 + 0.04, segZ2,  x_CL2, hill2 + 0.04, segZ2,
+                     cR, cG, cB);
+      gui.drawQuad3D(x_RR1, hill1 + 0.04, segZ1,  x_CR1, hill1 + 0.04, segZ1,
+                     x_CR2, hill2 + 0.04, segZ2,  x_RR2, hill2 + 0.04, segZ2,
+                     cR, cG, cB);
 
-      // Neon Guardrails (Left & Right)
-      let railPulse = 200 + math.floor(math.sin(t * 3.0 + i * 0.4) * 55.0);
+      // D. Main Tarmac Racing Road Surface
+      let rdR = roadCol[0]; let rdG = roadCol[1]; let rdB = roadCol[2];
+      if (i % 2 == 1) {
+        rdR = rdR + 4; rdG = rdG + 4; rdB = rdB + 6;
+      }
+      gui.drawQuad3D(x_RL1, hill1, segZ1,  x_RR1, hill1, segZ1,
+                     x_RR2, hill2, segZ2,  x_RL2, hill2, segZ2,
+                     rdR, rdG, rdB);
 
-      // Left Rail
-      gui.drawCube3D(curve - halfW, hill + 0.35, segZ, 0.25, 0.70, this.segmentLength,
-                     rcA[0], rcA[1], rcA[2]);
-      // Right Rail
-      gui.drawCube3D(curve + halfW, hill + 0.35, segZ, 0.25, 0.70, this.segmentLength,
-                     rcB[0], rcB[1], rcB[2]);
-
-      // Lane Divider Dashes
-      for (let lane = -1; lane <= 1; lane += 2) {
-        let laneX = curve + lane * (this.roadWidth * 0.25);
-        gui.drawCube3D(laneX, hill + 0.03, segZ, 0.12, 0.04, 5.0, 220, 235, 255);
+      // E. Centerline Painted Dashes
+      if ((math.floor(segDist / 6.0)) % 2 == 0) {
+        gui.drawQuad3D(curve1 - 0.12, hill1 + 0.02, segZ1,  curve1 + 0.12, hill1 + 0.02, segZ1,
+                       curve2 + 0.12, hill2 + 0.02, segZ2,  curve2 - 0.12, hill2 + 0.02, segZ2,
+                       240, 245, 255);
       }
 
-      // Enclosed Tunnel Roof & Arches (Shibuya & Canyon)
+      // F. Perimeter Concrete & Armco Barriers (Vertical Quads)
+      let barrierH = 1.35;
+      gui.drawQuad3D(x_OL1, hill1 - 0.04, segZ1,  x_OL1, hill1 + barrierH, segZ1,
+                     x_OL2, hill2 + barrierH, segZ2,  x_OL2, hill2 - 0.04, segZ2,
+                     barCol[0], barCol[1], barCol[2]);
+      gui.drawQuad3D(x_OR1, hill1 - 0.04, segZ1,  x_OR1, hill1 + barrierH, segZ1,
+                     x_OR2, hill2 + barrierH, segZ2,  x_OR2, hill2 - 0.04, segZ2,
+                     barCol[0], barCol[1], barCol[2]);
+
+      // Glowing Barrier Top Rail Cap
+      gui.drawQuad3D(x_OL1 - 0.15, hill1 + barrierH, segZ1,  x_OL1 + 0.15, hill1 + barrierH, segZ1,
+                     x_OL2 + 0.15, hill2 + barrierH, segZ2,  x_OL2 - 0.15, hill2 + barrierH, segZ2,
+                     barTopCol[0], barTopCol[1], barTopCol[2]);
+      gui.drawQuad3D(x_OR1 - 0.15, hill1 + barrierH, segZ1,  x_OR1 + 0.15, hill1 + barrierH, segZ1,
+                     x_OR2 + 0.15, hill2 + barrierH, segZ2,  x_OR2 - 0.15, hill2 + barrierH, segZ2,
+                     barTopCol[0], barTopCol[1], barTopCol[2]);
+
+      // G. Directional Chevrons on Sharp Corners along outside barrier
+      if (math.abs(segCurv) > 0.016 and i % 2 == 0) {
+        let chvSide = x_OR1;
+        let chvSide2 = x_OR2;
+        if (segCurv > 0.0) {
+          chvSide = x_OL1;
+          chvSide2 = x_OL2;
+        }
+        let chvPulse = 200 + math.floor(math.sin(t * 14.0 + i) * 55.0);
+        gui.drawQuad3D(chvSide, hill1 + 0.3, segZ1,  chvSide, hill1 + barrierH + 0.6, segZ1,
+                       chvSide2, hill2 + barrierH + 0.6, segZ2,  chvSide2, hill2 + 0.3, segZ2,
+                       255, chvPulse, 30);
+      }
+
+      // H. Enclosed Tunnel Roof & Arches
       let inTunnel = this.isInTunnel(segDist);
       if (inTunnel) {
-        let tunnelH = 8.0;
-        // Concrete Tunnel Ceiling
-        gui.drawPlane3D(midCurve, midHill + tunnelH, segZ, this.roadWidth + 3.0, this.segmentLength + 0.2, 18, 22, 32);
-        // Left tunnel wall
-        gui.drawCube3D(curve - halfW - 0.5, midHill + tunnelH * 0.5, segZ, 0.4, tunnelH, this.segmentLength, 25, 30, 42);
-        // Right tunnel wall
-        gui.drawCube3D(curve + halfW + 0.5, midHill + tunnelH * 0.5, segZ, 0.4, tunnelH, this.segmentLength, 25, 30, 42);
-        // Overhead amber tunnel light strips
-        gui.drawSphere3D(curve, midHill + tunnelH - 0.3, segZ, 0.35, 255, 200, 50);
+        let tunH = 7.5;
+        // Concrete Ceiling Quad
+        gui.drawQuad3D(x_OL1, hill1 + tunH, segZ1,  x_OR1, hill1 + tunH, segZ1,
+                       x_OR2, hill2 + tunH, segZ2,  x_OL2, hill2 + tunH, segZ2,
+                       20, 24, 34);
+        // Concrete Wall Quads
+        gui.drawQuad3D(x_OL1, hill1, segZ1,  x_OL1, hill1 + tunH, segZ1,
+                       x_OL2, hill2 + tunH, segZ2,  x_OL2, hill2, segZ2,
+                       28, 34, 46);
+        gui.drawQuad3D(x_OR1, hill1, segZ1,  x_OR1, hill1 + tunH, segZ1,
+                       x_OR2, hill2 + tunH, segZ2,  x_OR2, hill2, segZ2,
+                       28, 34, 46);
+        // Overhead Tunnel Sodium Lighting
+        gui.drawSphere3D(curve1, hill1 + tunH - 0.3, segZ1, 0.45, 255, 190, 40);
       }
 
-      // Boost Pads on Monza GP (DRS Straightaway Boosters)
+      // I. Boost Pads on Monza GP (DRS Straightaway Boosters)
       if (this.trackId == 3) {
         let segPadProg = segDist - math.floor(segDist / 600.0) * 600.0;
         if (segPadProg >= 280.0 and segPadProg <= 300.0) {
           let padGlow = 200 + math.floor(math.sin(t * 8.0) * 55.0);
-          gui.drawPlane3D(midCurve, midHill + 0.04, segZ, this.roadWidth * 0.45, this.segmentLength + 0.1, 0, padGlow, 180);
-          gui.drawCube3D(midCurve, midHill + 0.06, segZ, this.roadWidth * 0.35, 0.05, 1.2, 240, 255, 255);
+          gui.drawQuad3D(curve1 - 3.0, hill1 + 0.03, segZ1,  curve1 + 3.0, hill1 + 0.03, segZ1,
+                         curve2 + 3.0, hill2 + 0.03, segZ2,  curve2 - 3.0, hill2 + 0.03, segZ2,
+                         0, padGlow, 180);
         }
       }
 
-      // Overhead Streetlights / Energy Arches every 5 segments (every 30m when not in tunnel)
+      // J. Overhead Streetlights & Gantry Arches every 5 segments (every 30m when not in tunnel)
       if (!inTunnel and i % 5 == 0) {
-        let archH = 7.5;
-        // Left post
-        gui.drawCube3D(curve - halfW - 0.5, midHill + archH * 0.5, segZ, 0.25, archH, 0.25, 30, 36, 52);
-        // Right post
-        gui.drawCube3D(curve + halfW + 0.5, midHill + archH * 0.5, segZ, 0.25, archH, 0.25, 30, 36, 52);
-        // Crossbar
-        gui.drawCube3D(curve, midHill + archH, segZ, this.roadWidth + 1.2, 0.25, 0.25, rcA[0], rcA[1], rcA[2]);
-        // Glowing lights
-        gui.drawSphere3D(curve - 3.0, midHill + archH - 0.2, segZ, 0.35, 255, 240, 180);
-        gui.drawSphere3D(curve + 3.0, midHill + archH - 0.2, segZ, 0.35, 255, 240, 180);
-      }
-
-      // Illuminated Directional Chevron Warning Signs along Outside Rail of Sharp Corners
-      let segCurv = this.getCurvature(segZ, distance);
-      if (math.abs(segCurv) > 0.018 and i % 2 == 0) {
-        let signSide = 1.0;
-        if (segCurv > 0.0) {
-          signSide = -1.0; // Turning right -> outside barrier is on the left
-        }
-        let signX = curve + signSide * (halfW + 0.65);
-        let signH = 2.4;
-        gui.drawCube3D(signX, midHill + signH * 0.5, segZ, 0.2, signH, 3.2, 20, 24, 34);
-        gui.drawCube3D(signX, midHill + signH * 0.5, segZ, 0.22, signH - 0.2, 3.0, 255, 40, 50);
-        let chvPulse = 200 + math.floor(math.sin(t * 12.0 + i) * 55.0);
-        gui.drawSphere3D(signX, midHill + signH * 0.5, segZ, 0.45, 255, chvPulse, 30);
+        let archH = 8.0;
+        gui.drawCube3D(x_OL1, hill1 + archH * 0.5, segZ1, 0.35, archH, 0.35, 30, 36, 50);
+        gui.drawCube3D(x_OR1, hill1 + archH * 0.5, segZ1, 0.35, archH, 0.35, 30, 36, 50);
+        gui.drawCube3D(curve1, hill1 + archH, segZ1, outerW * 2.0 + 1.2, 0.3, 0.3, barTopCol[0], barTopCol[1], barTopCol[2]);
+        gui.drawSphere3D(curve1 - 4.0, hill1 + archH - 0.2, segZ1, 0.35, 255, 240, 200);
+        gui.drawSphere3D(curve1 + 4.0, hill1 + archH - 0.2, segZ1, 0.35, 255, 240, 200);
       }
     }
 
@@ -350,6 +496,8 @@ export class Track {
     // -------------------------------------------------------------------------
     let propInterval = 28.0;
     let baseStation = math.floor(distance / propInterval);
+    let propSide = outerW + 4.5;
+
     for (let k = 0; k < 12; k += 1) {
       let stationIdx = baseStation + k;
       let worldDist = stationIdx * propInterval;
@@ -360,82 +508,51 @@ export class Track {
         let i = stationIdx;
 
         if (this.trackId == 0) {
-          // Neo Shibuya Skyscrapers & Cyber Billboards
-          let bldScaleLeft = 3.0 + ((i * 7) % 3);
-          let bldScaleRight = 3.5 + ((i * 11) % 4);
+          // Suzuka: Trackside Pit Buildings & Japanese Grandstand Towers
+          let bldScaleLeft = 3.2 + ((i * 7) % 3);
+          let bldScaleRight = 3.6 + ((i * 11) % 4);
           let variantLeft = i % 4;
           let variantRight = (i + 2) % 4;
 
-          assets.playBuildingModel(variantLeft, curve - 15.0, hill, propZ, bldScaleLeft, 90.0);
-          assets.playBuildingModel(variantRight, curve + 15.0, hill, propZ - 12.0, bldScaleRight, -90.0);
+          assets.playBuildingModel(variantLeft, curve - (propSide + 6.0), hill, propZ, bldScaleLeft, 90.0);
+          assets.playBuildingModel(variantRight, curve + (propSide + 6.0), hill, propZ - 12.0, bldScaleRight, -90.0);
 
-          // Neon Billboards
+          // Neon Sponsor Billboards
           if (i % 2 == 0) {
             let glowPulse = 180 + math.floor(math.sin(t * 4.0 + i) * 70.0);
-            gui.drawCube3D(curve - 11.5, hill + 5.0, propZ, 0.2, 3.2, 6.0, 255, 40, glowPulse);
-            gui.drawCube3D(curve + 11.5, hill + 5.0, propZ - 8.0, 0.2, 3.2, 6.0, 40, glowPulse, 255);
+            gui.drawCube3D(curve - (propSide + 1.2), hill + 5.0, propZ, 0.2, 3.2, 6.0, 255, 40, glowPulse);
+            gui.drawCube3D(curve + (propSide + 1.2), hill + 5.0, propZ - 8.0, 0.2, 3.2, 6.0, 40, glowPulse, 255);
           }
         } else if (this.trackId == 1) {
-          // Sunset Horizon (Pacific Beach Dunes, Palm Trees, Moored Yachts)
-          // Left: Sandy beach dunes & 3D Palm Trees
-          gui.drawPlane3D(curve - 28.0, hill - 0.3, propZ, 32.0, 30.0, 180, 130, 85);
+          // Monaco: Mediterranean Palm Trees & Quayside Villas
+          gui.drawPlane3D(curve - (propSide + 16.0), hill - 0.3, propZ, 32.0, 30.0, 180, 130, 85);
 
-          // Palm Tree (Trunk + Fronds)
-          gui.drawCylinder3D(curve - 10.5, hill + 3.2, propZ + 4.0, 0.22, 0.42, 6.5, 6, 95, 55, 32);
-          gui.drawSphere3D(curve - 10.5, hill + 6.6, propZ + 4.0, 2.2, 35, 130, 65);
-          gui.drawSphere3D(curve - 10.5, hill + 6.2, propZ + 4.0, 1.4, 60, 170, 80);
+          // Palm Trees
+          gui.drawCylinder3D(curve - (propSide + 2.0), hill + 3.2, propZ + 4.0, 0.22, 0.42, 6.5, 6, 95, 55, 32);
+          gui.drawSphere3D(curve - (propSide + 2.0), hill + 6.6, propZ + 4.0, 2.2, 35, 130, 65);
+          gui.drawSphere3D(curve - (propSide + 2.0), hill + 6.2, propZ + 4.0, 1.4, 60, 170, 80);
 
-          // Second Palm Tree
-          gui.drawCylinder3D(curve - 12.5, hill + 3.0, propZ - 6.0, 0.20, 0.38, 6.0, 6, 95, 55, 32);
-          gui.drawSphere3D(curve - 12.5, hill + 6.2, propZ - 6.0, 1.9, 35, 130, 65);
-
-          // Right: Ocean Water & Moored Yachts
+          // Moored Luxury Yachts
           if (i % 3 == 0) {
-            let yachtX = curve + 32.0 + ((i * 5) % 18);
-            // Boat hull
+            let yachtX = curve + propSide + 12.0 + ((i * 5) % 14);
             gui.drawCube3D(yachtX, hill - 0.6, propZ, 3.5, 1.2, 8.5, 240, 245, 255);
-            // Sail mast
             gui.drawCylinder3D(yachtX, hill + 3.5, propZ, 0.1, 0.12, 7.5, 4, 180, 160, 140);
-            // White triangular sail
             gui.drawCube3D(yachtX, hill + 3.5, propZ + 1.2, 0.08, 5.0, 2.6, 255, 250, 240);
           }
-
-          // Coastal Highway Sign
-          if (i % 4 == 1) {
-            gui.drawCube3D(curve, hill + 6.8, propZ, 8.5, 1.6, 0.3, 20, 85, 55);
-          }
         } else if (this.trackId == 2) {
-          // Nebula Canyon (Towering Sandstone Spire Cliffs, Purple Crystals & Rings)
+          // Spa: Ardennes Pine Trees & Rock Massifs
           let rockH = 14.0 + ((i * 9) % 16);
-          // Left Canyon Rock Wall
-          gui.drawCylinder3D(curve - 15.5, hill + rockH * 0.5, propZ, 4.5, 7.5, rockH, 8, 140, 50, 40);
-          // Right Canyon Rock Wall
-          gui.drawCylinder3D(curve + 15.5, hill + rockH * 0.5, propZ - 10.0, 4.5, 7.5, rockH, 8, 140, 50, 40);
-
-          // Glowing Purple & Amber Alien Crystals
-          let crystalGlow = 180 + math.floor(math.sin(t * 5.0 + i) * 60.0);
-          gui.drawCylinder3D(curve - 15.5, hill + rockH + 2.0, propZ, 0.05, 1.5, 4.2, 5, 200, 50, crystalGlow);
-          gui.drawCylinder3D(curve + 15.5, hill + rockH + 2.0, propZ - 10.0, 0.05, 1.5, 4.2, 5, 255, crystalGlow, 50);
-
-          // Giant Overhead Floating Energy Rings
-          if (i % 3 == 1) {
-            gui.drawCylinderWires3D(curve, hill + 6.5, propZ, 6.0, 6.0, 1.2, 16, 255, 150, 30);
-          }
+          gui.drawCylinder3D(curve - (propSide + 3.0), hill + rockH * 0.5, propZ, 4.5, 7.5, rockH, 8, 140, 50, 40);
+          gui.drawCylinder3D(curve + (propSide + 3.0), hill + rockH * 0.5, propZ - 10.0, 4.5, 7.5, rockH, 8, 140, 50, 40);
+          gui.drawCylinder3D(curve - (propSide + 2.0), hill + 4.0, propZ + 5.0, 0.2, 3.5, 9.0, 6, 18, 50, 24);
+          gui.drawCylinder3D(curve + (propSide + 2.0), hill + 4.0, propZ - 4.0, 0.2, 3.5, 9.0, 6, 18, 50, 24);
         } else {
-          // Hyperion Speedway (Orbital Solar Panels, Satellites & Space Arrays)
-          // Giant Blue Solar Panels on left and right
+          // Monza: Royal Park Ancient Trees & Energy Arrays
           let panelW = 9.0;
-          gui.drawCube3D(curve - 18.0, hill + 5.0, propZ, panelW, 0.25, 6.0, 30, 80, 200);
-          gui.drawCube3D(curve + 18.0, hill + 5.0, propZ - 8.0, panelW, 0.25, 6.0, 30, 80, 200);
-
-          // Pylon mast
-          gui.drawCube3D(curve - 18.0, hill + 2.5, propZ, 0.4, 5.0, 0.4, 90, 100, 120);
-          gui.drawCube3D(curve + 18.0, hill + 2.5, propZ - 8.0, 0.4, 5.0, 0.4, 90, 100, 120);
-
-          // Floating navigation beacon rings
-          if (i % 2 == 1) {
-            gui.drawCylinderWires3D(curve, hill + 6.2, propZ, 7.5, 7.5, 0.8, 14, 0, 255, 180);
-          }
+          gui.drawCube3D(curve - (propSide + 4.0), hill + 5.0, propZ, panelW, 0.25, 6.0, 30, 80, 200);
+          gui.drawCube3D(curve + (propSide + 4.0), hill + 5.0, propZ - 8.0, panelW, 0.25, 6.0, 30, 80, 200);
+          gui.drawCube3D(curve - (propSide + 4.0), hill + 2.5, propZ, 0.4, 5.0, 0.4, 90, 100, 120);
+          gui.drawCube3D(curve + (propSide + 4.0), hill + 2.5, propZ - 8.0, 0.4, 5.0, 0.4, 90, 100, 120);
         }
       }
     }

@@ -249,6 +249,10 @@ while (!gui.windowShouldClose()) {
 
     // 1. Update Player Vehicle
     player.updatePlayer(dt, track, particles, assets);
+    if (player.wallHitShake > 0.0) {
+      cam.addShake(player.wallHitShake);
+      player.wallHitShake = 0.0;
+    }
     distance = player.trackDistance;
 
     // Track scroll
@@ -497,10 +501,29 @@ while (!gui.windowShouldClose()) {
   gui.beginDrawing();
   gui.clearBackground(sky[0], sky[1], sky[2]);
 
+  let skyTop = tSpec["skyTop"];
+  if (skyTop == nil) skyTop = [6, 12, 32];
+  let skyBottom = tSpec["skyBottom"];
+  if (skyBottom == nil) skyBottom = [32, 50, 92];
+  let fogCol = tSpec["fogColor"];
+  if (fogCol == nil) fogCol = [24, 38, 68];
+
+  // 2D Atmospheric Horizon Sky Gradient
+  let skyBands = 20;
+  let bandH = 370 / skyBands;
+  for (let b = 0; b < skyBands; b += 1) {
+    let factor = b / (skyBands - 1.0);
+    let r = math.floor(skyTop[0] + (skyBottom[0] - skyTop[0]) * factor);
+    let g = math.floor(skyTop[1] + (skyBottom[1] - skyTop[1]) * factor);
+    let bCol = math.floor(skyTop[2] + (skyBottom[2] - skyTop[2]) * factor);
+    gui.drawRectangle(0, math.floor(b * bandH), 1280, math.ceil(bandH + 1.0), r, g, bCol);
+  }
+  gui.drawRectangle(0, 370, 1280, 350, fogCol[0], fogCol[1], fogCol[2]);
+
   cam.begin3DPass();
 
-  // Draw Ground Horizon Plane
-  gui.drawPlane3D(0.0, -0.2, -140.0, 260.0, 480.0, ground[0], ground[1], ground[2]);
+  // Draw Distant Deep Ground Horizon Plane (lowered to -35.0m so it never clips road hills)
+  gui.drawPlane3D(0.0, -35.0, -160.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
 
   // Draw Track & Roadside Props
   track.draw(roadScroll, distance, t, assets);

@@ -134,6 +134,8 @@ typedef void (*Begin3DExFn)(float, float, float, float, float, float, float, flo
 typedef void (*End3DFn)(void);
 typedef void (*DrawCube3DFn)(float, float, float, float, float, float, int, int, int);
 typedef void (*DrawPlane3DFn)(float, float, float, float, float, int, int, int);
+typedef void (*DrawTriangle3DFn)(float, float, float, float, float, float, float, float, float, int, int, int);
+typedef void (*DrawQuad3DFn)(float, float, float, float, float, float, float, float, float, float, float, float, int, int, int);
 typedef void (*DrawSphere3DFn)(float, float, float, float, int, int, int);
 typedef void (*DrawCylinder3DFn)(float, float, float, float, float, float, int, int, int, int);
 typedef void (*DrawBillboardFn)(int, float, float, float, float, int, int, int);
@@ -265,6 +267,8 @@ typedef void (*TakeScreenshotFn)(const char *);
   X(drawCube3D, DrawCube3DFn, "drawCube3D", guiDrawCube3D) \
   X(drawCubeWires3D, DrawCube3DFn, "drawCubeWires3D", guiDrawCubeWires3D) \
   X(drawPlane3D, DrawPlane3DFn, "drawPlane3D", guiDrawPlane3D) \
+  X(drawTriangle3D, DrawTriangle3DFn, "drawTriangle3D", guiDrawTriangle3D) \
+  X(drawQuad3D, DrawQuad3DFn, "drawQuad3D", guiDrawQuad3D) \
   X(drawSphere3D, DrawSphere3DFn, "drawSphere3D", guiDrawSphere3D) \
   X(drawCylinder3D, DrawCylinder3DFn, "drawCylinder3D", guiDrawCylinder3D) \
   X(drawCylinderWires3D, DrawCylinder3DFn, "drawCylinderWires3D", guiDrawCylinderWires3D) \
@@ -770,6 +774,31 @@ static PbValue guiDrawPlane3D(PbVM *vm, int argCount, const PbValue *args, void 
   raylib.drawPlane3D((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
                      (float)args[3].as.number, (float)args[4].as.number, (int)args[5].as.number,
                      (int)args[6].as.number, (int)args[7].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawTriangle3D(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 12 || !numbersFitFloat(args, 9) || !validColor(args + 9))
+    return guiError(vm, "drawTriangle3D(x1, y1, z1, x2, y2, z2, x3, y3, z3, r, g, b) expected.");
+  if (raylib.drawTriangle3D == NULL) return missingRaylibFunction(vm, "drawTriangle3D");
+  raylib.drawTriangle3D((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                        (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
+                        (float)args[6].as.number, (float)args[7].as.number, (float)args[8].as.number,
+                        (int)args[9].as.number, (int)args[10].as.number, (int)args[11].as.number);
+  return pbNilValue();
+}
+
+static PbValue guiDrawQuad3D(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount != 15 || !numbersFitFloat(args, 12) || !validColor(args + 12))
+    return guiError(vm, "drawQuad3D(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, r, g, b) expected.");
+  if (raylib.drawQuad3D == NULL) return missingRaylibFunction(vm, "drawQuad3D");
+  raylib.drawQuad3D((float)args[0].as.number, (float)args[1].as.number, (float)args[2].as.number,
+                    (float)args[3].as.number, (float)args[4].as.number, (float)args[5].as.number,
+                    (float)args[6].as.number, (float)args[7].as.number, (float)args[8].as.number,
+                    (float)args[9].as.number, (float)args[10].as.number, (float)args[11].as.number,
+                    (int)args[12].as.number, (int)args[13].as.number, (int)args[14].as.number);
   return pbNilValue();
 }
 

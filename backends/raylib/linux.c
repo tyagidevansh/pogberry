@@ -281,6 +281,29 @@ void drawPlane3D(float x, float y, float z, float width, float length, int r, in
   DrawPlane((Vector3){x, y, z}, (Vector2){width, length}, (Color){r, g, b, 255});
 }
 
+void drawTriangle3D(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, int r, int g, int b) {
+  Color c = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, 255};
+  Vector3 v1 = (Vector3){x1, y1, z1};
+  Vector3 v2 = (Vector3){x2, y2, z2};
+  Vector3 v3 = (Vector3){x3, y3, z3};
+  DrawTriangle3D(v1, v2, v3, c);
+  DrawTriangle3D(v1, v3, v2, c);
+}
+
+void drawQuad3D(float x1, float y1, float z1, float x2, float y2, float z2,
+                float x3, float y3, float z3, float x4, float y4, float z4,
+                int r, int g, int b) {
+  Color c = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, 255};
+  Vector3 v1 = (Vector3){x1, y1, z1};
+  Vector3 v2 = (Vector3){x2, y2, z2};
+  Vector3 v3 = (Vector3){x3, y3, z3};
+  Vector3 v4 = (Vector3){x4, y4, z4};
+  DrawTriangle3D(v1, v2, v3, c);
+  DrawTriangle3D(v1, v3, v2, c);
+  DrawTriangle3D(v1, v3, v4, c);
+  DrawTriangle3D(v1, v4, v3, c);
+}
+
 void drawSphere3D(float x, float y, float z, float radius, int r, int g, int b) {
   DrawSphere((Vector3){x, y, z}, radius, (Color){r, g, b, 255});
 }
