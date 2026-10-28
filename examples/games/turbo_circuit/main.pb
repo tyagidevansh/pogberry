@@ -9,6 +9,7 @@ use "track" as track_mod;
 use "car" as car_mod;
 use "ui" as ui_mod;
 use "records" as rec_mod;
+use "agent_driver" as bot_mod;
 use "std.math" as math;
 
 // Initialize Window
@@ -22,6 +23,7 @@ let cam = cam_mod.ChaseCamera();
 let particles = part_mod.ParticleSystem();
 let ui = ui_mod.UIRenderer();
 let recordManager = rec_mod.RecordManager("records.txt");
+let driverBot = bot_mod.DriverBot("HUMAN_ARCADE");
 
 // Game State Variables
 let state = const.STATE_TITLE;
@@ -52,6 +54,7 @@ let isNewRecord = false;
 let pauseSelection = 0;
 let racePosition = 4;
 let prevPosition = 4;
+let playerMidpointCrossed = false;
 
 // Outrun Mode Variables
 let outrunTimer = 45.0;
@@ -70,6 +73,7 @@ fun startRace() {
   roadScroll = 0.0;
   countdownTimer = 3.8;
   isNewRecord = false;
+  playerMidpointCrossed = false;
 
   player = car_mod.Vehicle(selectedCar, true, "PLAYER", 0.0);
   player.speed = 0.0;
@@ -136,7 +140,7 @@ while (!gui.windowShouldClose()) {
   if (gui.isKeyPressed("KEY_M")) assets.toggleMute();
 
   // Music Streaming & Climax logic
-  let wantClimax = (player.speed > 110.0 or player.isBoosting or state == const.STATE_FINISH);
+  let wantClimax = (player.speed > 75.0 or player.isBoosting or state == const.STATE_FINISH);
   assets.updateAudio(wantClimax);
 
   // Dynamic Engine Pitch & Sound Loop
@@ -223,7 +227,7 @@ while (!gui.windowShouldClose()) {
     let lookCurve = track.getCurveOffset(-lookDist, distance);
     let lookHill = track.getYOffset(-lookDist, distance);
     cam.setLookAhead(lookCurve, lookHill);
-    cam.updateFollow(player.worldX, player.y, player.z, player.speed, player.steer, player.driftAngle, false, dt);
+    cam.updateFollow(player.worldX, player.y, player.z, player.speed, player.heading, player.steerAngle, player.driftAngle, false, dt);
 
     let oldSec = math.ceil(countdownTimer);
     countdownTimer = countdownTimer - dt;
@@ -243,6 +247,29 @@ while (!gui.windowShouldClose()) {
     if (gui.isKeyPressed("KEY_ESCAPE") or gui.isKeyPressed("KEY_P")) {
       pauseSelection = 0;
       state = const.STATE_PAUSED;
+    }
+
+    // Autopilot AI toggle
+    if (gui.isKeyPressed("KEY_O")) {
+      player.isAutopilot = !player.isAutopilot;
+      if (player.isAutopilot) {
+        ui.setBanner("AUTOPILOT ENGAGED", "AI DRIVER TAKING THE WHEEL // PRESS O TO CANCEL", 2.2, 0, 240, 255);
+        assets.playSfx(assets.sndConfirm);
+      } else {
+        player.inputOverride = nil;
+        ui.setBanner("MANUAL CONTROL RESTORED", "YOU HAVE THE WHEEL", 2.0, 255, 220, 40);
+        assets.playSfx(assets.sndSelect);
+      }
+    }
+
+    if (player.isAutopilot) {
+      if (gui.isKeyDown("KEY_A") or gui.isKeyDown("KEY_D") or gui.isKeyDown("KEY_LEFT") or gui.isKeyDown("KEY_RIGHT")) {
+        player.isAutopilot = false;
+        player.inputOverride = nil;
+        ui.setBanner("MANUAL OVERRIDE", "YOU HAVE THE WHEEL", 1.8, 255, 220, 40);
+      } else {
+        player.inputOverride = driverBot.computeInput(player, track);
+      }
     }
 
     ui.updateBanners(dt);
@@ -272,7 +299,7 @@ while (!gui.windowShouldClose()) {
     let lookCurve = track.getCurveOffset(-lookDist, distance);
     let lookHill = track.getYOffset(-lookDist, distance);
     cam.setLookAhead(lookCurve, lookHill);
-    cam.updateFollow(player.worldX, player.y, player.z, player.speed, player.steer, player.driftAngle, player.isBoosting, dt);
+    cam.updateFollow(player.worldX, player.y, player.z, player.speed, player.heading, player.steerAngle, player.driftAngle, player.isBoosting, dt);
 
     let tSpec = const.getTrackSpec(selectedTrack);
     let lapDist = tSpec["length"];
@@ -307,11 +334,16 @@ while (!gui.windowShouldClose()) {
       ui.setTimeAttackDelta(delta);
     }
 
-    // 4. Lap & Stopwatch Tracking
+    // 4. Lap & Stopwatch Tracking on Closed Circuit
     currentLapTime = currentLapTime + dt;
 
-    if (distance >= currentLap * lapDist) {
+    if (player.trackDistance > lapDist * 0.5) {
+      playerMidpointCrossed = true;
+    }
+    if (playerMidpointCrossed and player.trackDistance < lapDist * 0.15) {
       // Completed Lap!
+      playerMidpointCrossed = false;
+      player.completedLaps = player.completedLaps + 1;
       if (bestLapTime == 0.0 or currentLapTime < bestLapTime) {
         bestLapTime = currentLapTime;
       }
@@ -340,22 +372,23 @@ while (!gui.windowShouldClose()) {
       track.coreCollected = true;
       player.nitro = mu.clamp(player.nitro + 35.0, 0.0, player.maxNitro);
       player.hull = mu.clamp(player.hull + 18.0, 0.0, player.maxHull);
-      cam.addShake(0.35);
+      cam.addShake(0.25);
       assets.playSfx(assets.sndCheckpoint);
       ui.setBanner("ENERGY CORE HARVESTED!", "+35 NITRO  //  +18 REPAIR", 1.8, 0, 255, 230);
     }
 
-    // 5b. Boost Pad Collision (Monza GP DRS Boosters)
+    // 5b. Boost Pad Collision (Monza GP DRS Boosters).
     if (selectedTrack == 3) {
       let padProg = distance - math.floor(distance / 600.0) * 600.0;
       if (padProg > 280.0 and padProg < 300.0 and math.abs(player.x) < track.roadWidth * 0.25) {
-        if (!player.isBoosting) {
-          player.speed = mu.clamp(player.speed + 22.0, 0.0, player.boostSpeed);
+        if (player.boostPadCooldown <= 0.0) {
+          player.speed = mu.clamp(player.speed + 16.0, 0.0, player.boostSpeed);
           player.nitro = mu.clamp(player.nitro + 18.0, 0.0, player.maxNitro);
+          player.boostPadCooldown = 1.2;
           particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
           assets.playSfx(assets.sndNitro);
-          cam.addShake(0.25);
-          ui.setBanner("DRS SUPERCHARGE BOOST PAD!", "+22 MPH  //  +18 NITRO", 1.2, 0, 255, 170);
+          cam.addShake(0.20);
+          ui.setBanner("DRS SUPERCHARGE BOOST PAD!", "+16 MPH  //  +18 NITRO", 1.2, 0, 255, 170);
         }
       }
     }
@@ -369,36 +402,53 @@ while (!gui.windowShouldClose()) {
           player.speed = player.speed * 0.90;
           player.hull = player.hull - 5.0;
           player.shieldRegenDelay = 2.0;
-          cam.addShake(0.4);
+          cam.addShake(0.28);
           particles.emitSparks(player.worldX, 0.4, hz["z"], 6);
           assets.playSfx(assets.sndCrash);
         }
       }
     }
 
-    // 7. Update AI Rivals (Grand Prix)
+    // 7. Update AI Rivals (Grand Prix Open Circuit & Lapping)
     if (gameMode == const.MODE_GRAND_PRIX) {
       let aheadCount = 0;
       for (let i = 0; i < len(rivals); i += 1) {
         let rCar = rivals[i];
         rCar.updateAi(player.z, player.speed, dt, track);
+
+        // Closed-circuit along-track distance wrapped around lapDist
+        let dDist = rCar.trackDistance - player.trackDistance;
+        while (dDist > lapDist * 0.5) dDist = dDist - lapDist;
+        while (dDist < -lapDist * 0.5) dDist = dDist + lapDist;
+        rCar.z = -dDist;
         rCar.worldX = track.getCurveOffset(rCar.z, distance) + rCar.x;
 
-        if (rCar.trackDistance > player.trackDistance) aheadCount = aheadCount + 1;
+        // Overall race progression (completed laps * lapDist + trackDistance)
+        let playerTotalProg = (player.completedLaps * lapDist) + player.trackDistance;
+        let rivalTotalProg = (rCar.completedLaps * lapDist) + rCar.trackDistance;
+        if (rivalTotalProg > playerTotalProg) aheadCount = aheadCount + 1;
 
-        // Bumper Collision between Player and Rival
-        let dZ = math.abs(player.z - rCar.z);
+        // Bumper & Head-on Collision between Player and Rival
+        let dZ = math.abs(rCar.z);
         let dX = math.abs(player.x - rCar.x);
-        if (dZ < 3.2 and dX < 1.7) {
-          let pushX = (player.x - rCar.x) * 12.0 * dt;
+        if (dZ < 3.2 and dX < 1.8) {
+          let pushX = (player.x - rCar.x) * 10.0 * dt;
+          if (math.abs(pushX) < 0.01) {
+            if (player.x >= rCar.x) pushX = 0.04;
+            else pushX = -0.04;
+          }
           player.x = player.x + pushX;
           rCar.x = rCar.x - pushX;
-          player.speed = player.speed * 0.97;
-          player.hull = player.hull - 3.0 * dt;
-          player.shieldRegenDelay = 1.5;
-          cam.addShake(0.3);
-          particles.emitSparks(player.worldX, 0.4, player.z, 3);
-          assets.playSfx(assets.sndCrash);
+
+          if (player.impactCooldown <= 0.0) {
+            player.speed = player.speed * 0.88;
+            player.hull = player.hull - 3.0;
+            player.shieldRegenDelay = 2.0;
+            player.impactCooldown = 0.35;
+            cam.addShake(0.20);
+            particles.emitSparks(player.worldX, 0.4, player.z, 6);
+            assets.playSfx(assets.sndCrash);
+          }
         }
       }
       racePosition = aheadCount + 1;
@@ -440,12 +490,13 @@ while (!gui.windowShouldClose()) {
         }
 
         // Collision with Traffic Car
-        if (tf.z > -2.4 and tf.z < 2.4 and math.abs(player.x - tf.x) < 1.6) {
-          player.hull = player.hull - 12.0 * dt;
+        if (tf.z > -2.4 and tf.z < 2.4 and math.abs(player.x - tf.x) < 1.6 and player.impactCooldown <= 0.0) {
+          player.hull = player.hull - 8.0;
           player.shieldRegenDelay = 2.0;
-          player.speed = player.speed * 0.92;
+          player.impactCooldown = 0.42;
+          player.speed = player.speed * 0.88;
           player.hitFlash = 0.3;
-          cam.addShake(0.5);
+          cam.addShake(0.35);
           particles.emitSparks(player.worldX, 0.5, player.z, 5);
           assets.playSfx(assets.sndCrash);
         }
@@ -532,7 +583,7 @@ while (!gui.windowShouldClose()) {
   if (gameMode == const.MODE_GRAND_PRIX) {
     for (let i = 0; i < len(rivals); i += 1) {
       let rCar = rivals[i];
-      if (rCar.z > -260.0 and rCar.z < 20.0) {
+      if (rCar.z > -280.0 and rCar.z < 90.0) {
         rCar.draw(assets, t);
       }
     }

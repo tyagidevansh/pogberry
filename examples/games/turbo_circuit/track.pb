@@ -105,7 +105,7 @@ export class Track {
   // ---------------------------------------------------------------------------
   getCurveOffset(z, distance) {
     let d = -z;
-    if (d < 0.1) return 0.0;
+    if (math.abs(d) < 0.001) return 0.0;
 
     let p_car = const.getTrackWorldPoint(this.trackId, distance);
     let p_ahead = const.getTrackWorldPoint(this.trackId, distance + d);
@@ -307,10 +307,11 @@ export class Track {
     }
 
     // -------------------------------------------------------------------------
-    // 1. Render Seamless Continuous 3D Quad Track Mesh
+    // 1. Render Seamless Continuous 3D Quad Track Mesh (Behind & Ahead)
     // -------------------------------------------------------------------------
-    for (let i = 0; i < this.drawDistance; i += 1) {
-      let segZ1 = 12.0 - i * this.segmentLength + scroll;
+    for (let i = -16; i < 48; i += 1) {
+      // Fixed depth rings in camera space: zero mesh popping, zero wrap jumps!
+      let segZ1 = -i * this.segmentLength;
       let segZ2 = segZ1 - this.segmentLength;
       let segDist = distance - segZ1;
 
@@ -341,7 +342,8 @@ export class Track {
 
       // A. Outer Terrain Aprons (Left & Right, hugging road elevation)
       let grR = grassCol[0]; let grG = grassCol[1]; let grB = grassCol[2];
-      if (i % 2 == 1) {
+      let apronStripe = (math.floor((segDist + 600000.0) / 12.0)) % 2;
+      if (apronStripe == 1) {
         grR = math.floor(grR * 0.90); grG = math.floor(grG * 0.90); grB = math.floor(grB * 0.90);
       }
       gui.drawQuad3D(x_AL1, hill1 - 0.12, segZ1,  x_OL1, hill1 - 0.05, segZ1,
@@ -371,7 +373,8 @@ export class Track {
       if (leftIsGravel) {
         lR = gravelCol[0]; lG = gravelCol[1]; lB = gravelCol[2];
       }
-      if (i % 2 == 1) {
+      let runoffStripe = (math.floor((segDist + 600000.0) / 6.0)) % 2;
+      if (runoffStripe == 1) {
         lR = math.floor(lR * 0.92); lG = math.floor(lG * 0.92); lB = math.floor(lB * 0.92);
       }
       gui.drawQuad3D(x_OL1, hill1 - 0.04, segZ1,  x_CL1, hill1 - 0.02, segZ1,
@@ -383,7 +386,7 @@ export class Track {
       if (rightIsGravel) {
         rRCol = gravelCol[0]; rGCol = gravelCol[1]; rBCol = gravelCol[2];
       }
-      if (i % 2 == 1) {
+      if (runoffStripe == 1) {
         rRCol = math.floor(rRCol * 0.92); rGCol = math.floor(rGCol * 0.92); rBCol = math.floor(rBCol * 0.92);
       }
       gui.drawQuad3D(x_CR1, hill1 - 0.02, segZ1,  x_OR1, hill1 - 0.04, segZ1,
@@ -391,7 +394,7 @@ export class Track {
                      rRCol, rGCol, rBCol);
 
       // C. Rumble Strip Curbs (Left & Right)
-      let curbPulse = (math.floor(segDist / 4.0)) % 2;
+      let curbPulse = (math.floor((segDist + 600000.0) / 4.0)) % 2;
       let cR = 245; let cG = 245; let cB = 250;
       if (curbPulse == 0) {
         cR = curbCol[0]; cG = curbCol[1]; cB = curbCol[2];
@@ -405,15 +408,44 @@ export class Track {
 
       // D. Main Tarmac Racing Road Surface
       let rdR = roadCol[0]; let rdG = roadCol[1]; let rdB = roadCol[2];
-      if (i % 2 == 1) {
+      let tarmacStripe = (math.floor((segDist + 600000.0) / 6.0)) % 2;
+      if (tarmacStripe == 1) {
         rdR = rdR + 4; rdG = rdG + 4; rdB = rdB + 6;
       }
       gui.drawQuad3D(x_RL1, hill1, segZ1,  x_RR1, hill1, segZ1,
                      x_RR2, hill2, segZ2,  x_RL2, hill2, segZ2,
                      rdR, rdG, rdB);
 
+      // Subtle rubbered-in racing grooves give every circuit the same grounded
+      // motorsport material language without hiding its own scenery or palette.
+      let grooveR = math.floor(rdR * 0.68);
+      let grooveG = math.floor(rdG * 0.68);
+      let grooveB = math.floor(rdB * 0.68);
+      gui.drawQuad3D(curve1 - 3.1, hill1 + 0.012, segZ1,  curve1 - 2.35, hill1 + 0.012, segZ1,
+                     curve2 - 2.35, hill2 + 0.012, segZ2, curve2 - 3.1, hill2 + 0.012, segZ2,
+                     grooveR, grooveG, grooveB);
+      gui.drawQuad3D(curve1 + 2.35, hill1 + 0.012, segZ1, curve1 + 3.1, hill1 + 0.012, segZ1,
+                     curve2 + 3.1, hill2 + 0.012, segZ2, curve2 + 2.35, hill2 + 0.012, segZ2,
+                     grooveR, grooveG, grooveB);
+
+      // A shared, readable chequered line anchors laps visually on all four tracks.
+      let lapProg = segDist - math.floor(segDist / this.spec["length"]) * this.spec["length"];
+      if (lapProg >= 0.0 and lapProg < this.segmentLength) {
+        for (let sq = 0; sq < 8; sq += 1) {
+          let leftA = curve1 - halfW + sq * (this.roadWidth / 8.0);
+          let rightA = leftA + this.roadWidth / 8.0;
+          let leftB = curve2 - halfW + sq * (this.roadWidth / 8.0);
+          let rightB = leftB + this.roadWidth / 8.0;
+          let check = 245;
+          if (sq % 2 == 1) check = 30;
+          gui.drawQuad3D(leftA, hill1 + 0.025, segZ1, rightA, hill1 + 0.025, segZ1,
+                         rightB, hill2 + 0.025, segZ2, leftB, hill2 + 0.025, segZ2,
+                         check, check, check);
+        }
+      }
+
       // E. Centerline Painted Dashes
-      if ((math.floor(segDist / 6.0)) % 2 == 0) {
+      if ((math.floor((segDist + 600000.0) / 6.0)) % 2 == 0) {
         gui.drawQuad3D(curve1 - 0.12, hill1 + 0.02, segZ1,  curve1 + 0.12, hill1 + 0.02, segZ1,
                        curve2 + 0.12, hill2 + 0.02, segZ2,  curve2 - 0.12, hill2 + 0.02, segZ2,
                        240, 245, 255);
@@ -437,14 +469,15 @@ export class Track {
                      barTopCol[0], barTopCol[1], barTopCol[2]);
 
       // G. Directional Chevrons on Sharp Corners along outside barrier
-      if (math.abs(segCurv) > 0.016 and i % 2 == 0) {
+      let chvStripe = (math.floor((segDist + 600000.0) / 12.0)) % 2;
+      if (math.abs(segCurv) > 0.016 and chvStripe == 0) {
         let chvSide = x_OR1;
         let chvSide2 = x_OR2;
         if (segCurv > 0.0) {
           chvSide = x_OL1;
           chvSide2 = x_OL2;
         }
-        let chvPulse = 200 + math.floor(math.sin(t * 14.0 + i) * 55.0);
+        let chvPulse = 200 + math.floor(math.sin(t * 14.0 + (segDist * 0.2)) * 55.0);
         gui.drawQuad3D(chvSide, hill1 + 0.3, segZ1,  chvSide, hill1 + barrierH + 0.6, segZ1,
                        chvSide2, hill2 + barrierH + 0.6, segZ2,  chvSide2, hill2 + 0.3, segZ2,
                        255, chvPulse, 30);
@@ -480,8 +513,9 @@ export class Track {
         }
       }
 
-      // J. Overhead Streetlights & Gantry Arches every 5 segments (every 30m when not in tunnel)
-      if (!inTunnel and i % 5 == 0) {
+      // J. Overhead Streetlights & Gantry Arches anchored to continuous track distance
+      let gantryProg = segDist - math.floor(segDist / 36.0) * 36.0;
+      if (!inTunnel and gantryProg >= 0.0 and gantryProg < this.segmentLength) {
         let archH = 8.0;
         gui.drawCube3D(x_OL1, hill1 + archH * 0.5, segZ1, 0.35, archH, 0.35, 30, 36, 50);
         gui.drawCube3D(x_OR1, hill1 + archH * 0.5, segZ1, 0.35, archH, 0.35, 30, 36, 50);
@@ -498,11 +532,11 @@ export class Track {
     let baseStation = math.floor(distance / propInterval);
     let propSide = outerW + 4.5;
 
-    for (let k = 0; k < 12; k += 1) {
+    for (let k = -4; k < 12; k += 1) {
       let stationIdx = baseStation + k;
       let worldDist = stationIdx * propInterval;
       let propZ = -(worldDist - distance);
-      if (propZ > -280.0 and propZ < 10.0) {
+      if (propZ > -280.0 and propZ < 90.0) {
         let curve = this.getCurveOffset(propZ, distance);
         let hill = this.getYOffset(propZ, distance);
         let i = stationIdx;

@@ -107,11 +107,12 @@ export class UIRenderer {
     gui.drawText("W / UP                : ACCELERATE (GAS)", 845, 290, 16, 255, 240, 90);
     gui.drawText("S / DOWN              : BRAKE / REVERSE", 845, 325, 16, 255, 120, 120);
     gui.drawText("A / D or LEFT / RIGHT : STEER", 845, 360, 16, 220, 230, 255);
-    gui.drawText("SPACE / SHIFT         : NITRO OVERDRIVE", 845, 395, 16, 255, 140, 200);
-    gui.drawText("S in CORNER           : POWER DRIFT", 845, 430, 16, 0, 240, 255);
+    gui.drawText("SPACE                 : NITRO OVERDRIVE", 845, 395, 16, 255, 140, 200);
+    gui.drawText("S or SHIFT + STEER    : POWER DRIFT", 845, 430, 16, 0, 240, 255);
     gui.drawText("RELEASE DRIFT         : MINI-TURBO BOOST", 845, 465, 16, 255, 200, 60);
-    gui.drawText("ESC / P               : PAUSE MENU", 845, 500, 16, 160, 180, 200);
-    gui.drawText("F11                   : FULLSCREEN", 845, 525, 15, 140, 160, 180);
+    gui.drawText("O                     : AI AUTOPILOT DEMO", 845, 495, 15, 0, 240, 255);
+    gui.drawText("ESC / P               : PAUSE MENU", 845, 522, 15, 160, 180, 200);
+    gui.drawText("F11                   : FULLSCREEN", 845, 545, 14, 140, 160, 180);
 
     // Start prompt
     let promptPulse = 200 + math.floor(math.sin(t * 6.0) * 55.0);
@@ -296,7 +297,7 @@ export class UIRenderer {
     gui.drawRectangleAlpha(gaugeX, gaugeY, 275, 155, 8, 12, 26, 215);
     gui.drawRectangleLines(gaugeX, gaugeY, 275, 155, 0, 220, 255);
 
-    let mph = math.floor(math.abs(player.speed) * 1.6);
+    let mph = math.floor(math.abs(player.speed));
     gui.drawText(str(mph), gaugeX + 20, gaugeY + 14, 56, 255, 255, 255);
     gui.drawText("MPH", gaugeX + 155, gaugeY + 46, 20, 0, 220, 255);
 
@@ -314,9 +315,9 @@ export class UIRenderer {
       gui.drawText("GEAR [R]", gaugeX + 20, gaugeY + 98, 18, 255, rPulse, 40);
     } else {
       let gear = 1;
-      if (player.speed > 80.0) gear = 4;
-      else if (player.speed > 55.0) gear = 3;
-      else if (player.speed > 25.0) gear = 2;
+      if (player.speed > 60.0) gear = 4;
+      else if (player.speed > 42.0) gear = 3;
+      else if (player.speed > 20.0) gear = 2;
       gui.drawText("GEAR " + str(gear), gaugeX + 20, gaugeY + 98, 16, 200, 220, 240);
     }
 
@@ -326,8 +327,13 @@ export class UIRenderer {
       gui.drawText("// POWER DRIFT", gaugeX + 105, gaugeY + 98, 14, 0, 240, 255);
     }
 
-    // Subtle controls reminder
-    gui.drawText("W:GAS  S:BRAKE/REV  A/D:STEER", gaugeX + 20, gaugeY + 128, 13, 140, 165, 190);
+    // Subtle controls reminder / Autopilot indicator
+    if (player.isAutopilot) {
+      let aiPulse = 180 + math.floor(math.sin(t * 10.0) * 75.0);
+      gui.drawText("[AI PILOT ACTIVE: PRESS O]", gaugeX + 16, gaugeY + 128, 13, 0, 240, aiPulse);
+    } else {
+      gui.drawText("W:GAS S:BRAKE A/D:STEER [O]:AI", gaugeX + 16, gaugeY + 128, 12, 140, 165, 190);
+    }
 
     // 2. Nitro Overdrive Gauge (Bottom Center)
     let nitroX = math.floor(this.w * 0.5) - 170;
@@ -337,7 +343,7 @@ export class UIRenderer {
 
     let nitroRatio = player.nitro / player.maxNitro;
     gui.drawRectangle(nitroX + 10, nitroY + 10, math.floor(320 * nitroRatio), 24, 0, 240, 255);
-    gui.drawText("NITRO [SPACE/SHIFT]", nitroX + 16, nitroY + 14, 15, 255, 255, 255);
+    gui.drawText("NITRO [SPACE]", nitroX + 16, nitroY + 14, 15, 255, 255, 255);
 
     // 3. Hull Integrity (Bottom Left)
     let hullX = 30;

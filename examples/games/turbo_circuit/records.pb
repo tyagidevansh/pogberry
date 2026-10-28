@@ -22,7 +22,13 @@ export class RecordManager {
       let line = lines[i];
       if (line != "" and i < len(this.records)) {
         let val = num(line);
-        if (val > 0.0) {
+        // Older builds could save impossible times during test captures.  Do
+        // not let a corrupt ghost record make Time Attack unwinnable.
+        let minimum = 18.0;
+        if (i == 0) minimum = 28.0;
+        else if (i == 2) minimum = 34.0;
+        else if (i == 3) minimum = 28.0;
+        if (val >= minimum and val < 3600.0) {
           this.records[i] = val;
         }
       }

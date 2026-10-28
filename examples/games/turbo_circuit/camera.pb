@@ -23,59 +23,69 @@ export class ChaseCamera {
     this.orbitAngle = 0.0;
     this.lookCurve = 0.0;
     this.lookHill = 0.0;
+    this.targetLookCurve = 0.0;
+    this.targetLookHill = 0.0;
+    this.shakeTimer = 0.0;
   }
 
   setLookCurve(curve) {
-    this.lookCurve = curve;
+    this.targetLookCurve = curve;
   }
 
   setLookAhead(curve, hill) {
-    this.lookCurve = curve;
-    this.lookHill = hill;
+    this.targetLookCurve = curve;
+    this.targetLookHill = hill;
   }
 
   addShake(amount) {
     this.shake = this.shake + amount;
-    if (this.shake > 1.2) this.shake = 1.2;
+    if (this.shake > 0.40) this.shake = 0.40;
   }
 
-  updateFollow(carX, carY, carZ, speed, steer, driftAngle, boosting, dt) {
-    // 1. Calculate ideal camera position directly behind vehicle
-    let targetCamX = carX * 0.72;
-    let targetCamY = 4.8 + (speed / 140.0) * 0.6;
-    let targetCamZ = carZ + 9.8 + (speed / 120.0) * 1.5;
+  updateFollow(carX, carY, carZ, speed, heading, steerAngle, driftAngle, boosting, dt) {
+    // 1. Camera position behind vehicle following car heading smoothly in full 360 degrees
+    let normSpd = math.abs(speed) / 80.0;
+    if (normSpd > 1.0) normSpd = 1.0;
+    let camDist = 9.2 + normSpd * 1.5;
+    let targetCamX = carX - math.sin(heading) * camDist;
+    let targetCamY = carY + 4.2;
+    let targetCamZ = carZ + math.cos(heading) * camDist;
 
-    // Camera lag / smoothing
+    // Unified camera lag / smoothing rate prevents orientation twisting jitter
     let followSpeed = 12.0;
     this.x = mu.lerp(this.x, targetCamX, dt * followSpeed);
     this.y = mu.lerp(this.y, targetCamY, dt * followSpeed);
     this.z = mu.lerp(this.z, targetCamZ, dt * followSpeed);
 
-    // 2. Camera target lookahead
-    let lookDist = 32.0;
-    let targetLookX = carX * 0.35 + (this.lookCurve * 0.45) - steer * 1.0;
-    let targetLookY = 1.2 + (this.lookHill * 0.45);
-    let targetLookZ = carZ - lookDist;
+    // 2. Camera target looks ahead along vehicle heading
+    this.lookHill = mu.lerp(this.lookHill, this.targetLookHill, dt * 6.0);
+    let lookDist = 28.0;
+    let targetLookX = carX + math.sin(heading) * lookDist;
+    let targetLookY = carY + 1.2 + (this.lookHill * 0.28);
+    let targetLookZ = carZ - math.cos(heading) * lookDist;
 
-    this.targetX = mu.lerp(this.targetX, targetLookX, dt * 10.0);
-    this.targetY = mu.lerp(this.targetY, targetLookY, dt * 10.0);
-    this.targetZ = mu.lerp(this.targetZ, targetLookZ, dt * 10.0);
+    this.targetX = mu.lerp(this.targetX, targetLookX, dt * followSpeed);
+    this.targetY = mu.lerp(this.targetY, targetLookY, dt * followSpeed);
+    this.targetZ = mu.lerp(this.targetZ, targetLookZ, dt * followSpeed);
 
-    // 3. Dynamic Roll (Bank into sharp turns)
-    let rollAngle = (steer * 0.10) + (driftAngle * 0.05);
-    this.upX = math.sin(rollAngle);
-    this.upY = math.cos(rollAngle);
+    // 3. Level Horizon: Zero roll to eliminate simulator sickness and visual nausea
+    this.upX = 0.0;
+    this.upY = 1.0;
     this.upZ = 0.0;
 
-    // 4. Dynamic FOV
-    let targetFov = this.baseFov + (speed / 120.0) * 14.0;
-    if (boosting) targetFov = targetFov + 12.0;
-    this.fov = mu.lerp(this.fov, targetFov, dt * 5.0);
+    // 4. Stable FOV: subtle, comfortable progression without nauseating fisheye distortion
+    let targetFov = this.baseFov + normSpd * 4.0;
+    if (boosting) targetFov = targetFov + 3.0;
+    this.fov = mu.lerp(this.fov, targetFov, dt * 4.0);
 
     // 5. Screen Shake decay
     if (this.shake > 0.0) {
-      this.shake = this.shake - dt * 2.8;
-      if (this.shake < 0.0) this.shake = 0.0;
+      this.shakeTimer = this.shakeTimer + dt * 24.0;
+      this.shake = this.shake - dt * 2.2;
+      if (this.shake < 0.0) {
+        this.shake = 0.0;
+        this.shakeTimer = 0.0;
+      }
     }
   }
 
@@ -115,8 +125,8 @@ export class ChaseCamera {
     let sx = 0.0;
     let sy = 0.0;
     if (this.shake > 0.0) {
-      sx = (rand(100) - 50) / 100.0 * this.shake * 0.45;
-      sy = (rand(100) - 50) / 100.0 * this.shake * 0.35;
+      sx = math.sin(this.shakeTimer) * this.shake * 0.14;
+      sy = math.cos(this.shakeTimer * 1.2) * this.shake * 0.10;
     }
     gui.begin3DEx(this.x + sx, this.y + sy, this.z,
                   this.targetX + sx, this.targetY + sy, this.targetZ,

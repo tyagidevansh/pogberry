@@ -23,9 +23,7 @@ let ui = ui_mod.UIRenderer();
 let recordManager = rec_mod.RecordManager("records.txt");
 
 print("Record test: Track 0 record is: " + str(recordManager.getRecord(0)));
-let isNew = recordManager.submitLapTime(0, 41.20);
-print("Submitted 41.20s: isNewRecord = " + str(isNew));
-print("New Track 0 record is: " + str(recordManager.getRecord(0)));
+print("Record manager loaded without mutating the player's saved records.");
 
 // Test all 4 tracks
 for (let tId = 0; tId < const.TOTAL_TRACKS; tId += 1) {
@@ -60,7 +58,7 @@ print("TrafficCar updated cleanly, worldX=" + str(traffic.worldX));
 
 // Test Camera lookahead
 cam.setLookCurve(trk.getCurveOffset(-34.0, 150.0));
-cam.updateFollow(0.0, 0.0, 0.0, 80.0, 0.1, 0.0, false, 0.016);
+cam.updateFollow(0.0, 0.0, 0.0, 80.0, 0.0, 0.1, 0.0, false, 0.016);
 print("ChaseCamera lookahead updated cleanly");
 
 // Test UI screen rendering calls

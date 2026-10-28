@@ -133,7 +133,7 @@ for (let i = 0; i < 20; i += 1) {
   player.brakeWarning = 2; // Right turn brake warning
 
   cam.setLookAhead(track0.getCurveOffset(-34.0, dist), track0.getYOffset(-34.0, dist));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.1, 0.0, true, dt);
+  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.05, 0.1, 0.0, true, dt);
 
   let tSpec = const.getTrackSpec(0);
   let ground = tSpec["groundColor"];
@@ -172,7 +172,7 @@ for (let i = 0; i < 20; i += 1) {
   player.brakeWarning = 1; // Left turn brake warning
 
   cam.setLookAhead(track1.getCurveOffset(-34.0, dist), track1.getYOffset(-34.0, dist));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.0, 0.0, false, dt);
+  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.0, 0.0, 0.0, false, dt);
 
   let tSpec = const.getTrackSpec(1);
   let ground = tSpec["groundColor"];
@@ -208,7 +208,7 @@ for (let i = 0; i < 20; i += 1) {
   player.brakeWarning = 2;
 
   cam.setLookAhead(track2.getCurveOffset(-34.0, dist), track2.getYOffset(-34.0, dist));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, -0.15, 0.0, false, dt);
+  cam.updateFollow(player.worldX, player.y, player.z, player.speed, -0.1, -0.15, 0.0, false, dt);
 
   let tSpec = const.getTrackSpec(2);
   let ground = tSpec["groundColor"];
@@ -244,7 +244,7 @@ for (let i = 0; i < 20; i += 1) {
   player.brakeWarning = 1;
 
   cam.setLookAhead(track3.getCurveOffset(-34.0, dist), track3.getYOffset(-34.0, dist));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.0, 0.0, true, dt);
+  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.0, 0.0, 0.0, true, dt);
 
   let tSpec = const.getTrackSpec(3);
   let ground = tSpec["groundColor"];
