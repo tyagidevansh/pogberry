@@ -371,10 +371,9 @@ while (!gui.windowShouldClose()) {
     if (!track.coreCollected and distToCore < 2.2) {
       track.coreCollected = true;
       player.nitro = mu.clamp(player.nitro + 35.0, 0.0, player.maxNitro);
-      player.hull = mu.clamp(player.hull + 18.0, 0.0, player.maxHull);
       cam.addShake(0.25);
       assets.playSfx(assets.sndCheckpoint);
-      ui.setBanner("ENERGY CORE HARVESTED!", "+35 NITRO  //  +18 REPAIR", 1.8, 0, 255, 230);
+      ui.setBanner("ENERGY CORE HARVESTED!", "+35 NITRO OVERDRIVE BOOST", 1.8, 0, 255, 230);
     }
 
     // 5b. Boost Pad Collision (Monza GP DRS Boosters).
@@ -382,13 +381,13 @@ while (!gui.windowShouldClose()) {
       let padProg = distance - math.floor(distance / 600.0) * 600.0;
       if (padProg > 280.0 and padProg < 300.0 and math.abs(player.x) < track.roadWidth * 0.25) {
         if (player.boostPadCooldown <= 0.0) {
-          player.speed = mu.clamp(player.speed + 16.0, 0.0, player.boostSpeed);
-          player.nitro = mu.clamp(player.nitro + 18.0, 0.0, player.maxNitro);
+          player.speed = mu.clamp(player.speed + 22.0, 0.0, player.boostSpeed);
+          player.nitro = mu.clamp(player.nitro + 25.0, 0.0, player.maxNitro);
           player.boostPadCooldown = 1.2;
           particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
           assets.playSfx(assets.sndNitro);
           cam.addShake(0.20);
-          ui.setBanner("DRS SUPERCHARGE BOOST PAD!", "+16 MPH  //  +18 NITRO", 1.2, 0, 255, 170);
+          ui.setBanner("DRS SUPERCHARGE BOOST PAD!", "+22 MPH  //  +25 NITRO", 1.2, 0, 255, 170);
         }
       }
     }
@@ -399,27 +398,27 @@ while (!gui.windowShouldClose()) {
       if (!hz["hit"] and hz["z"] > -2.2 and hz["z"] < 2.0) {
         if (math.abs(player.x - hz["x"]) < 1.4) {
           hz["hit"] = true;
-          player.speed = player.speed * 0.90;
-          player.hull = player.hull - 5.0;
-          player.shieldRegenDelay = 2.0;
-          cam.addShake(0.28);
+          player.speed = player.speed * 0.92;
+          cam.addShake(0.25);
           particles.emitSparks(player.worldX, 0.4, hz["z"], 6);
           assets.playSfx(assets.sndCrash);
         }
       }
     }
 
-    // 7. Update AI Rivals (Grand Prix Open Circuit & Lapping)
+    // 7. Update AI Rivals (Grand Prix Pack Racing & Lapping)
     if (gameMode == const.MODE_GRAND_PRIX) {
       let aheadCount = 0;
       for (let i = 0; i < len(rivals); i += 1) {
         let rCar = rivals[i];
-        rCar.updateAi(player.z, player.speed, dt, track);
 
         // Closed-circuit along-track distance wrapped around lapDist
         let dDist = rCar.trackDistance - player.trackDistance;
         while (dDist > lapDist * 0.5) dDist = dDist - lapDist;
         while (dDist < -lapDist * 0.5) dDist = dDist + lapDist;
+
+        // Dynamic pack racing update with relative distance
+        rCar.updateAi(dDist, player.speed, dt, track);
         rCar.z = -dDist;
         rCar.worldX = track.getCurveOffset(rCar.z, distance) + rCar.x;
 
@@ -441,9 +440,7 @@ while (!gui.windowShouldClose()) {
           rCar.x = rCar.x - pushX;
 
           if (player.impactCooldown <= 0.0) {
-            player.speed = player.speed * 0.88;
-            player.hull = player.hull - 3.0;
-            player.shieldRegenDelay = 2.0;
+            player.speed = player.speed * 0.92;
             player.impactCooldown = 0.35;
             cam.addShake(0.20);
             particles.emitSparks(player.worldX, 0.4, player.z, 6);
@@ -491,27 +488,13 @@ while (!gui.windowShouldClose()) {
 
         // Collision with Traffic Car
         if (tf.z > -2.4 and tf.z < 2.4 and math.abs(player.x - tf.x) < 1.6 and player.impactCooldown <= 0.0) {
-          player.hull = player.hull - 8.0;
-          player.shieldRegenDelay = 2.0;
           player.impactCooldown = 0.42;
-          player.speed = player.speed * 0.88;
-          player.hitFlash = 0.3;
+          player.speed = player.speed * 0.90;
+          player.hitFlash = 0.25;
           cam.addShake(0.35);
           particles.emitSparks(player.worldX, 0.5, player.z, 5);
           assets.playSfx(assets.sndCrash);
         }
-      }
-    }
-
-    // 9. Check Health Condition -> ARCADE AUTO-REBOOT & SPIN-OUT (No Permadeath!)
-    if (player.hull <= 0.0) {
-      if (player.spinTimer <= 0.0) {
-        player.spinTimer = 1.1;
-        player.hull = player.maxHull * 0.70; // Auto-reboot shield to 70%!
-        player.shieldRegenDelay = 3.0;
-        cam.addShake(0.7);
-        assets.playSfx(assets.sndCrash);
-        ui.setBanner("SHIELD OVERLOAD // AUTO-REBOOT!", "STABILIZERS ENGAGED // +70% REPAIR", 2.5, 255, 60, 60);
       }
     }
   }

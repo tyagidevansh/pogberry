@@ -1,10 +1,10 @@
 // TURBO CIRCUIT: OVERDRIVE — Official FIA Formula 1 Circuit Data & Spline Engine
 use "std.math" as math;
 
-export let SUZUKA_LENGTH = 5807.0;
-export let MONACO_LENGTH = 3337.0;
-export let SPA_LENGTH = 7004.0;
-export let MONZA_LENGTH = 5793.0;
+export let SUZUKA_LENGTH = 9200.0;
+export let MONACO_LENGTH = 5800.0;
+export let SPA_LENGTH = 11200.0;
+export let MONZA_LENGTH = 9600.0;
 
 export fun getF1Length(id) {
   if (id == 0) return SUZUKA_LENGTH;
@@ -631,35 +631,13 @@ export fun getTrackHeading(id, s) {
 }
 
 export fun getTrackCurvature(id, s) {
-  let nodes = getF1Nodes(id);
-  let N = len(nodes);
-  let lapLen = getF1Length(id);
-  let normS = s - math.floor(s / lapLen) * lapLen;
-  let u = (normS / lapLen) * N;
-  let i = math.floor(u);
-  let t = u - i;
-
-  let i0 = (i - 1 + N) % N;
-  let i1 = i % N;
-  let i2 = (i + 1) % N;
-  let i3 = (i + 2) % N;
-
-  let p0 = nodes[i0];
-  let p1 = nodes[i1];
-  let p2 = nodes[i2];
-  let p3 = nodes[i3];
-
-  let t2 = t * t;
-
-  let dx = 0.5 * ((-p0[0] + p2[0]) + 2.0 * (2.0*p0[0] - 5.0*p1[0] + 4.0*p2[0] - p3[0]) * t + 3.0 * (-p0[0] + 3.0*p1[0] - 3.0*p2[0] + p3[0]) * t2);
-  let dz = 0.5 * ((-p0[1] + p2[1]) + 2.0 * (2.0*p0[1] - 5.0*p1[1] + 4.0*p2[1] - p3[1]) * t + 3.0 * (-p0[1] + 3.0*p1[1] - 3.0*p2[1] + p3[1]) * t2);
-
-  let d2x = 0.5 * (2.0 * (2.0*p0[0] - 5.0*p1[0] + 4.0*p2[0] - p3[0]) + 6.0 * (-p0[0] + 3.0*p1[0] - 3.0*p2[0] + p3[0]) * t);
-  let d2z = 0.5 * (2.0 * (2.0*p0[1] - 5.0*p1[1] + 4.0*p2[1] - p3[1]) + 6.0 * (-p0[1] + 3.0*p1[1] - 3.0*p2[1] + p3[1]) * t);
-
-  let speed2 = dx * dx + dz * dz;
-  if (speed2 < 0.0001) return 0.0;
-  let speed = math.sqrt(speed2);
-
-  return (dx * d2z - dz * d2x) / (speed2 * speed);
+  let sampleDist = 14.0;
+  let h1 = getTrackHeading(id, s - sampleDist);
+  let h2 = getTrackHeading(id, s + sampleDist);
+  let dh = h2 - h1;
+  let PI = 3.14159265;
+  let TWO_PI = 6.2831853;
+  while (dh > PI) dh = dh - TWO_PI;
+  while (dh < -PI) dh = dh + TWO_PI;
+  return dh / (sampleDist * 2.0);
 }

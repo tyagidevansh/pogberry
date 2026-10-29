@@ -245,10 +245,9 @@ export class Track {
         let gY = fwY + math.sin(spAng) * fwRadius;
         gui.drawSphere3D(gX, gY, fwZ, 1.4, 255, 50, 80);
       }
-      // Grandstands along Pit Straight
+      // Grandstands along Pit Straight (Kenney Low-Poly 3D Models)
       for (let st = -3; st <= 3; st += 1) {
-        gui.drawCube3D(st * 32.0, 10.0, -220.0, 24.0, 14.0, 10.0, 32, 40, 58);
-        gui.drawCube3D(st * 32.0, 18.0, -220.0, 25.0, 1.2, 12.0, 255, 40, 60);
+        assets.playGrandstand(math.abs(st) % 2, st * 36.0, 0.0, -220.0, 15.0, 0.0);
       }
     } else if (this.trackId == 1) {
       // MONACO GP: French Riviera Cliffside Terraces, Villas & Port Hercule
@@ -282,12 +281,11 @@ export class Track {
         gui.drawCylinder3D(aX, aH * 0.5 - 6.0, -280.0, 0.1, 30.0, aH, 6, 22, 42, 32);
       }
       // Famous Red Raidillon Crest Grandstand perched atop Eau Rouge
-      gui.drawCube3D(65.0, 24.0, -230.0, 45.0, 22.0, 20.0, 40, 48, 56);
-      gui.drawCube3D(65.0, 36.0, -230.0, 48.0, 2.0, 22.0, 225, 30, 40);
-      // Ardennes pine tree clusters on the horizon
+      assets.playGrandstand(1, 65.0, 10.0, -230.0, 24.0, -45.0);
+      // Ardennes pine tree clusters on the horizon (Kenney 3D Trees)
       for (let pt = -5; pt <= 5; pt += 1) {
         let pX = pt * 38.0;
-        gui.drawCylinder3D(pX, 12.0, -250.0, 0.2, 10.0, 24.0, 5, 16, 44, 22);
+        assets.playTree(math.abs(pt) % 2, pX, 0.0, -250.0, 14.0, 0.0);
       }
     } else {
       // MONZA GP: Royal Parkland Canopy, Historic Banked Oval Ruins & Italian GP Gantries
@@ -299,11 +297,9 @@ export class Track {
       }
       // Historic Monza Concrete Banking Oval Ruins looming in background
       gui.drawCylinderWires3D(0.0, 16.0, -230.0, 75.0, 75.0, 12.0, 24, 70, 85, 95);
-      // Italian GP Grandstands
-      gui.drawCube3D(-55.0, 14.0, -210.0, 48.0, 16.0, 16.0, 35, 42, 50);
-      gui.drawCube3D(-55.0, 23.0, -210.0, 50.0, 1.5, 18.0, 0, 200, 110);
-      gui.drawCube3D(55.0, 14.0, -210.0, 48.0, 16.0, 16.0, 35, 42, 50);
-      gui.drawCube3D(55.0, 23.0, -210.0, 50.0, 1.5, 18.0, 235, 40, 50);
+      // Italian GP Grandstands (Kenney 3D Covered & Open Grandstands)
+      assets.playGrandstand(0, -65.0, 0.0, -210.0, 18.0, 45.0);
+      assets.playGrandstand(1, 65.0, 0.0, -210.0, 18.0, -45.0);
     }
 
     // -------------------------------------------------------------------------
@@ -513,24 +509,20 @@ export class Track {
         }
       }
 
-      // J. Overhead Streetlights & Gantry Arches anchored to continuous track distance
-      let gantryProg = segDist - math.floor(segDist / 36.0) * 36.0;
-      if (!inTunnel and gantryProg >= 0.0 and gantryProg < this.segmentLength) {
-        let archH = 8.0;
-        gui.drawCube3D(x_OL1, hill1 + archH * 0.5, segZ1, 0.35, archH, 0.35, 30, 36, 50);
-        gui.drawCube3D(x_OR1, hill1 + archH * 0.5, segZ1, 0.35, archH, 0.35, 30, 36, 50);
-        gui.drawCube3D(curve1, hill1 + archH, segZ1, outerW * 2.0 + 1.2, 0.3, 0.3, barTopCol[0], barTopCol[1], barTopCol[2]);
-        gui.drawSphere3D(curve1 - 4.0, hill1 + archH - 0.2, segZ1, 0.35, 255, 240, 200);
-        gui.drawSphere3D(curve1 + 4.0, hill1 + archH - 0.2, segZ1, 0.35, 255, 240, 200);
+      // J. Modern Trackside Light Posts along Perimeter Barriers
+      let lightProg = segDist - math.floor(segDist / 48.0) * 48.0;
+      if (!inTunnel and lightProg >= 0.0 and lightProg < this.segmentLength) {
+        assets.playLightPost(x_OL1 - 0.8, hill1, segZ1, 12.0, 90.0);
+        assets.playLightPost(x_OR1 + 0.8, hill1, segZ1, 12.0, -90.0);
       }
     }
 
     // -------------------------------------------------------------------------
-    // 2. Render Roadside Scenery (Unique per Track, Anchored to World Stations)
+    // 2. Render Roadside Scenery (Authentic Low-Poly 3D Kenney Models per Track)
     // -------------------------------------------------------------------------
     let propInterval = 28.0;
     let baseStation = math.floor(distance / propInterval);
-    let propSide = outerW + 4.5;
+    let propSide = outerW + 5.0;
 
     for (let k = -4; k < 12; k += 1) {
       let stationIdx = baseStation + k;
@@ -542,51 +534,63 @@ export class Track {
         let i = stationIdx;
 
         if (this.trackId == 0) {
-          // Suzuka: Trackside Pit Buildings & Japanese Grandstand Towers
-          let bldScaleLeft = 3.2 + ((i * 7) % 3);
-          let bldScaleRight = 3.6 + ((i * 11) % 4);
+          // Suzuka: Pit Garages, Japanese Buildings, Billboards & Grandstands
+          let bldScaleLeft = 3.4 + ((i * 7) % 3);
           let variantLeft = i % 4;
-          let variantRight = (i + 2) % 4;
 
-          assets.playBuildingModel(variantLeft, curve - (propSide + 6.0), hill, propZ, bldScaleLeft, 90.0);
-          assets.playBuildingModel(variantRight, curve + (propSide + 6.0), hill, propZ - 12.0, bldScaleRight, -90.0);
+          assets.playBuildingModel(variantLeft, curve - (propSide + 8.0), hill, propZ, bldScaleLeft, 90.0);
+          assets.playPitsGarage(curve + (propSide + 5.0), hill, propZ - 10.0, 14.0, -90.0);
 
-          // Neon Sponsor Billboards
           if (i % 2 == 0) {
-            let glowPulse = 180 + math.floor(math.sin(t * 4.0 + i) * 70.0);
-            gui.drawCube3D(curve - (propSide + 1.2), hill + 5.0, propZ, 0.2, 3.2, 6.0, 255, 40, glowPulse);
-            gui.drawCube3D(curve + (propSide + 1.2), hill + 5.0, propZ - 8.0, 0.2, 3.2, 6.0, 40, glowPulse, 255);
+            assets.playBillboard(curve - (propSide + 3.0), hill, propZ + 8.0, 10.0, 90.0);
+            assets.playFlagCheckers(curve + (propSide + 2.0), hill, propZ, 8.0, 0.0);
+          } else {
+            assets.playGrandstand(i % 2, curve + (propSide + 12.0), hill, propZ, 14.0, -90.0);
           }
         } else if (this.trackId == 1) {
-          // Monaco: Mediterranean Palm Trees & Quayside Villas
+          // Monaco: Mediterranean 3D Trees, Quayside Villas & Covered Grandstands
           gui.drawPlane3D(curve - (propSide + 16.0), hill - 0.3, propZ, 32.0, 30.0, 180, 130, 85);
 
-          // Palm Trees
-          gui.drawCylinder3D(curve - (propSide + 2.0), hill + 3.2, propZ + 4.0, 0.22, 0.42, 6.5, 6, 95, 55, 32);
-          gui.drawSphere3D(curve - (propSide + 2.0), hill + 6.6, propZ + 4.0, 2.2, 35, 130, 65);
-          gui.drawSphere3D(curve - (propSide + 2.0), hill + 6.2, propZ + 4.0, 1.4, 60, 170, 80);
+          // Authentic Kenney 3D Trees & Lightposts along Monaco Promenade
+          assets.playTree(1, curve - (propSide + 3.0), hill, propZ + 4.0, 8.5, 0.0);
+          assets.playLightPost(curve - (propSide + 1.2), hill, propZ, 9.5, 90.0);
 
-          // Moored Luxury Yachts
+          if (i % 2 == 1) {
+            assets.playGrandstand(1, curve - (propSide + 12.0), hill, propZ, 12.0, 90.0);
+          }
+
+          // Moored Luxury Yachts in Monaco Harbor
           if (i % 3 == 0) {
-            let yachtX = curve + propSide + 12.0 + ((i * 5) % 14);
+            let yachtX = curve + propSide + 14.0 + ((i * 5) % 14);
             gui.drawCube3D(yachtX, hill - 0.6, propZ, 3.5, 1.2, 8.5, 240, 245, 255);
             gui.drawCylinder3D(yachtX, hill + 3.5, propZ, 0.1, 0.12, 7.5, 4, 180, 160, 140);
             gui.drawCube3D(yachtX, hill + 3.5, propZ + 1.2, 0.08, 5.0, 2.6, 255, 250, 240);
           }
         } else if (this.trackId == 2) {
-          // Spa: Ardennes Pine Trees & Rock Massifs
+          // Spa: Ardennes 3D Pine Trees, Rock Formations, Grandstands & Towers
           let rockH = 14.0 + ((i * 9) % 16);
-          gui.drawCylinder3D(curve - (propSide + 3.0), hill + rockH * 0.5, propZ, 4.5, 7.5, rockH, 8, 140, 50, 40);
-          gui.drawCylinder3D(curve + (propSide + 3.0), hill + rockH * 0.5, propZ - 10.0, 4.5, 7.5, rockH, 8, 140, 50, 40);
-          gui.drawCylinder3D(curve - (propSide + 2.0), hill + 4.0, propZ + 5.0, 0.2, 3.5, 9.0, 6, 18, 50, 24);
-          gui.drawCylinder3D(curve + (propSide + 2.0), hill + 4.0, propZ - 4.0, 0.2, 3.5, 9.0, 6, 18, 50, 24);
+          gui.drawCylinder3D(curve - (propSide + 4.0), hill + rockH * 0.5, propZ, 4.5, 7.5, rockH, 8, 140, 50, 40);
+          gui.drawCylinder3D(curve + (propSide + 4.0), hill + rockH * 0.5, propZ - 10.0, 4.5, 7.5, rockH, 8, 140, 50, 40);
+
+          // Authentic 3D Large & Small Trees
+          assets.playTree(0, curve - (propSide + 4.0), hill, propZ + 5.0, 11.0, 0.0);
+          assets.playTree(1, curve + (propSide + 4.0), hill, propZ - 4.0, 9.0, 0.0);
+
+          if (i % 2 == 0) {
+            assets.playGrandstand(1, curve + (propSide + 14.0), hill, propZ, 14.0, -90.0);
+            assets.playBannerTower(curve - (propSide + 3.5), hill, propZ, 11.0, 0.0);
+          }
         } else {
-          // Monza: Royal Park Ancient Trees & Energy Arrays
-          let panelW = 9.0;
-          gui.drawCube3D(curve - (propSide + 4.0), hill + 5.0, propZ, panelW, 0.25, 6.0, 30, 80, 200);
-          gui.drawCube3D(curve + (propSide + 4.0), hill + 5.0, propZ - 8.0, panelW, 0.25, 6.0, 30, 80, 200);
-          gui.drawCube3D(curve - (propSide + 4.0), hill + 2.5, propZ, 0.4, 5.0, 0.4, 90, 100, 120);
-          gui.drawCube3D(curve + (propSide + 4.0), hill + 2.5, propZ - 8.0, 0.4, 5.0, 0.4, 90, 100, 120);
+          // Monza: Royal Park Ancient 3D Trees, Grandstands, Billboards & Light Posts
+          assets.playTree(0, curve - (propSide + 5.0), hill, propZ, 12.0, 0.0);
+          assets.playTree(1, curve + (propSide + 5.0), hill, propZ - 8.0, 10.0, 0.0);
+
+          if (i % 2 == 0) {
+            assets.playGrandstand(0, curve - (propSide + 14.0), hill, propZ, 14.0, 90.0);
+            assets.playBillboard(curve + (propSide + 3.5), hill, propZ, 10.0, -90.0);
+          } else {
+            assets.playLightPost(curve + (propSide + 1.5), hill, propZ, 10.0, -90.0);
+          }
         }
       }
     }
@@ -642,8 +646,8 @@ export class Track {
   }
 
   drawCheckpointGate(x, y, z, t) {
-    let gateW = this.roadWidth + 2.5;
-    let gateH = 8.5;
+    let gateW = this.roadWidth + this.curbWidth * 2.0 + 3.0;
+    let gateH = 9.5;
     let glow = 200 + math.floor(math.sin(t * 5.0) * 55.0);
 
     // Left Column

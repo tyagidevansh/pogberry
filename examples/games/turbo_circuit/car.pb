@@ -51,6 +51,7 @@ export class Vehicle {
     this.shieldRegenDelay = 0.0;
     this.spinTimer = 0.0;
     this.brakeWarning = 0;
+    this.isBraking = false;
     this.wallHitShake = 0.0;
     this.inputOverride = nil;
     this.isAutopilot = false;
@@ -74,10 +75,10 @@ export class Vehicle {
   }
 
   updatePlayer(dt, track, particles, assets) {
-    // 0. Spin-out handling (when shield is depleted or during severe impact)
+    // 0. Spin-out handling (during severe spin recovery)
     if (this.spinTimer > 0.0) {
       this.spinTimer = this.spinTimer - dt;
-      this.speed = mu.approach(this.speed, 20.0, dt * 50.0);
+      this.speed = mu.approach(this.speed, 35.0, dt * 50.0);
       this.driftAngle = this.driftAngle + 680.0 * dt;
       this.trackDistance = this.trackDistance + this.speed * dt;
       this.worldX = this.x;
@@ -87,15 +88,6 @@ export class Vehicle {
         this.driftAngle = 0.0;
       }
       return;
-    }
-
-    // Shield auto-repair when out of combat / damage cooldown
-    if (this.shieldRegenDelay > 0.0) {
-      this.shieldRegenDelay = this.shieldRegenDelay - dt;
-    } else {
-      if (this.hull < this.maxHull) {
-        this.hull = mu.clamp(this.hull + 10.0 * dt, 0.0, this.maxHull);
-      }
     }
 
     if (this.wallDamageCooldown > 0.0) {
@@ -130,14 +122,18 @@ export class Vehicle {
     }
 
     let boostInput = boostKey and this.nitro > 4.0 and (throttleInput or this.speed > 25.0);
+    this.isBraking = brakeInput;
 
-    // Drift activation: brake while steering, or use Shift as a deliberate handbrake.
-    let wantDrift = (brakeInput or shiftKey) and math.abs(steerInput) > 0.1 and this.speed > 24.0;
-    if (wantDrift) {
+    // Drift activation: tapping brake or shift while steering initiates a power slide
+    if ((brakeInput or shiftKey) and math.abs(steerInput) > 0.2 and this.speed > 24.0) {
       this.isDrifting = true;
-      let targetDriftAngle = steerInput * 18.0;
-      this.driftAngle = mu.approach(this.driftAngle, targetDriftAngle, dt * 54.0);
-      this.driftPoints = this.driftPoints + math.floor(dt * 140.0);
+    }
+
+    if (this.isDrifting) {
+      // Maintain drift while steering into the turn or counter-steering
+      let targetDriftAngle = steerInput * 20.0;
+      this.driftAngle = mu.approach(this.driftAngle, targetDriftAngle, dt * 50.0);
+      this.driftPoints = this.driftPoints + math.floor(dt * 150.0);
 
       // Drifting refills nitro!
       this.nitro = mu.clamp(this.nitro + this.spec["nitroRegen"] * 2.2 * dt, 0.0, this.maxNitro);
@@ -147,15 +143,20 @@ export class Vehicle {
       if (steerInput < 0.0) driftSign = -1.0;
       if (particles != nil) particles.emitDriftSmoke(this.worldX, 0.0, this.z, driftSign);
       if (rand(8) == 0 and assets != nil) assets.playSfx(assets.sndSkid);
-    } else {
-      // If we just finished a high-value drift, reward with mini-turbo boost!
-      if (this.isDrifting and this.driftPoints > 75) {
-        this.speed = mu.clamp(this.speed + 6.0, 0.0, this.boostSpeed);
-        if (assets != nil) assets.playSfx(assets.sndNitro);
-        if (particles != nil) particles.emitNitroFlames(this.worldX, 0.0, this.z, this.speed, 1.2);
+
+      // Drift exit condition: wheel straightened or speed lost
+      if (math.abs(steerInput) < 0.12 or this.speed < 16.0) {
+        if (this.driftPoints > 65) {
+          this.speed = mu.clamp(this.speed + 6.5, 0.0, this.boostSpeed);
+          if (assets != nil) assets.playSfx(assets.sndNitro);
+          if (particles != nil) particles.emitNitroFlames(this.worldX, 0.0, this.z, this.speed, 1.25);
+        }
+        this.driftPoints = 0;
+        this.isDrifting = false;
+        this.driftAngle = mu.approach(this.driftAngle, 0.0, dt * 60.0);
       }
+    } else {
       this.driftPoints = 0;
-      this.isDrifting = false;
       this.driftAngle = mu.approach(this.driftAngle, 0.0, dt * 60.0);
     }
 
@@ -225,45 +226,69 @@ export class Vehicle {
       this.nitro = mu.clamp(this.nitro + this.spec["nitroRegen"] * 0.5 * dt, 0.0, this.maxNitro);
     }
 
-    // 3. Front-First Steering & Vehicle Heading Dynamics
+    // 3. Direct, Responsive Arcade Steering & Vehicle Heading Dynamics
     let effectiveSteerInput = steerInput;
     if (this.isReversing) effectiveSteerInput = -effectiveSteerInput;
 
-    this.steer = mu.approach(this.steer, effectiveSteerInput, dt * 14.0);
-
-    // Front wheels turn first!
-    let maxWheelLock = 0.50; // ~29 degrees max steer
-    let targetWheel = this.steer * maxWheelLock;
-    this.steerAngle = mu.approach(this.steerAngle, targetWheel, dt * 10.0);
+    // Fast, crisp keyboard input response: turns immediately without sluggish deadzone
+    let steerSpeed = 38.0;
+    // When flicking steer direction in chicanes (opposite signs), snap with extreme responsiveness!
+    if (effectiveSteerInput * this.steer < 0.0) {
+      steerSpeed = 70.0;
+    } else if (effectiveSteerInput == 0.0 or math.abs(effectiveSteerInput) < math.abs(this.steer)) {
+      steerSpeed = 48.0;
+    }
+    this.steer = mu.approach(this.steer, effectiveSteerInput, dt * steerSpeed);
 
     let speedRatio = math.abs(this.speed) / this.maxSpeed;
     if (speedRatio > 1.0) speedRatio = 1.0;
 
-    // Yaw agility: responsive at slow speeds for turning around / U-turns, stable at high speeds
-    let turnAgility = (this.handling * 0.65) * (1.4 - speedRatio * 0.4);
+    // Speed-sensitive steering lock:
+    // Low speeds: wide 0.44 rad (~25°) lock for hairpins, parking, and 360° U-turns
+    // High speeds: natural 0.35 rad (~20°) lock for authoritative cornering
+    let maxWheelLock = 0.44 - speedRatio * 0.09;
     if (this.isDrifting) {
-      let driftMult = 1.6;
-      if (this.spec["driftRate"] != nil) driftMult = 1.2 + this.spec["driftRate"] * 0.25;
+      maxWheelLock = 0.48; // High counter-steer freedom in drift
+    }
+    let targetWheel = this.steer * maxWheelLock;
+    this.steerAngle = mu.approach(this.steerAngle, targetWheel, dt * 48.0);
+
+    // Yaw agility: authoritative cornering bite across all speeds
+    let speedFactor = 1.0;
+    let absSpd = math.abs(this.speed);
+    if (absSpd < 25.0) {
+      let lowSpeedRatio = absSpd / 25.0;
+      speedFactor = 1.0 + (1.0 - lowSpeedRatio) * 1.5;
+    } else {
+      speedFactor = 1.0 - (speedRatio - 0.3) * 0.10;
+    }
+
+    let turnAgility = (this.handling * 0.95) * speedFactor;
+    if (this.isDrifting) {
+      let driftMult = 1.35;
+      if (this.spec["driftRate"] != nil) driftMult = 1.20 + this.spec["driftRate"] * 0.15;
       turnAgility = turnAgility * driftMult;
     }
     if (this.isOffTrack) {
-      turnAgility = turnAgility * 0.5; // Traction loss in gravel
+      turnAgility = turnAgility * 0.55; // Gravel traction penalty
     }
 
-    let yawTorque = this.steerAngle * turnAgility - this.yawRate * 5.5;
+    // Direct yaw torque with optimal damping ratio
+    let yawTorque = this.steerAngle * turnAgility - this.yawRate * 10.5;
     this.yawRate = this.yawRate + yawTorque * dt;
     this.heading = this.heading + this.yawRate * dt;
 
-    // Road Curvature effect on relative heading:
-    // As the road turns, relative to the road the vehicle heading rotates
+    // Physical road curvature effect on relative heading:
+    // As the road bends underneath the car, the car's heading relative to the road tangent
+    // rotates towards the outside of the turn unless counteracted by driver steering!
     let fwdSpeed = this.speed * math.cos(this.heading);
     let curv = track.getCurvature(0.0, this.trackDistance);
     let dRoadTheta = curv * fwdSpeed * dt;
-    this.heading = this.heading - dRoadTheta;
+    this.heading = this.heading + dRoadTheta;
 
-    // Gentle straight-line caster stabilization ONLY when driving forward and unsteered
-    if (math.abs(this.heading) < 0.40 and math.abs(steerInput) < 0.1) {
-      this.heading = this.heading * (1.0 - 2.0 * dt);
+    // When steering is released, damp yaw rate naturally (front wheels self-center)
+    if (math.abs(steerInput) < 0.1) {
+      this.yawRate = this.yawRate * (1.0 - 12.0 * dt);
     }
 
     // Wrap heading cleanly to [-PI, +PI] for full 360-degree freedom
@@ -272,8 +297,9 @@ export class Vehicle {
     while (this.heading > PI) this.heading = this.heading - TWO_PI;
     while (this.heading < -PI) this.heading = this.heading + TWO_PI;
 
-    // Velocity projection: motion follows heading in full 360 degrees
-    let effectiveHeading = this.heading + (this.driftAngle * 0.0174533 * 0.5);
+    // Velocity projection: motion follows chassis heading and drift angle (NO teleportation)
+    let driftVector = this.driftAngle * 0.0174533 * 0.5;
+    let effectiveHeading = this.heading + driftVector;
     let forwardProgress = this.speed * math.cos(effectiveHeading);
     this.lateralVelocity = this.speed * math.sin(effectiveHeading);
 
@@ -302,7 +328,7 @@ export class Vehicle {
     let lookAheadOffset = track.getCurveOffset(-54.0, this.trackDistance);
     let absCurvAhead = math.abs(lookAheadCurv);
     this.brakeWarning = 0;
-    if ((absCurvAhead > 0.012 or math.abs(lookAheadOffset) > 6.0) and this.speed > 50.0) {
+    if ((absCurvAhead > 0.012 or math.abs(lookAheadOffset) > 6.0) and this.speed > 80.0) {
       if (lookAheadOffset > 0.0) {
         this.brakeWarning = 2; // Sharp Right Turn Ahead!
       } else {
@@ -310,7 +336,7 @@ export class Vehicle {
       }
     }
 
-    // 4. Track Surface Zones & Barrier Collisions
+    // 4. Track Surface Zones & Barrier Collisions (Arcade Wall Bounce — No Hull Damage)
     let halfRoad = track.roadWidth * 0.5;
     let curbW = track.curbWidth;
     let runoffW = track.runoffWidth;
@@ -330,42 +356,34 @@ export class Vehicle {
       let sign = 1.0;
       if (this.x < 0.0) sign = -1.0;
       this.x = sign * (wallLimit - 0.45); // Keep inside track
-      this.lateralVelocity = 0.0; // Stop outward lateral drift
-
-      // Barrier prevents rotating deeper into the wall, but freely allows turning away
-      if (sign * this.heading > 0.0) {
-        this.heading = mu.approach(this.heading, 0.0, dt * 10.0);
-        if (sign * this.yawRate > 0.0) this.yawRate = 0.0;
+      // Bounce inward away from barrier
+      this.lateralVelocity = -sign * 4.5;
+      if (this.heading * sign > 0.0) {
+        this.heading = -sign * 0.12;
       }
+      this.yawRate = -sign * 1.5;
 
       if (this.wallDamageCooldown <= 0.0) {
-        if (this.speed > 68.0) {
-          this.speed = this.speed * 0.74;
-          this.hull = this.hull - 10.0;
-          this.shieldRegenDelay = 3.5;
-          this.wallHitShake = 0.30;
-          this.hitFlash = 0.25;
-          if (particles != nil) particles.emitSparks(this.worldX + sign * 0.6, 0.5, this.z, 12);
-          if (assets != nil) assets.playSfx(assets.sndCrash);
-        } else if (this.speed > 35.0) {
+        if (this.speed > 110.0) {
           this.speed = this.speed * 0.82;
-          this.hull = this.hull - 5.0;
-          this.shieldRegenDelay = 2.2;
+          this.wallHitShake = 0.28;
+          this.hitFlash = 0.22;
+          if (particles != nil) particles.emitSparks(this.worldX + sign * 0.6, 0.5, this.z, 14);
+          if (assets != nil) assets.playSfx(assets.sndCrash);
+        } else if (this.speed > 45.0) {
+          this.speed = this.speed * 0.88;
           this.wallHitShake = 0.18;
-          this.hitFlash = 0.15;
+          this.hitFlash = 0.14;
           if (particles != nil) particles.emitSparks(this.worldX + sign * 0.6, 0.4, this.z, 8);
           if (assets != nil) assets.playSfx(assets.sndCrash);
         } else {
-          this.speed = this.speed * 0.88;
-          this.hull = this.hull - 2.0;
-          this.shieldRegenDelay = 1.2;
+          this.speed = this.speed * 0.94;
           this.wallHitShake = 0.10;
-          this.hitFlash = 0.10;
+          this.hitFlash = 0.08;
           if (particles != nil) particles.emitSparks(this.worldX + sign * 0.6, 0.3, this.z, 4);
           if (assets != nil) assets.playSfx(assets.sndCrash);
         }
-        if (this.hull < 0.0) this.hull = 0.0;
-        this.wallDamageCooldown = 0.40;
+        this.wallDamageCooldown = 0.35;
       }
     }
 
@@ -373,12 +391,13 @@ export class Vehicle {
     if (this.nearMissTimer > 0.0) this.nearMissTimer = this.nearMissTimer - dt;
   }
 
-  updateAi(playerZ, playerSpeed, dt, track) {
-    // AI Lane logic
+  updateAi(dDist, playerSpeed, dt, track) {
+    // AI Lane logic (wider road exploration)
+    let halfRoad = track.roadWidth * 0.5 - 2.0;
     this.aiLaneTimer = this.aiLaneTimer - dt;
     if (this.aiLaneTimer <= 0.0) {
-      this.aiLane = mu.randFloat(-2.8, 2.8);
-      this.aiLaneTimer = mu.randFloat(2.5, 6.0);
+      this.aiLane = mu.randFloat(-halfRoad * 0.70, halfRoad * 0.70);
+      this.aiLaneTimer = mu.randFloat(2.0, 5.0);
     }
 
     let aiCurvature = track.getCurvature(0.0, this.trackDistance);
@@ -387,34 +406,50 @@ export class Vehicle {
 
     // Steer front-first towards target lane
     let aiLatError = this.aiLane - this.x;
-    let aiSteer = mu.clamp(aiLatError * 0.22 + (aiCurvature * 24.0), -1.0, 1.0);
-    this.steerAngle = mu.approach(this.steerAngle, aiSteer * 0.45, dt * 8.0);
-    let aiYawTorque = this.steerAngle * 14.0 - this.yawRate * 5.5;
+    let aiSteer = mu.clamp(aiLatError * 0.24 - (aiCurvature * 28.0), -1.0, 1.0);
+    this.steerAngle = mu.approach(this.steerAngle, aiSteer * 0.45, dt * 10.0);
+    let aiYawTorque = this.steerAngle * 16.0 - this.yawRate * 6.5;
     this.yawRate = this.yawRate + aiYawTorque * dt;
     this.heading = this.heading + this.yawRate * dt;
     let aiDs = this.speed * dt;
-    this.heading = this.heading - aiCurvature * aiDs * 1.2;
-    this.heading = this.heading * (1.0 - 2.5 * dt);
+    this.heading = this.heading + aiCurvature * aiDs;
+    this.heading = this.heading * (1.0 - 3.5 * dt);
     this.x = this.x + (this.speed * 0.50) * math.sin(this.heading) * dt;
-    let aiRoadLimit = track.roadWidth * 0.5 - 0.9;
+    let aiRoadLimit = track.roadWidth * 0.5 - 1.2;
     this.x = mu.clamp(this.x, -aiRoadLimit, aiRoadLimit);
 
-    // AI speed & rubberbanding
-    let targetSpeed = this.maxSpeed * this.aiSkill;
-    let distToPlayer = this.z - playerZ;
-
-    if (aiCornerLoad > 0.18) {
-      let aiCornerSpeed = 64.0 - aiCornerLoad * 24.0;
-      if (targetSpeed > aiCornerSpeed) targetSpeed = aiCornerSpeed;
+    // Pack-Racing Dynamic AI Rubberbanding:
+    // Keeps rivals fiercely clustered around the player (-25m to +35m) for intense pack racing!
+    let minAiCruise = 85.0 * this.aiSkill;
+    let baseSpeed = this.maxSpeed * this.aiSkill;
+    if (playerSpeed > 50.0) {
+      baseSpeed = playerSpeed * (0.98 + (this.aiSkill - 1.0) * 0.06);
+    } else {
+      if (baseSpeed < minAiCruise) baseSpeed = minAiCruise;
     }
 
-    if (distToPlayer > 60.0) {
-      targetSpeed = targetSpeed * 0.92;
-    } else if (distToPlayer < -30.0) {
-      targetSpeed = targetSpeed * 1.12;
+    if (dDist < -10.0) {
+      // Slipstream drafting catch-up boost
+      let catchUp = 14.0 + (-dDist) * 0.40;
+      let boostTarget = playerSpeed + catchUp;
+      if (boostTarget > baseSpeed) baseSpeed = boostTarget;
+    } else if (dDist > 28.0 and playerSpeed > 50.0) {
+      // Modulate speed if pulling too far ahead during high speed race
+      let pullBack = (dDist - 25.0) * 0.30;
+      let slowed = playerSpeed - pullBack;
+      let minFloor = playerSpeed * 0.88;
+      if (minFloor < minAiCruise) minFloor = minAiCruise;
+      if (slowed < minFloor) slowed = minFloor;
+      baseSpeed = slowed;
     }
 
-    this.speed = mu.approach(this.speed, targetSpeed, dt * 20.0);
+    // Corner braking for AI
+    if (aiCornerLoad > 0.16) {
+      let aiCornerSpeed = 135.0 - aiCornerLoad * 45.0;
+      if (baseSpeed > aiCornerSpeed) baseSpeed = aiCornerSpeed;
+    }
+
+    this.speed = mu.approach(this.speed, baseSpeed, dt * 26.0);
 
     // AI track distance on closed circuit
     this.trackDistance = this.trackDistance + this.speed * dt;
@@ -434,45 +469,46 @@ export class Vehicle {
     let headingDeg = this.heading * 57.2957795;
     let steerDeg = this.steerAngle * 57.2957795;
     let rotY = 180.0 - headingDeg + this.driftAngle - steerDeg * 0.4;
-    let r = this.colorR;
-    let g = this.colorG;
-    let b = this.colorB;
+    let r = 255;
+    let g = 255;
+    let b = 255;
 
     if (this.hitFlash > 0.0) {
-      r = 255; g = 255; b = 255;
+      r = 255; g = 120; b = 120;
     }
 
     let drawX = this.worldX;
 
-    // 3D Model
+    // Ground contact shadow grounding vehicle to road
+    gui.drawPlane3D(drawX, 0.02, this.z, 2.1 * this.scale, 3.4 * this.scale, 10, 12, 18);
+
+    // Subtle neon asphalt reflection during nitro boost
+    if (this.isBoosting) {
+      let glow = this.spec["glowColor"];
+      if (glow != nil) {
+        gui.drawPlane3D(drawX, 0.03, this.z, 1.6 * this.scale, 2.6 * this.scale,
+                        math.floor(glow[0] * 0.15),
+                        math.floor(glow[1] * 0.15),
+                        math.floor(glow[2] * 0.15));
+      }
+    }
+
+    // 3D Model rendered with full authentic texture & material fidelity
     assets.playCarModel(this.carId, drawX, this.y, this.z, rotY, this.scale, r, g, b);
 
-    // Underglow neon reflection on road
-    let glow = this.spec["glowColor"];
-    gui.drawPlane3D(drawX, 0.03, this.z, 2.8, 4.4,
-                    math.floor(glow[0] * 0.35), math.floor(glow[1] * 0.35), math.floor(glow[2] * 0.35));
-
-    // Dynamic Headlights and Taillights rotating with vehicle heading
-    let cosH = math.cos(this.heading);
-    let sinH = math.sin(this.heading);
-    let hx = 0.55;
-    let hz = 1.8;
-
-    // Front headlights (bright white/yellow)
-    let fLeftX = drawX - hx * cosH - hz * sinH;
-    let fLeftZ = this.z - hz * cosH + hx * sinH;
-    let fRightX = drawX + hx * cosH - hz * sinH;
-    let fRightZ = this.z - hz * cosH - hx * sinH;
-    gui.drawSphere3D(fLeftX, this.y + 0.35, fLeftZ, 0.16, 240, 250, 255);
-    gui.drawSphere3D(fRightX, this.y + 0.35, fRightZ, 0.16, 240, 250, 255);
-
-    // Rear taillights (red)
-    let rLeftX = drawX - hx * cosH + hz * sinH;
-    let rLeftZ = this.z + hz * cosH + hx * sinH;
-    let rRightX = drawX + hx * cosH + hz * sinH;
-    let rRightZ = this.z + hz * cosH - hx * sinH;
-    gui.drawSphere3D(rLeftX, this.y + 0.35, rLeftZ, 0.14, 255, 30, 30);
-    gui.drawSphere3D(rRightX, this.y + 0.35, rRightZ, 0.14, 255, 30, 30);
+    // Dynamic Taillight flares when braking / drifting
+    if (this.isBraking or this.speed < 0.0) {
+      let cosH = math.cos(this.heading);
+      let sinH = math.sin(this.heading);
+      let hx = 0.50 * this.scale;
+      let hz = 1.35 * this.scale;
+      let rLeftX = drawX - hx * cosH + hz * sinH;
+      let rLeftZ = this.z + hz * cosH + hx * sinH;
+      let rRightX = drawX + hx * cosH + hz * sinH;
+      let rRightZ = this.z + hz * cosH - hx * sinH;
+      gui.drawSphere3D(rLeftX, this.y + 0.38 * this.scale, rLeftZ, 0.08, 255, 30, 30);
+      gui.drawSphere3D(rRightX, this.y + 0.38 * this.scale, rRightZ, 0.08, 255, 30, 30);
+    }
   }
 }
 
@@ -500,18 +536,13 @@ export class TrafficCar {
 
   draw(assets) {
     if (this.z < -260.0 or this.z > 18.0) return;
-    let r = 240; let g = 240; let b = 240;
-    if (this.type == 0) { r = 40; g = 180; b = 255; }      // Delivery Blue
-    else if (this.type == 1) { r = 255; g = 140; b = 30; }  // Truck Orange
-    else if (this.type == 2) { r = 180; g = 50; b = 220; }  // Sedan Purple
-    else if (this.type == 3) { r = 255; g = 220; b = 20; }  // Taxi Yellow
-    else { r = 255; g = 50; b = 50; }                      // Ambulance Red
-
     let drawX = this.worldX;
-    assets.playTrafficModel(this.type, drawX, this.y, this.z, 180.0, 1.25, r, g, b);
+    let scale = 1.45;
 
-    // Taillights
-    gui.drawSphere3D(drawX - 0.5, this.y + 0.45, this.z + 1.6, 0.14, 255, 20, 20);
-    gui.drawSphere3D(drawX + 0.5, this.y + 0.45, this.z + 1.6, 0.14, 255, 20, 20);
+    // Contact shadow
+    gui.drawPlane3D(drawX, 0.02, this.z, 2.0 * scale, 3.2 * scale, 10, 12, 18);
+
+    // 3D Model with authentic low-poly materials
+    assets.playTrafficModel(this.type, drawX, this.y, this.z, 180.0, scale, 255, 255, 255);
   }
 }

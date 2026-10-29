@@ -46,9 +46,9 @@ export class ChaseCamera {
     // 1. Camera position behind vehicle following car heading smoothly in full 360 degrees
     let normSpd = math.abs(speed) / 80.0;
     if (normSpd > 1.0) normSpd = 1.0;
-    let camDist = 9.2 + normSpd * 1.5;
+    let camDist = 7.4 + normSpd * 1.2;
     let targetCamX = carX - math.sin(heading) * camDist;
-    let targetCamY = carY + 4.2;
+    let targetCamY = carY + 2.9;
     let targetCamZ = carZ + math.cos(heading) * camDist;
 
     // Unified camera lag / smoothing rate prevents orientation twisting jitter
@@ -59,9 +59,9 @@ export class ChaseCamera {
 
     // 2. Camera target looks ahead along vehicle heading
     this.lookHill = mu.lerp(this.lookHill, this.targetLookHill, dt * 6.0);
-    let lookDist = 28.0;
+    let lookDist = 26.0;
     let targetLookX = carX + math.sin(heading) * lookDist;
-    let targetLookY = carY + 1.2 + (this.lookHill * 0.28);
+    let targetLookY = carY + 1.1 + (this.lookHill * 0.28);
     let targetLookZ = carZ - math.cos(heading) * lookDist;
 
     this.targetX = mu.lerp(this.targetX, targetLookX, dt * followSpeed);

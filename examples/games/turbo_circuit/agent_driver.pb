@@ -30,42 +30,33 @@ export class DriverBot {
     // Racing line lookahead
     let speed = player.speed;
     let dist = player.trackDistance;
-    let lookDist = 30.0 + (speed / 80.0) * 12.0;
+    let lookDist = 26.0 + (speed / 70.0) * 14.0;
 
     let curveOffset = track.getCurveOffset(-lookDist, dist);
     let curv = track.getCurvature(0.0, dist);
     let lookCurv = track.getCurvature(-lookDist, dist);
-    let absCurv = math.abs(curv);
-    let maxCurv = math.max(absCurv, math.abs(lookCurv));
+    let maxCurv = math.max(math.abs(curv), math.abs(lookCurv));
 
-    let cornerPull = (curveOffset * 1.5 + curv * 280.0);
-    let absPull = math.abs(cornerPull);
-    let cornerDir = mu.sign(cornerPull);
+    // Pure Pursuit heading error towards lookahead track trajectory
+    let targetLat = curveOffset * 0.70;
+    let latDelta = targetLat - player.x;
+    let desiredHeading = math.atan2(latDelta, lookDist);
+    let headingError = desiredHeading - player.heading;
 
-    // Target lateral position: clip inside apex on medium/sharp turns
-    let targetX = 0.0;
-    if (absPull > 3.0) {
-      targetX = cornerDir * 2.2;
-    }
-
-    // Smooth PD steering controller with heading damping
-    let latError = targetX - player.x;
-    let desiredSteer = mu.clamp(latError * 0.18 - player.heading * 0.70 + curveOffset * 0.04 + curv * 22.0, -1.0, 1.0);
+    let desiredSteer = mu.clamp(headingError * 1.8 - curv * 24.0, -1.0, 1.0);
     input["steer"] = desiredSteer;
 
     // Corner braking & power drift logic
     if (this.mode == "HUMAN_ARCADE" or this.mode == "PRO_RACER") {
       // Brake if approaching sharp corner at high speed
-      if (maxCurv > 0.012 and speed > 48.0) {
-        input["brake"] = true;
-        input["throttle"] = false;
-      } else if (maxCurv > 0.007 and speed > 60.0) {
+      let brake = (maxCurv > 0.018 and speed > 62.0) or (maxCurv > 0.028 and speed > 42.0);
+      if (brake) {
         input["brake"] = true;
         input["throttle"] = false;
       }
 
       // Initiate power drift on medium and sharp corners
-      if (absPull > 10.0 and speed > 28.0 and math.abs(input["steer"]) > 0.22) {
+      if (maxCurv > 0.014 and math.abs(desiredSteer) > 0.35 and speed > 35.0) {
         input["drift"] = true;
         this.driftActive = true;
       } else {
@@ -73,8 +64,8 @@ export class DriverBot {
       }
 
       // Nitro boost on clean straights
-      let isStraight = (absPull < 3.0 and math.abs(player.x) < 2.5);
-      if (isStraight and speed > 45.0 and player.nitro > 15.0) {
+      let isStraight = (maxCurv < 0.004 and math.abs(player.x) < 4.5);
+      if (isStraight and speed > 50.0 and player.nitro > 15.0) {
         input["boost"] = true;
       }
     }

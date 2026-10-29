@@ -138,15 +138,15 @@ export class UIRenderer {
         gui.drawRectangleLines(cardX, cardY, cardW, 140, 0, 240, 255);
         gui.drawText(carInfo["name"], cardX + 16, cardY + 16, 20, 255, 235, 90);
         gui.drawText(carInfo["subtitle"], cardX + 16, cardY + 44, 14, 200, 230, 255);
-        gui.drawText("SPEED: " + str(math.floor(carInfo["topSpeed"])) + " MPH", cardX + 16, cardY + 76, 15, 0, 240, 255);
-        gui.drawText("HULL: " + str(math.floor(carInfo["maxHull"])) + " HP", cardX + 16, cardY + 102, 15, 255, 100, 180);
+        gui.drawText("CRUISE: " + str(math.floor(carInfo["topSpeed"])) + " MPH", cardX + 16, cardY + 76, 14, 0, 240, 255);
+        gui.drawText("NITRO:  " + str(math.floor(carInfo["boostSpeed"])) + " MPH", cardX + 16, cardY + 102, 14, 255, 100, 180);
       } else {
         gui.drawRectangleAlpha(cardX, cardY, cardW, 140, 10, 16, 30, 170);
         gui.drawRectangleLines(cardX, cardY, cardW, 140, 50, 70, 95);
         gui.drawText(carInfo["name"], cardX + 16, cardY + 16, 18, 160, 180, 200);
         gui.drawText(carInfo["subtitle"], cardX + 16, cardY + 44, 13, 120, 140, 160);
-        gui.drawText("SPEED: " + str(math.floor(carInfo["topSpeed"])), cardX + 16, cardY + 76, 14, 140, 160, 180);
-        gui.drawText("HULL: " + str(math.floor(carInfo["maxHull"])), cardX + 16, cardY + 102, 14, 180, 120, 140);
+        gui.drawText("CRUISE: " + str(math.floor(carInfo["topSpeed"])), cardX + 16, cardY + 76, 14, 140, 160, 180);
+        gui.drawText("NITRO:  " + str(math.floor(carInfo["boostSpeed"])), cardX + 16, cardY + 102, 14, 180, 120, 140);
       }
     }
 
@@ -160,10 +160,10 @@ export class UIRenderer {
     gui.drawText(spec["subtitle"], specX + 20, specY + 52, 15, 180, 210, 240);
 
     // Stat bars
-    this.drawStatBar(specX + 20, specY + 85, "TOP SPEED", spec["topSpeed"] / 125.0, 0, 240, 255);
-    this.drawStatBar(specX + 20, specY + 120, "ACCELERATION", spec["accel"] / 45.0, 255, 200, 50);
-    this.drawStatBar(specX + 20, specY + 155, "HANDLING/DRIFT", spec["driftRate"] / 3.0, 255, 60, 180);
-    this.drawStatBar(specX + 20, specY + 190, "ARMOR HULL", spec["maxHull"] / 180.0, 60, 255, 120);
+    this.drawStatBar(specX + 20, specY + 85, "CRUISE SPEED", spec["topSpeed"] / 180.0, 0, 240, 255);
+    this.drawStatBar(specX + 20, specY + 120, "ACCELERATION", spec["accel"] / 48.0, 255, 200, 50);
+    this.drawStatBar(specX + 20, specY + 155, "HANDLING", spec["handling"] / 50.0, 255, 60, 180);
+    this.drawStatBar(specX + 20, specY + 190, "NITRO BOOST SPEED", spec["boostSpeed"] / 240.0, 60, 255, 120);
 
     // Instructions
     gui.drawText("A / D  CHOOSE MACHINE     ENTER  SELECT TRACK     ESC  BACK", 80, 672, 20, 255, 240, 90);
@@ -315,9 +315,11 @@ export class UIRenderer {
       gui.drawText("GEAR [R]", gaugeX + 20, gaugeY + 98, 18, 255, rPulse, 40);
     } else {
       let gear = 1;
-      if (player.speed > 60.0) gear = 4;
-      else if (player.speed > 42.0) gear = 3;
-      else if (player.speed > 20.0) gear = 2;
+      if (player.speed > 195.0) gear = 6;
+      else if (player.speed > 150.0) gear = 5;
+      else if (player.speed > 110.0) gear = 4;
+      else if (player.speed > 70.0) gear = 3;
+      else if (player.speed > 30.0) gear = 2;
       gui.drawText("GEAR " + str(gear), gaugeX + 20, gaugeY + 98, 16, 200, 220, 240);
     }
 
@@ -345,18 +347,18 @@ export class UIRenderer {
     gui.drawRectangle(nitroX + 10, nitroY + 10, math.floor(320 * nitroRatio), 24, 0, 240, 255);
     gui.drawText("NITRO [SPACE]", nitroX + 16, nitroY + 14, 15, 255, 255, 255);
 
-    // 3. Hull Integrity (Bottom Left)
-    let hullX = 30;
-    let hullY = this.h - 58;
-    gui.drawRectangleAlpha(hullX, hullY, 260, 44, 8, 12, 26, 210);
-    gui.drawRectangleLines(hullX, hullY, 260, 44, 255, 60, 60);
+    // 3. Circuit Progression Meter (Bottom Left)
+    let meterX = 30;
+    let meterY = this.h - 58;
+    gui.drawRectangleAlpha(meterX, meterY, 260, 44, 8, 12, 26, 210);
+    gui.drawRectangleLines(meterX, meterY, 260, 44, 0, 240, 255);
 
-    let hullRatio = player.hull / player.maxHull;
-    if (hullRatio < 0.0) hullRatio = 0.0;
-    let hullColR = 40; let hullColG = 255; let hullColB = 100;
-    if (hullRatio < 0.35) { hullColR = 255; hullColG = 40; hullColB = 40; }
-    gui.drawRectangle(hullX + 10, hullY + 10, math.floor(240 * hullRatio), 24, hullColR, hullColG, hullColB);
-    gui.drawText("HULL: " + str(math.floor(player.hull)) + " HP", hullX + 16, hullY + 14, 16, 255, 255, 255);
+    let lapProgRatio = (distance - math.floor(distance / lapLength) * lapLength) / lapLength;
+    if (lapProgRatio < 0.0) lapProgRatio = 0.0;
+    if (lapProgRatio > 1.0) lapProgRatio = 1.0;
+    gui.drawRectangle(meterX + 10, meterY + 10, math.floor(240 * lapProgRatio), 24, 0, 220, 180);
+    let lapPct = math.floor(lapProgRatio * 100.0);
+    gui.drawText("CIRCUIT LAP: " + str(lapPct) + "%", meterX + 16, meterY + 14, 15, 255, 255, 255);
 
     // 4. Position & Lap Info (Top Left)
     let infoX = 30;

@@ -148,6 +148,9 @@ for (let i = 0; i < 20; i += 1) {
     rivals[r].draw(assets, t);
   }
   player.draw(assets, t);
+  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+  particles.update(0.016);
+  particles.draw();
   cam.end3DPass();
 
   ui.updateDimensions();
@@ -183,6 +186,9 @@ for (let i = 0; i < 20; i += 1) {
   gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
   track1.draw(0.0, dist, t, assets);
   player.draw(assets, t);
+  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+  particles.update(0.016);
+  particles.draw();
   cam.end3DPass();
 
   ui.updateDimensions();
@@ -219,6 +225,9 @@ for (let i = 0; i < 20; i += 1) {
   gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
   track2.draw(0.0, dist, t, assets);
   player.draw(assets, t);
+  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+  particles.update(0.016);
+  particles.draw();
   cam.end3DPass();
 
   ui.updateDimensions();
@@ -255,6 +264,9 @@ for (let i = 0; i < 20; i += 1) {
   gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
   track3.draw(0.0, dist, t, assets);
   player.draw(assets, t);
+  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+  particles.update(0.016);
+  particles.draw();
   cam.end3DPass();
 
   ui.updateDimensions();

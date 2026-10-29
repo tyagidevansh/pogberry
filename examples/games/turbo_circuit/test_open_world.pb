@@ -81,13 +81,13 @@ rival.completedLaps = 0;
 // Simulate until rival completes a lap and laps the player
 let lappedPlayer = false;
 for (let f = 0; f < 9500; f += 1) {
-  // Update rival AI
-  rival.updateAi(player.z, player.speed, dt, trk);
-
   // Calculate closed-circuit relative distance
   let dDist = rival.trackDistance - player.trackDistance;
   while (dDist > lapLen * 0.5) dDist = dDist - lapLen;
   while (dDist < -lapLen * 0.5) dDist = dDist + lapLen;
+
+  // Update rival AI
+  rival.updateAi(dDist, player.speed, dt, trk);
   rival.z = -dDist;
 
   let playerProg = (player.completedLaps * lapLen) + player.trackDistance;
@@ -132,14 +132,12 @@ for (let f = 0; f < 30; f += 1) {
   let dX = math.abs(player.x - rival.x);
   if (dZ < 3.2 and dX < 1.8) {
     collisionOccurred = true;
-    player.hull = player.hull - 15.0;
     player.speed = player.speed * 0.5;
     break;
   }
 }
 
 print("  Head-on collision detected: " + str(collisionOccurred));
-print("  Player hull damage taken: " + str(hullBefore - player.hull) + " HP");
 
 if (isTurned and droveBackward and lappedPlayer and collisionOccurred) {
   print("\n>>> ALL OPEN WORLD MECHANICS VERIFIED AND PASSING! <<<");
