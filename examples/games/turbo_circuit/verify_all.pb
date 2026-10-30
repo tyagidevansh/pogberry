@@ -93,6 +93,21 @@ ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 2, 3, 21.0, 102.5, 1, 1, false, 0
 ui.drawPauseMenu(0);
 ui.drawResultsScreen(1, 5, 41.2, 42.5, true, 0.5);
 ui.drawCrashedScreen(0.5);
+
+// Test 3D rendering pass with rivals and track
+cam.begin3DPass();
+gui.drawPlane3D(0.0, -0.2, 0.0, 4500.0, 4500.0, 10, 12, 18);
+let trkTest = track_mod.Track(0);
+trkTest.draw(0.0, 100.0, 0.5, assets, cam);
+let rCarTest = car_mod.Vehicle(1, false, "RIVAL", -10.0);
+let dDistTest = math.abs(rCarTest.trackDistance - 100.0);
+let lapDistTest = trkTest.spec["length"];
+while (dDistTest > lapDistTest * 0.5) dDistTest = dDistTest - lapDistTest;
+if (math.abs(dDistTest) < 280.0) {
+  rCarTest.draw(assets, 0.5);
+}
+cam.end3DPass();
+
 gui.endDrawing();
 print("All UI state renderers executed without error!");
 

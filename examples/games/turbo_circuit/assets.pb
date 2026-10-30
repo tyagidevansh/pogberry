@@ -38,6 +38,15 @@ export class AssetManager {
     this.modelFenceStraight = 0;
     this.modelFlagCheckers = 0;
     this.modelBannerTower = 0;
+    this.modelTent = 0;
+    this.modelTentLong = 0;
+    this.modelPitsOffice = 0;
+    this.modelRadar = 0;
+    this.modelFlagTankco = 0;
+    this.modelFlagRed = 0;
+    this.modelLightPostLarge = 0;
+    this.modelBillboardDouble = 0;
+    this.modelGrandStandAwning = 0;
 
     // Sound Handles
     this.sndCountdownLow = 0;
@@ -99,6 +108,15 @@ export class AssetManager {
     this.modelFenceStraight = gui.loadModel(this.modelsDir + "/fenceStraight.glb");
     this.modelFlagCheckers = gui.loadModel(this.modelsDir + "/flagCheckers.glb");
     this.modelBannerTower = gui.loadModel(this.modelsDir + "/bannerTowerRed.glb");
+    this.modelTent = gui.loadModel(this.modelsDir + "/tent.glb");
+    this.modelTentLong = gui.loadModel(this.modelsDir + "/tentLong.glb");
+    this.modelPitsOffice = gui.loadModel(this.modelsDir + "/pitsOffice.glb");
+    this.modelRadar = gui.loadModel(this.modelsDir + "/radarEquipment.glb");
+    this.modelFlagTankco = gui.loadModel(this.modelsDir + "/flagTankco.glb");
+    this.modelFlagRed = gui.loadModel(this.modelsDir + "/flagRed.glb");
+    this.modelLightPostLarge = gui.loadModel(this.modelsDir + "/lightPostLarge.glb");
+    this.modelBillboardDouble = gui.loadModel(this.modelsDir + "/billboardDouble_exclusive.glb");
+    this.modelGrandStandAwning = gui.loadModel(this.modelsDir + "/grandStandAwning.glb");
 
     // Load Sounds
     this.sndCountdownLow = gui.loadSound(this.audioDir + "/countdown_low.wav");
@@ -208,13 +226,13 @@ export class AssetManager {
     }
   }
 
-  playGrandstand(variant, x, y, z, scale, rotY) {
+  playGrandstand(variant, x, y, z, scale, rotY, r, g, b) {
     let m = this.modelGrandStand;
     if (variant == 1) m = this.modelGrandStandCovered;
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
     } else {
-      gui.drawCube3D(x, y + scale * 0.4, z, scale, scale * 0.8, scale, 40, 48, 65);
+      gui.drawCube3D(x, y + scale * 0.4, z, scale, scale * 0.8, scale, r, g, b);
     }
   }
 
@@ -243,11 +261,11 @@ export class AssetManager {
     }
   }
 
-  playPitsGarage(x, y, z, scale, rotY) {
+  playPitsGarage(x, y, z, scale, rotY, r, g, b) {
     if (this.modelPitsGarage > 0) {
-      gui.drawModelEx(this.modelPitsGarage, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelEx(this.modelPitsGarage, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
     } else {
-      gui.drawCube3D(x, y + scale * 0.5, z, scale, scale, scale, 50, 60, 75);
+      gui.drawCube3D(x, y + scale * 0.5, z, scale, scale, scale, r, g, b);
     }
   }
 
@@ -264,6 +282,74 @@ export class AssetManager {
       gui.drawModelEx(this.modelFlagCheckers, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
     } else {
       gui.drawCylinder3D(x, y + scale * 0.5, z, 0.05, 0.05, scale, 4, 255, 255, 255);
+    }
+  }
+
+  playTent(variant, x, y, z, scale, rotY, r, g, b) {
+    let m = this.modelTent;
+    if (variant == 1) m = this.modelTentLong;
+    if (m > 0) {
+      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+    } else {
+      gui.drawCube3D(x, y + scale * 0.4, z, scale, scale * 0.8, scale, r, g, b);
+    }
+  }
+
+  playPitsOffice(x, y, z, scale, rotY, r, g, b) {
+    if (this.modelPitsOffice > 0) {
+      gui.drawModelEx(this.modelPitsOffice, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+    } else {
+      gui.drawCube3D(x, y + scale * 0.6, z, scale, scale * 1.2, scale, r, g, b);
+    }
+  }
+
+  playRadar(x, y, z, scale, rotY) {
+    if (this.modelRadar > 0) {
+      gui.drawModelEx(this.modelRadar, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+    } else {
+      gui.drawCube3D(x, y + scale * 0.5, z, 0.4, scale, 0.4, 200, 210, 220);
+    }
+  }
+
+  playTrackFlag(variant, x, y, z, scale, rotY) {
+    let m = this.modelFlagTankco;
+    if (variant == 1) m = this.modelFlagRed;
+    if (m > 0) {
+      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+    } else {
+      gui.drawCylinder3D(x, y + scale * 0.5, z, 0.04, 0.04, scale, 4, 255, 40, 50);
+    }
+  }
+
+  playLargeFloodlight(x, y, z, scale, rotY) {
+    if (this.modelLightPostLarge > 0) {
+      gui.drawModelEx(this.modelLightPostLarge, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+    } else {
+      gui.drawCylinder3D(x, y + scale * 0.5, z, 0.15, 0.15, scale, 4, 180, 190, 200);
+    }
+  }
+
+  playDoubleBillboard(x, y, z, scale, rotY) {
+    if (this.modelBillboardDouble > 0) {
+      gui.drawModelEx(this.modelBillboardDouble, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+    } else {
+      gui.drawCube3D(x, y + scale * 0.5, z, 0.4, scale, scale * 2.0, 255, 220, 50);
+    }
+  }
+
+  playGrandstandAwning(x, y, z, scale, rotY, r, g, b) {
+    if (this.modelGrandStandAwning > 0) {
+      gui.drawModelEx(this.modelGrandStandAwning, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+    } else {
+      gui.drawCube3D(x, y + scale * 0.4, z, scale, scale * 0.8, scale, r, g, b);
+    }
+  }
+
+  playPaddockHauler(x, y, z, scale, rotY, r, g, b) {
+    if (this.modelTruck > 0) {
+      gui.drawModelEx(this.modelTruck, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+    } else {
+      gui.drawCube3D(x, y + 1.2, z, 2.2, 2.4, 6.5, r, g, b);
     }
   }
 
@@ -328,6 +414,15 @@ export class AssetManager {
     if (this.modelFenceStraight > 0) gui.unloadModel(this.modelFenceStraight);
     if (this.modelFlagCheckers > 0) gui.unloadModel(this.modelFlagCheckers);
     if (this.modelBannerTower > 0) gui.unloadModel(this.modelBannerTower);
+    if (this.modelTent > 0) gui.unloadModel(this.modelTent);
+    if (this.modelTentLong > 0) gui.unloadModel(this.modelTentLong);
+    if (this.modelPitsOffice > 0) gui.unloadModel(this.modelPitsOffice);
+    if (this.modelRadar > 0) gui.unloadModel(this.modelRadar);
+    if (this.modelFlagTankco > 0) gui.unloadModel(this.modelFlagTankco);
+    if (this.modelFlagRed > 0) gui.unloadModel(this.modelFlagRed);
+    if (this.modelLightPostLarge > 0) gui.unloadModel(this.modelLightPostLarge);
+    if (this.modelBillboardDouble > 0) gui.unloadModel(this.modelBillboardDouble);
+    if (this.modelGrandStandAwning > 0) gui.unloadModel(this.modelGrandStandAwning);
 
     // Unload Sounds
     if (this.sndCountdownLow > 0) gui.unloadSound(this.sndCountdownLow);

@@ -37,13 +37,16 @@ export class DriverBot {
     let lookCurv = track.getCurvature(-lookDist, dist);
     let maxCurv = math.max(math.abs(curv), math.abs(lookCurv));
 
-    // Pure Pursuit heading error towards lookahead track trajectory
-    let targetLat = curveOffset * 0.70;
-    let latDelta = targetLat - player.x;
-    let desiredHeading = math.atan2(latDelta, lookDist);
-    let headingError = desiredHeading - player.heading;
+    // Pure Pursuit towards lookahead track station in 3D world space
+    let targetPt = const.getTrackWorldPoint(track.trackId, dist + lookDist);
+    let toTgtX = targetPt[0] - player.worldX;
+    let toTgtZ = targetPt[1] - player.worldZ;
+    let desiredWorldHeading = math.atan2(toTgtX, toTgtZ);
+    let headingError = desiredWorldHeading - player.worldHeading;
+    while (headingError > 3.14159) headingError = headingError - 6.28318;
+    while (headingError < -3.14159) headingError = headingError + 6.28318;
 
-    let desiredSteer = mu.clamp(headingError * 1.8 - curv * 24.0, -1.0, 1.0);
+    let desiredSteer = mu.clamp(headingError * 2.6, -1.0, 1.0);
     input["steer"] = desiredSteer;
 
     // Corner braking & power drift logic

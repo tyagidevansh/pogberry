@@ -389,7 +389,17 @@ void setModelTexture(int modelId, int materialIndex, int textureId) {
   }
 }
 void takeScreenshot(const char *path) {
-  TakeScreenshot(path);
+  Image img = LoadImageFromScreen();
+  int targetW = GetScreenWidth();
+  int targetH = GetScreenHeight();
+  if (img.width > targetW || img.height > targetH) {
+    int offsetY = img.height - targetH;
+    if (offsetY < 0) offsetY = 0;
+    Rectangle cropRec = { 0.0f, (float)offsetY, (float)targetW, (float)targetH };
+    ImageCrop(&img, cropRec);
+  }
+  ExportImage(img, path);
+  UnloadImage(img);
 }
 
 void setTargetFPS(int fps) { SetTargetFPS(fps); }

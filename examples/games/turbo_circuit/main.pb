@@ -78,6 +78,7 @@ fun startRace() {
   player = car_mod.Vehicle(selectedCar, true, "PLAYER", 0.0);
   player.speed = 0.0;
   player.trackDistance = 0.0;
+  player.setTrackPosition(track, 0.0, 0.0);
 
   particles.clear();
   ui.setMode(gameMode);
@@ -94,8 +95,10 @@ fun startRace() {
       let gridDist = 28.0 - i * 12.0; // P1 is at +28m, P2 at +16m, etc.
       let rCar = car_mod.Vehicle(rivalCars[i], false, rivalNames[i], -gridDist);
       rCar.trackDistance = gridDist;
-      rCar.x = -2.2 + (i % 3) * 2.2;
+      rCar.aiLane = -2.2 + (i % 3) * 2.2;
+      rCar.x = rCar.aiLane;
       rCar.speed = 0.0;
+      rCar.setTrackPosition(track, gridDist, rCar.x);
       rivals.push(rCar);
     }
     ui.setBanner("OBJECTIVE: PODIUM FINISH (TOP 3)", "RACE 5 RIVALS // " + str(totalLaps) + " LAPS", 4.5, 255, 220, 40);
@@ -123,6 +126,7 @@ fun startRace() {
     ui.setBanner("OBJECTIVE: BEAT THE RECORD", "3 LAPS SOLO // TARGET: " + str(recTime) + "s", 4.5, 0, 240, 255);
   }
 
+  cam.snap(player.worldX, player.worldY, player.worldZ, player.worldHeading);
   assets.playSfx(assets.sndEngineStart);
   state = const.STATE_COUNTDOWN;
 }
@@ -163,7 +167,7 @@ while (!gui.windowShouldClose()) {
   // STATE UPDATES
   // ---------------------------------------------------------------------------
   if (state == const.STATE_TITLE) {
-    cam.updateCinematic(t);
+    cam.updateCinematicTrack(track, t);
     track.update(24.0, dt);
 
     if (gui.isKeyPressed("KEY_W") or gui.isKeyPressed("KEY_UP")) {
@@ -203,16 +207,20 @@ while (!gui.windowShouldClose()) {
     }
   }
   else if (state == const.STATE_TRACK_SELECT) {
-    cam.updateCinematic(t);
+    cam.updateCinematicTrack(track, t);
 
     if (gui.isKeyPressed("KEY_W") or gui.isKeyPressed("KEY_UP")) {
       selectedTrack = selectedTrack - 1;
       if (selectedTrack < 0) selectedTrack = const.TOTAL_TRACKS - 1;
+      track = track_mod.Track(selectedTrack);
+      ui.setTrackId(selectedTrack);
       assets.playSfx(assets.sndSelect);
     }
     if (gui.isKeyPressed("KEY_S") or gui.isKeyPressed("KEY_DOWN")) {
       selectedTrack = selectedTrack + 1;
       if (selectedTrack >= const.TOTAL_TRACKS) selectedTrack = 0;
+      track = track_mod.Track(selectedTrack);
+      ui.setTrackId(selectedTrack);
       assets.playSfx(assets.sndSelect);
     }
     if (gui.isKeyPressed("KEY_ESCAPE")) {
@@ -227,7 +235,7 @@ while (!gui.windowShouldClose()) {
     let lookCurve = track.getCurveOffset(-lookDist, distance);
     let lookHill = track.getYOffset(-lookDist, distance);
     cam.setLookAhead(lookCurve, lookHill);
-    cam.updateFollow(player.worldX, player.y, player.z, player.speed, player.heading, player.steerAngle, player.driftAngle, false, dt);
+    cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, player.steerAngle, player.driftAngle, false, dt);
 
     let oldSec = math.ceil(countdownTimer);
     countdownTimer = countdownTimer - dt;
@@ -294,12 +302,15 @@ while (!gui.windowShouldClose()) {
     track.update(player.speed, dt);
     particles.update(dt);
 
-    // Dynamic Camera lookahead following road curve & elevation crests
+    // Dynamic Camera lookahead following road curve & elevation crests in forward or reverse
     let lookDist = 34.0 + (player.speed / 100.0) * 16.0;
-    let lookCurve = track.getCurveOffset(-lookDist, distance);
-    let lookHill = track.getYOffset(-lookDist, distance);
+    let lookAheadDist = lookDist;
+    if (math.cos(player.heading) < 0.0) lookAheadDist = -lookDist;
+    let lookCurve = track.getCurveOffset(-lookAheadDist, distance);
+    let lookHill = track.getYOffset(-lookAheadDist, distance);
+    if (math.cos(player.heading) < 0.0) lookCurve = -lookCurve;
     cam.setLookAhead(lookCurve, lookHill);
-    cam.updateFollow(player.worldX, player.y, player.z, player.speed, player.heading, player.steerAngle, player.driftAngle, player.isBoosting, dt);
+    cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, player.steerAngle, player.driftAngle, player.isBoosting, dt);
 
     let tSpec = const.getTrackSpec(selectedTrack);
     let lapDist = tSpec["length"];
@@ -366,47 +377,7 @@ while (!gui.windowShouldClose()) {
       }
     }
 
-    // 5. Energy Core Collision
-    let distToCore = mu.distance2D(player.x, player.z, track.coreX, track.coreZ);
-    if (!track.coreCollected and distToCore < 2.2) {
-      track.coreCollected = true;
-      player.nitro = mu.clamp(player.nitro + 35.0, 0.0, player.maxNitro);
-      cam.addShake(0.25);
-      assets.playSfx(assets.sndCheckpoint);
-      ui.setBanner("ENERGY CORE HARVESTED!", "+35 NITRO OVERDRIVE BOOST", 1.8, 0, 255, 230);
-    }
-
-    // 5b. Boost Pad Collision (Monza GP DRS Boosters).
-    if (selectedTrack == 3) {
-      let padProg = distance - math.floor(distance / 600.0) * 600.0;
-      if (padProg > 280.0 and padProg < 300.0 and math.abs(player.x) < track.roadWidth * 0.25) {
-        if (player.boostPadCooldown <= 0.0) {
-          player.speed = mu.clamp(player.speed + 22.0, 0.0, player.boostSpeed);
-          player.nitro = mu.clamp(player.nitro + 25.0, 0.0, player.maxNitro);
-          player.boostPadCooldown = 1.2;
-          particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
-          assets.playSfx(assets.sndNitro);
-          cam.addShake(0.20);
-          ui.setBanner("DRS SUPERCHARGE BOOST PAD!", "+22 MPH  //  +25 NITRO", 1.2, 0, 255, 170);
-        }
-      }
-    }
-
-    // 6. Hazard Collisions (Cones & Boxes)
-    for (let i = 0; i < len(track.hazards); i += 1) {
-      let hz = track.hazards[i];
-      if (!hz["hit"] and hz["z"] > -2.2 and hz["z"] < 2.0) {
-        if (math.abs(player.x - hz["x"]) < 1.4) {
-          hz["hit"] = true;
-          player.speed = player.speed * 0.92;
-          cam.addShake(0.25);
-          particles.emitSparks(player.worldX, 0.4, hz["z"], 6);
-          assets.playSfx(assets.sndCrash);
-        }
-      }
-    }
-
-    // 7. Update AI Rivals (Grand Prix Pack Racing & Lapping)
+    // 5. Update AI Rivals (Grand Prix Pack Racing & Lapping)
     if (gameMode == const.MODE_GRAND_PRIX) {
       let aheadCount = 0;
       for (let i = 0; i < len(rivals); i += 1) {
@@ -420,7 +391,6 @@ while (!gui.windowShouldClose()) {
         // Dynamic pack racing update with relative distance
         rCar.updateAi(dDist, player.speed, dt, track);
         rCar.z = -dDist;
-        rCar.worldX = track.getCurveOffset(rCar.z, distance) + rCar.x;
 
         // Overall race progression (completed laps * lapDist + trackDistance)
         let playerTotalProg = (player.completedLaps * lapDist) + player.trackDistance;
@@ -443,7 +413,7 @@ while (!gui.windowShouldClose()) {
             player.speed = player.speed * 0.92;
             player.impactCooldown = 0.35;
             cam.addShake(0.20);
-            particles.emitSparks(player.worldX, 0.4, player.z, 6);
+            particles.emitSparks(player.worldX, player.worldY + 0.4, player.worldZ, 6);
             assets.playSfx(assets.sndCrash);
           }
         }
@@ -528,62 +498,81 @@ while (!gui.windowShouldClose()) {
   // 3D SCENE & 2D HUD RENDERING (DIRECT PASS)
   // ---------------------------------------------------------------------------
   let tSpec = const.getTrackSpec(selectedTrack);
+  let lapDist = tSpec["length"];
   let sky = tSpec["skyColor"];
   let ground = tSpec["groundColor"];
   if (ground == nil) ground = [10, 12, 18];
 
+  let scrW = gui.getScreenWidth();
+  let scrH = gui.getScreenHeight();
+
   gui.beginDrawing();
-  gui.clearBackground(sky[0], sky[1], sky[2]);
 
-  let skyTop = tSpec["skyTop"];
-  if (skyTop == nil) skyTop = [6, 12, 32];
-  let skyBottom = tSpec["skyBottom"];
-  if (skyBottom == nil) skyBottom = [32, 50, 92];
-  let fogCol = tSpec["fogColor"];
-  if (fogCol == nil) fogCol = [24, 38, 68];
+  if (state == const.STATE_GARAGE) {
+    gui.clearBackground(4, 6, 18);
+  } else {
+    gui.clearBackground(sky[0], sky[1], sky[2]);
 
-  // 2D Atmospheric Horizon Sky Gradient
-  let skyBands = 20;
-  let bandH = 370 / skyBands;
-  for (let b = 0; b < skyBands; b += 1) {
-    let factor = b / (skyBands - 1.0);
-    let r = math.floor(skyTop[0] + (skyBottom[0] - skyTop[0]) * factor);
-    let g = math.floor(skyTop[1] + (skyBottom[1] - skyTop[1]) * factor);
-    let bCol = math.floor(skyTop[2] + (skyBottom[2] - skyTop[2]) * factor);
-    gui.drawRectangle(0, math.floor(b * bandH), 1280, math.ceil(bandH + 1.0), r, g, bCol);
+    let skyTop = tSpec["skyTop"];
+    if (skyTop == nil) skyTop = [6, 12, 32];
+    let skyBottom = tSpec["skyBottom"];
+    if (skyBottom == nil) skyBottom = [32, 50, 92];
+    let fogCol = tSpec["fogColor"];
+    if (fogCol == nil) fogCol = [24, 38, 68];
+
+    // 2D Atmospheric Horizon Sky Gradient (Dynamic screen fill)
+    let skyBands = 24;
+    let bandH = scrH / skyBands;
+    for (let b = 0; b < skyBands; b += 1) {
+      let factor = b / (skyBands - 1.0);
+      let r = math.floor(skyTop[0] + (skyBottom[0] - skyTop[0]) * factor);
+      let g = math.floor(skyTop[1] + (skyBottom[1] - skyTop[1]) * factor);
+      let bCol = math.floor(skyTop[2] + (skyBottom[2] - skyTop[2]) * factor);
+      gui.drawRectangle(0, math.floor(b * bandH), scrW, math.ceil(bandH + 1.0), r, g, bCol);
+    }
   }
-  gui.drawRectangle(0, 370, 1280, 350, fogCol[0], fogCol[1], fogCol[2]);
 
   cam.begin3DPass();
 
-  // Draw Distant Deep Ground Horizon Plane (lowered to -35.0m so it never clips road hills)
-  gui.drawPlane3D(0.0, -35.0, -160.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
+  if (state == const.STATE_GARAGE) {
+    // Cyber Showroom Turntable
+    gui.drawPlane3D(0.0, -0.2, 0.0, 100.0, 100.0, 12, 16, 28);
+    gui.drawGrid(12, 1.2);
+    assets.playCarModel(selectedCar, 0.0, 0.0, 0.0, t * 45.0, 1.45, 255, 255, 255);
+  } else {
+    // Ground Horizon Plane (covers entire circuit area right beneath the track)
+    let groundAnchorX = player.worldX;
+    let groundAnchorZ = player.worldZ;
+    if (state == const.STATE_TITLE or state == const.STATE_TRACK_SELECT) {
+      let st0 = track.stations[0];
+      groundAnchorX = st0["x"];
+      groundAnchorZ = st0["z"];
+    }
+    gui.drawPlane3D(groundAnchorX, -0.2, groundAnchorZ, 6000.0, 6000.0, ground[0], ground[1], ground[2]);
 
-  // Draw Track & Roadside Props
-  track.draw(roadScroll, distance, t, assets);
+    // Draw Persistent Entire Track & Roadside Props
+    track.draw(0.0, player.trackDistance, t, assets, cam);
 
-  // Draw AI Rivals
-  if (gameMode == const.MODE_GRAND_PRIX) {
-    for (let i = 0; i < len(rivals); i += 1) {
-      let rCar = rivals[i];
-      if (rCar.z > -280.0 and rCar.z < 90.0) {
-        rCar.draw(assets, t);
+    // Draw AI Rivals in World Space
+    if (gameMode == const.MODE_GRAND_PRIX) {
+      for (let i = 0; i < len(rivals); i += 1) {
+        let rCar = rivals[i];
+        let dDist = math.abs(rCar.trackDistance - player.trackDistance);
+        while (dDist > lapDist * 0.5) dDist = dDist - lapDist;
+        if (math.abs(dDist) < 280.0) {
+          rCar.draw(assets, t);
+        }
       }
     }
-  }
 
-  // Draw Civilian Traffic
-  if (gameMode == const.MODE_OUTRUN) {
-    for (let i = 0; i < len(trafficCars); i += 1) {
-      trafficCars[i].draw(assets);
+    // Draw Civilian Traffic
+    if (gameMode == const.MODE_OUTRUN) {
+      for (let i = 0; i < len(trafficCars); i += 1) {
+        trafficCars[i].draw(assets);
+      }
     }
-  }
 
-  // Draw Player or Garage Turntable Car
-  if (state == const.STATE_GARAGE) {
-    assets.playCarModel(selectedCar, 0.0, 0.0, 0.0, t * 45.0, 1.45, 255, 255, 255);
-    gui.drawGrid(12, 1.2);
-  } else {
+    // Draw Player
     player.draw(assets, t);
   }
 
@@ -595,8 +584,8 @@ while (!gui.windowShouldClose()) {
   // Speed Lines Effect in Nitro Boost
   if (player.isBoosting and state == const.STATE_RACE) {
     for (let i = 0; i < 48; i += 1) {
-      let lx = (i * 127 + math.floor(t * player.speed * 20)) % const.SCREEN_WIDTH;
-      let ly = (i * 79 + math.floor(t * player.speed * 12)) % const.SCREEN_HEIGHT;
+      let lx = (i * 127 + math.floor(t * player.speed * 20)) % scrW;
+      let ly = (i * 79 + math.floor(t * player.speed * 12)) % scrH;
       gui.drawLine(lx, ly, lx - 18, ly + 36, 0, 240, 255);
     }
   }
@@ -616,16 +605,13 @@ while (!gui.windowShouldClose()) {
     ui.drawTrackSelectScreen(selectedTrack, trkSpec, recordManager, t);
   }
   else if (state == const.STATE_COUNTDOWN) {
-    let lapDist = tSpec["length"];
     ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
     ui.drawCountdown(countdownTimer);
   }
   else if (state == const.STATE_RACE) {
-    let lapDist = tSpec["length"];
     ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
   }
   else if (state == const.STATE_PAUSED) {
-    let lapDist = tSpec["length"];
     ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
     ui.drawPauseMenu(pauseSelection);
   }

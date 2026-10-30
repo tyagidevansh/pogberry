@@ -26,30 +26,29 @@ player.speed = 110.0;
 player.isBoosting = true;
 
 fun drawSkyBackdrop(tSpec) {
+  let scrW = gui.getScreenWidth();
+  let scrH = gui.getScreenHeight();
   let sky = tSpec["skyColor"];
   gui.clearBackground(sky[0], sky[1], sky[2]);
   let skyTop = tSpec["skyTop"];
   if (skyTop == nil) skyTop = [6, 12, 32];
   let skyBottom = tSpec["skyBottom"];
   if (skyBottom == nil) skyBottom = [32, 50, 92];
-  let fogCol = tSpec["fogColor"];
-  if (fogCol == nil) fogCol = [24, 38, 68];
-  let skyBands = 20;
-  let bandH = 370 / skyBands;
+  let skyBands = 24;
+  let bandH = scrH / skyBands;
   for (let b = 0; b < skyBands; b += 1) {
     let factor = b / (skyBands - 1.0);
     let r = math.floor(skyTop[0] + (skyBottom[0] - skyTop[0]) * factor);
     let g = math.floor(skyTop[1] + (skyBottom[1] - skyTop[1]) * factor);
     let bCol = math.floor(skyTop[2] + (skyBottom[2] - skyTop[2]) * factor);
-    gui.drawRectangle(0, math.floor(b * bandH), 1280, math.ceil(bandH + 1.0), r, g, bCol);
+    gui.drawRectangle(0, math.floor(b * bandH), scrW, math.ceil(bandH + 1.0), r, g, bCol);
   }
-  gui.drawRectangle(0, 370, 1280, 350, fogCol[0], fogCol[1], fogCol[2]);
 }
 
 // 1. Capture Title
 for (let i = 0; i < 15; i += 1) {
   let t = i * 0.016;
-  cam.updateCinematic(t);
+  cam.updateCinematicTrack(track, t);
   track.update(24.0, 0.016);
 
   let tSpec = const.getTrackSpec(0);
@@ -57,8 +56,9 @@ for (let i = 0; i < 15; i += 1) {
   gui.beginDrawing();
   drawSkyBackdrop(tSpec);
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
-  track.draw(0.0, 0.0, t, assets);
+  let st0 = track.stations[0];
+  gui.drawPlane3D(st0["x"], -0.2, st0["z"], 4500.0, 4500.0, ground[0], ground[1], ground[2]);
+  track.draw(0.0, 0.0, t, assets, cam);
   cam.end3DPass();
 
   ui.updateDimensions();
@@ -94,14 +94,15 @@ print("Captured garage.png");
 // 2b. Capture Track Select
 for (let i = 0; i < 15; i += 1) {
   let t = i * 0.016;
-  cam.updateCinematic(t);
+  cam.updateCinematicTrack(track, t);
   let tSpec = const.getTrackSpec(0);
   let ground = tSpec["groundColor"];
   gui.beginDrawing();
   drawSkyBackdrop(tSpec);
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
-  track.draw(0.0, 0.0, t, assets);
+  let st0 = track.stations[0];
+  gui.drawPlane3D(st0["x"], -0.2, st0["z"], 4500.0, 4500.0, ground[0], ground[1], ground[2]);
+  track.draw(0.0, 0.0, t, assets, cam);
   cam.end3DPass();
 
   ui.updateDimensions();
@@ -123,17 +124,17 @@ for (let i = 0; i < 4; i += 1) {
 // 3. Capture Track 0: Suzuka GP (Casio Triangle Chicane Braking Zone)
 let track0 = track_mod.Track(const.TRACK_SUZUKA);
 ui.setTrackId(const.TRACK_SUZUKA);
+player.setTrackPosition(track0, 5130.0, 0.0);
+cam.snap(player.worldX, player.worldY, player.worldZ, player.worldHeading);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 1.0 + i * dt;
   let dist = 5130.0;
-  player.trackDistance = dist;
-  player.worldX = player.x;
+  player.setTrackPosition(track0, dist, 0.0);
   player.speed = 88.0;
   player.brakeWarning = 2; // Right turn brake warning
 
-  cam.setLookAhead(track0.getCurveOffset(-34.0, dist), track0.getYOffset(-34.0, dist));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.05, 0.1, 0.0, true, dt);
+  cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, 0.05, 0.0, true, dt);
 
   let tSpec = const.getTrackSpec(0);
   let ground = tSpec["groundColor"];
@@ -141,14 +142,14 @@ for (let i = 0; i < 20; i += 1) {
   drawSkyBackdrop(tSpec);
 
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
-  track0.draw(0.0, dist, t, assets);
+  gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
+  track0.draw(0.0, dist, t, assets, cam);
   for (let r = 0; r < len(rivals); r += 1) {
-    rivals[r].worldX = track0.getCurveOffset(rivals[r].z, dist) + rivals[r].x;
+    rivals[r].setTrackPosition(track0, dist - 12.0 - r * 14.0, rivals[r].x);
     rivals[r].draw(assets, t);
   }
   player.draw(assets, t);
-  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+  particles.emitNitroFlames(player.worldX, player.worldY, player.worldZ, player.speed, 1.4);
   particles.update(0.016);
   particles.draw();
   cam.end3DPass();
@@ -165,17 +166,17 @@ print("Captured track_shibuya.png (Suzuka GP)");
 // 4. Capture Track 1: Monaco GP (Sainte Dévote Braking Zone)
 let track1 = track_mod.Track(const.TRACK_MONACO);
 ui.setTrackId(const.TRACK_MONACO);
+player.setTrackPosition(track1, 330.0, 0.0);
+cam.snap(player.worldX, player.worldY, player.worldZ, player.worldHeading);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 2.0 + i * dt;
   let dist = 330.0;
-  player.trackDistance = dist;
-  player.worldX = player.x;
+  player.setTrackPosition(track1, dist, 0.0);
   player.speed = 82.0;
   player.brakeWarning = 1; // Left turn brake warning
 
-  cam.setLookAhead(track1.getCurveOffset(-34.0, dist), track1.getYOffset(-34.0, dist));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.0, 0.0, 0.0, false, dt);
+  cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, 0.0, 0.0, false, dt);
 
   let tSpec = const.getTrackSpec(1);
   let ground = tSpec["groundColor"];
@@ -183,10 +184,10 @@ for (let i = 0; i < 20; i += 1) {
   drawSkyBackdrop(tSpec);
 
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
-  track1.draw(0.0, dist, t, assets);
+  gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
+  track1.draw(0.0, dist, t, assets, cam);
   player.draw(assets, t);
-  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+  particles.emitNitroFlames(player.worldX, player.worldY, player.worldZ, player.speed, 1.4);
   particles.update(0.016);
   particles.draw();
   cam.end3DPass();
@@ -204,17 +205,17 @@ print("Captured track_sunset.png (Monaco GP)");
 // 5. Capture Track 2: Spa-Francorchamps (La Source Hairpin Braking Zone)
 let track2 = track_mod.Track(const.TRACK_SPA);
 ui.setTrackId(const.TRACK_SPA);
+player.setTrackPosition(track2, 190.0, 0.0);
+cam.snap(player.worldX, player.worldY, player.worldZ, player.worldHeading);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 3.0 + i * dt;
   let dist = 190.0;
-  player.trackDistance = dist;
-  player.worldX = player.x;
+  player.setTrackPosition(track2, dist, 0.0);
   player.speed = 78.0;
   player.brakeWarning = 2;
 
-  cam.setLookAhead(track2.getCurveOffset(-34.0, dist), track2.getYOffset(-34.0, dist));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, -0.1, -0.15, 0.0, false, dt);
+  cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, -0.1, 0.0, false, dt);
 
   let tSpec = const.getTrackSpec(2);
   let ground = tSpec["groundColor"];
@@ -222,10 +223,10 @@ for (let i = 0; i < 20; i += 1) {
   drawSkyBackdrop(tSpec);
 
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
-  track2.draw(0.0, dist, t, assets);
+  gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
+  track2.draw(0.0, dist, t, assets, cam);
   player.draw(assets, t);
-  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+  particles.emitNitroFlames(player.worldX, player.worldY, player.worldZ, player.speed, 1.4);
   particles.update(0.016);
   particles.draw();
   cam.end3DPass();
@@ -243,17 +244,17 @@ print("Captured track_canyon.png (Spa GP)");
 // 6. Capture Track 3: Monza GP (Variante del Rettifilo Chicane Braking Zone)
 let track3 = track_mod.Track(const.TRACK_MONZA);
 ui.setTrackId(const.TRACK_MONZA);
+player.setTrackPosition(track3, 850.0, 0.0);
+cam.snap(player.worldX, player.worldY, player.worldZ, player.worldHeading);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 4.0 + i * dt;
-  let dist = 520.0;
-  player.trackDistance = dist;
-  player.worldX = player.x;
+  let dist = 850.0;
+  player.setTrackPosition(track3, dist, 0.0);
   player.speed = 85.0;
   player.brakeWarning = 1;
 
-  cam.setLookAhead(track3.getCurveOffset(-34.0, dist), track3.getYOffset(-34.0, dist));
-  cam.updateFollow(player.worldX, player.y, player.z, player.speed, 0.0, 0.0, 0.0, true, dt);
+  cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, 0.0, 0.0, true, dt);
 
   let tSpec = const.getTrackSpec(3);
   let ground = tSpec["groundColor"];
@@ -261,10 +262,10 @@ for (let i = 0; i < 20; i += 1) {
   drawSkyBackdrop(tSpec);
 
   cam.begin3DPass();
-  gui.drawPlane3D(0.0, -35.0, -140.0, 480.0, 640.0, ground[0], ground[1], ground[2]);
-  track3.draw(0.0, dist, t, assets);
+  gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
+  track3.draw(0.0, dist, t, assets, cam);
   player.draw(assets, t);
-  particles.emitNitroFlames(player.worldX, 0.0, player.z, player.speed, 1.4);
+  particles.emitNitroFlames(player.worldX, player.worldY, player.worldZ, player.speed, 1.4);
   particles.update(0.016);
   particles.draw();
   cam.end3DPass();
