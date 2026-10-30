@@ -3,6 +3,13 @@ use "pb_gui" as gui;
 use "std.math" as math;
 use "math_util" as mu;
 
+export let POV_CLOSE_CHASE = 0;
+export let POV_FAR_CHASE   = 1;
+export let POV_COCKPIT     = 2;
+export let POV_BUMPER      = 3;
+export let POV_HELI        = 4;
+export let TOTAL_POVS      = 5;
+
 export class ChaseCamera {
   init() {
     this.x = 0.0;
@@ -27,6 +34,26 @@ export class ChaseCamera {
     this.targetLookHill = 0.0;
     this.shakeTimer = 0.0;
     this.initialized = false;
+    this.pov = 0; // Default: POV_CLOSE_CHASE (closer to car)
+  }
+
+  cyclePov() {
+    this.pov = (this.pov + 1) % 5;
+    this.initialized = false;
+    return this.pov;
+  }
+
+  setPov(newPov) {
+    this.pov = newPov % 5;
+    this.initialized = false;
+  }
+
+  getPovName() {
+    if (this.pov == 0) return "CLOSE CHASE";
+    if (this.pov == 1) return "FAR CHASE";
+    if (this.pov == 2) return "COCKPIT";
+    if (this.pov == 3) return "HOOD / BUMPER";
+    return "HELI CAM";
   }
 
   setLookCurve(curve) {
@@ -44,32 +71,129 @@ export class ChaseCamera {
   }
 
   snap(carX, carY, carZ, heading) {
-    let camDist = 8.2;
-    let lookDist = 24.0;
-    this.x = carX - math.sin(heading) * camDist;
-    this.y = carY + 3.2;
-    this.z = carZ - math.cos(heading) * camDist;
-    this.targetX = carX + math.sin(heading) * lookDist;
-    this.targetY = carY + 1.2;
-    this.targetZ = carZ + math.cos(heading) * lookDist;
+    let fwdX = math.sin(heading);
+    let fwdZ = math.cos(heading);
+    let targetCamX = carX - fwdX * 5.4;
+    let targetCamY = carY + 2.05;
+    let targetCamZ = carZ - fwdZ * 5.4;
+    let targetLookX = carX + fwdX * 20.0;
+    let targetLookY = carY + 1.1;
+    let targetLookZ = carZ + fwdZ * 20.0;
+
+    if (this.pov == 1) {
+      targetCamX = carX - fwdX * 8.5;
+      targetCamY = carY + 3.4;
+      targetCamZ = carZ - fwdZ * 8.5;
+      targetLookX = carX + fwdX * 28.0;
+      targetLookY = carY + 1.2;
+      targetLookZ = carZ + fwdZ * 28.0;
+    } else if (this.pov == 2) {
+      targetCamX = carX + fwdX * 0.25;
+      targetCamY = carY + 0.98;
+      targetCamZ = carZ + fwdZ * 0.25;
+      targetLookX = carX + fwdX * 35.0;
+      targetLookY = carY + 0.85;
+      targetLookZ = carZ + fwdZ * 35.0;
+    } else if (this.pov == 3) {
+      targetCamX = carX + fwdX * 2.3;
+      targetCamY = carY + 0.52;
+      targetCamZ = carZ + fwdZ * 2.3;
+      targetLookX = carX + fwdX * 45.0;
+      targetLookY = carY + 0.40;
+      targetLookZ = carZ + fwdZ * 45.0;
+    } else if (this.pov == 4) {
+      targetCamX = carX - fwdX * 12.5;
+      targetCamY = carY + 6.2;
+      targetCamZ = carZ - fwdZ * 12.5;
+      targetLookX = carX + fwdX * 18.0;
+      targetLookY = carY + 0.8;
+      targetLookZ = carZ + fwdZ * 18.0;
+    }
+
+    this.x = targetCamX;
+    this.y = targetCamY;
+    this.z = targetCamZ;
+    this.targetX = targetLookX;
+    this.targetY = targetLookY;
+    this.targetZ = targetLookZ;
     this.initialized = true;
   }
 
   updateFollow(carX, carY, carZ, speed, heading, steerAngle, driftAngle, boosting, dt) {
     let normSpd = math.abs(speed) / 80.0;
     if (normSpd > 1.0) normSpd = 1.0;
-    let camDist = 8.2 + normSpd * 1.5;
-    let lookDist = 24.0 + normSpd * 4.0;
 
-    // 1. Camera eye position placed behind vehicle in 3D world space
-    let targetCamX = carX - math.sin(heading) * camDist;
-    let targetCamY = carY + 3.2;
-    let targetCamZ = carZ - math.cos(heading) * camDist;
+    let fwdX = math.sin(heading);
+    let fwdZ = math.cos(heading);
 
-    // 2. Camera look target placed ahead along vehicle heading
-    let targetLookX = carX + math.sin(heading) * lookDist;
-    let targetLookY = carY + 1.2;
-    let targetLookZ = carZ + math.cos(heading) * lookDist;
+    let targetCamX = 0.0;
+    let targetCamY = 0.0;
+    let targetCamZ = 0.0;
+    let targetLookX = 0.0;
+    let targetLookY = 0.0;
+    let targetLookZ = 0.0;
+    let followSpeed = 14.0;
+    let targetFov = this.baseFov;
+
+    if (this.pov == 0) {
+      // 0. CLOSE CHASE (New Default Closer Camera!)
+      let camDist = 5.4 + normSpd * 1.2;
+      let lookDist = 20.0 + normSpd * 4.0;
+      targetCamX = carX - fwdX * camDist;
+      targetCamY = carY + 2.05;
+      targetCamZ = carZ - fwdZ * camDist;
+      targetLookX = carX + fwdX * lookDist;
+      targetLookY = carY + 1.1;
+      targetLookZ = carZ + fwdZ * lookDist;
+      followSpeed = 14.0;
+      targetFov = 66.0 + normSpd * 6.0;
+    } else if (this.pov == 1) {
+      // 1. FAR CHASE (Classic Wide Arcade Perspective)
+      let camDist = 8.5 + normSpd * 1.6;
+      let lookDist = 28.0 + normSpd * 4.0;
+      targetCamX = carX - fwdX * camDist;
+      targetCamY = carY + 3.4;
+      targetCamZ = carZ - fwdZ * camDist;
+      targetLookX = carX + fwdX * lookDist;
+      targetLookY = carY + 1.2;
+      targetLookZ = carZ + fwdZ * lookDist;
+      followSpeed = 12.0;
+      targetFov = 64.0 + normSpd * 5.0;
+    } else if (this.pov == 2) {
+      // 2. COCKPIT / DRIVER EYE (In cockpit behind steering wheel looking past nose)
+      targetCamX = carX + fwdX * 0.25;
+      targetCamY = carY + 0.98;
+      targetCamZ = carZ + fwdZ * 0.25;
+      targetLookX = carX + fwdX * 35.0;
+      targetLookY = carY + 0.85;
+      targetLookZ = carZ + fwdZ * 35.0;
+      followSpeed = 30.0;
+      targetFov = 72.0 + normSpd * 6.0;
+    } else if (this.pov == 3) {
+      // 3. HOOD / BUMPER CAM (Low tarmac high-speed rush)
+      targetCamX = carX + fwdX * 2.3;
+      targetCamY = carY + 0.52;
+      targetCamZ = carZ + fwdZ * 2.3;
+      targetLookX = carX + fwdX * 45.0;
+      targetLookY = carY + 0.40;
+      targetLookZ = carZ + fwdZ * 45.0;
+      followSpeed = 36.0;
+      targetFov = 76.0 + normSpd * 7.0;
+    } else {
+      // 4. HELI / TV BROADCAST CAM (High sweeping vantage point)
+      let camDist = 12.5;
+      let lookDist = 18.0;
+      targetCamX = carX - fwdX * camDist;
+      targetCamY = carY + 6.2;
+      targetCamZ = carZ - fwdZ * camDist;
+      targetLookX = carX + fwdX * lookDist;
+      targetLookY = carY + 0.8;
+      targetLookZ = carZ + fwdZ * lookDist;
+      followSpeed = 8.0;
+      targetFov = 58.0;
+    }
+
+    if (boosting) targetFov = targetFov + 4.0;
 
     if (!this.initialized) {
       this.x = targetCamX;
@@ -78,9 +202,9 @@ export class ChaseCamera {
       this.targetX = targetLookX;
       this.targetY = targetLookY;
       this.targetZ = targetLookZ;
+      this.fov = targetFov;
       this.initialized = true;
     } else {
-      let followSpeed = 12.0;
       this.x = mu.lerp(this.x, targetCamX, dt * followSpeed);
       this.y = mu.lerp(this.y, targetCamY, dt * followSpeed);
       this.z = mu.lerp(this.z, targetCamZ, dt * followSpeed);
@@ -88,17 +212,13 @@ export class ChaseCamera {
       this.targetX = mu.lerp(this.targetX, targetLookX, dt * (followSpeed * 1.2));
       this.targetY = mu.lerp(this.targetY, targetLookY, dt * (followSpeed * 1.2));
       this.targetZ = mu.lerp(this.targetZ, targetLookZ, dt * (followSpeed * 1.2));
+      this.fov = mu.lerp(this.fov, targetFov, dt * 4.0);
     }
 
-    // 3. Level Horizon: Zero camera roll to guarantee comfort and eliminate nausea
+    // Level Horizon: Zero camera roll to guarantee comfort and eliminate nausea
     this.upX = 0.0;
     this.upY = 1.0;
     this.upZ = 0.0;
-
-    // 4. Stable FOV with gentle speed progression
-    let targetFov = this.baseFov + normSpd * 5.0;
-    if (boosting) targetFov = targetFov + 4.0;
-    this.fov = mu.lerp(this.fov, targetFov, dt * 4.0);
 
     // 5. Screen Shake decay
     if (this.shake > 0.0) {

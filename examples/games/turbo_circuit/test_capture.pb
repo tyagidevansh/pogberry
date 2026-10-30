@@ -106,7 +106,7 @@ for (let i = 0; i < 15; i += 1) {
   cam.end3DPass();
 
   ui.updateDimensions();
-  ui.drawTrackSelectScreen(0, tSpec, nil, t);
+  ui.drawTrackSelectScreen(0, tSpec, nil, t, 1);
   gui.endDrawing();
 }
 gui.takeScreenshot("track_select.png");

@@ -14,6 +14,7 @@ use "std.math" as math;
 
 // Initialize Window
 gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "TURBO // CIRCUIT : OVERDRIVE");
+gui.setExitKey(0); // Disable default ESC window exit so ESC can trigger in-game pause
 gui.setTargetFPS(const.TARGET_FPS);
 
 let assets = assets_mod.AssetManager("examples/games/turbo_circuit");
@@ -30,6 +31,13 @@ let state = const.STATE_TITLE;
 let gameMode = const.MODE_GRAND_PRIX;
 let selectedCar = const.CAR_PHANTOM;
 let selectedTrack = const.TRACK_SHIBUYA;
+let aiDifficulty = const.AI_DIFF_AMATEUR; // 0=Rookie, 1=Amateur, 2=Expert (Max Hard)
+
+fun getAiDifficultyName(diff) {
+  if (diff == const.AI_DIFF_ROOKIE) return "ROOKIE (EASY)";
+  if (diff == const.AI_DIFF_AMATEUR) return "AMATEUR (MEDIUM)";
+  return "EXPERT (MAX HARD)";
+}
 
 let track = track_mod.Track(selectedTrack);
 let player = car_mod.Vehicle(selectedCar, true, "PLAYER", 0.0);
@@ -90,12 +98,22 @@ fun startRace() {
   if (gameMode == const.MODE_GRAND_PRIX) {
     racePosition = 4;
     prevPosition = 4;
-    // Staggered starting grid
+    // Staggered starting grid with equalized performance physics
     for (let i = 0; i < 5; i += 1) {
       let gridDist = 28.0 - i * 12.0; // P1 is at +28m, P2 at +16m, etc.
       let rCar = car_mod.Vehicle(rivalCars[i], false, rivalNames[i], -gridDist);
+      // Strictly match acceleration, top speed, and performance specs to player for fair Grand Prix physics
+      rCar.maxSpeed = player.maxSpeed;
+      rCar.accel = player.accel;
+      rCar.boostSpeed = player.boostSpeed;
+      rCar.handling = player.handling;
+      rCar.maxHull = player.maxHull;
+      rCar.hull = player.hull;
+      rCar.maxNitro = player.maxNitro;
+      rCar.nitro = player.nitro;
+      rCar.aiDifficulty = aiDifficulty;
       rCar.trackDistance = gridDist;
-      rCar.aiLane = -2.2 + (i % 3) * 2.2;
+      rCar.aiLane = -2.6 + (i % 3) * 2.6;
       rCar.x = rCar.aiLane;
       rCar.speed = 0.0;
       rCar.setTrackPosition(track, gridDist, rCar.x);
@@ -223,6 +241,15 @@ while (!gui.windowShouldClose()) {
       ui.setTrackId(selectedTrack);
       assets.playSfx(assets.sndSelect);
     }
+    // AI Difficulty adjustment
+    if (gui.isKeyPressed("KEY_A") or gui.isKeyPressed("KEY_LEFT")) {
+      aiDifficulty = (aiDifficulty + const.TOTAL_AI_DIFFS - 1) % const.TOTAL_AI_DIFFS;
+      assets.playSfx(assets.sndSelect);
+    }
+    if (gui.isKeyPressed("KEY_D") or gui.isKeyPressed("KEY_RIGHT")) {
+      aiDifficulty = (aiDifficulty + 1) % const.TOTAL_AI_DIFFS;
+      assets.playSfx(assets.sndSelect);
+    }
     if (gui.isKeyPressed("KEY_ESCAPE")) {
       state = const.STATE_GARAGE;
     }
@@ -255,6 +282,14 @@ while (!gui.windowShouldClose()) {
     if (gui.isKeyPressed("KEY_ESCAPE") or gui.isKeyPressed("KEY_P")) {
       pauseSelection = 0;
       state = const.STATE_PAUSED;
+      assets.playSfx(assets.sndSelect);
+    }
+
+    // Camera POV Cycle (C or V key)
+    if (gui.isKeyPressed("KEY_C") or gui.isKeyPressed("KEY_V")) {
+      cam.cyclePov();
+      ui.setBanner("CAMERA POV: " + cam.getPovName(), "VIEW " + str(cam.pov + 1) + " OF " + str(cam_mod.TOTAL_POVS) + " // [C] TO SWITCH", 2.0, 0, 240, 255);
+      assets.playSfx(assets.sndSelect);
     }
 
     // Autopilot AI toggle
@@ -469,21 +504,59 @@ while (!gui.windowShouldClose()) {
     }
   }
   else if (state == const.STATE_PAUSED) {
+    if (gui.isKeyPressed("KEY_ESCAPE") or gui.isKeyPressed("KEY_P")) {
+      state = const.STATE_RACE;
+      assets.playSfx(assets.sndConfirm);
+    }
     if (gui.isKeyPressed("KEY_W") or gui.isKeyPressed("KEY_UP")) {
       pauseSelection = pauseSelection - 1;
-      if (pauseSelection < 0) pauseSelection = 2;
+      if (pauseSelection < 0) pauseSelection = 4;
       assets.playSfx(assets.sndSelect);
     }
     if (gui.isKeyPressed("KEY_S") or gui.isKeyPressed("KEY_DOWN")) {
       pauseSelection = pauseSelection + 1;
-      if (pauseSelection > 2) pauseSelection = 0;
+      if (pauseSelection > 4) pauseSelection = 0;
       assets.playSfx(assets.sndSelect);
+    }
+    // Left/Right on Option 2 (Camera POV)
+    if (pauseSelection == 2) {
+      if (gui.isKeyPressed("KEY_A") or gui.isKeyPressed("KEY_LEFT")) {
+        cam.setPov((cam.pov + cam_mod.TOTAL_POVS - 1) % cam_mod.TOTAL_POVS);
+        assets.playSfx(assets.sndSelect);
+      }
+      if (gui.isKeyPressed("KEY_D") or gui.isKeyPressed("KEY_RIGHT")) {
+        cam.cyclePov();
+        assets.playSfx(assets.sndSelect);
+      }
+    }
+    // Left/Right on Option 3 (AI Difficulty)
+    if (pauseSelection == 3) {
+      if (gui.isKeyPressed("KEY_A") or gui.isKeyPressed("KEY_LEFT")) {
+        aiDifficulty = (aiDifficulty + const.TOTAL_AI_DIFFS - 1) % const.TOTAL_AI_DIFFS;
+        for (let i = 0; i < len(rivals); i += 1) rivals[i].aiDifficulty = aiDifficulty;
+        assets.playSfx(assets.sndSelect);
+      }
+      if (gui.isKeyPressed("KEY_D") or gui.isKeyPressed("KEY_RIGHT")) {
+        aiDifficulty = (aiDifficulty + 1) % const.TOTAL_AI_DIFFS;
+        for (let i = 0; i < len(rivals); i += 1) rivals[i].aiDifficulty = aiDifficulty;
+        assets.playSfx(assets.sndSelect);
+      }
     }
     if (gui.isKeyPressed("KEY_ENTER") or gui.isKeyPressed("KEY_SPACE")) {
       assets.playSfx(assets.sndConfirm);
-      if (pauseSelection == 0) state = const.STATE_RACE;
-      else if (pauseSelection == 1) startRace();
-      else state = const.STATE_GARAGE;
+      if (pauseSelection == 0) {
+        state = const.STATE_RACE;
+      } else if (pauseSelection == 1) {
+        startRace();
+        state = const.STATE_RACE;
+      } else if (pauseSelection == 2) {
+        cam.cyclePov();
+      } else if (pauseSelection == 3) {
+        aiDifficulty = (aiDifficulty + 1) % const.TOTAL_AI_DIFFS;
+        for (let i = 0; i < len(rivals); i += 1) rivals[i].aiDifficulty = aiDifficulty;
+      } else {
+        state = const.STATE_GARAGE;
+      }
     }
   }
   else if (state == const.STATE_FINISH or state == const.STATE_CRASHED or state == const.STATE_TIMEOUT) {
@@ -572,8 +645,10 @@ while (!gui.windowShouldClose()) {
       }
     }
 
-    // Draw Player
-    player.draw(assets, t);
+    // Draw Player (in Bumper POV, camera is mounted out on front nose cone)
+    if (cam.pov != cam_mod.POV_BUMPER) {
+      player.draw(assets, t);
+    }
   }
 
   // Draw 3D Particles
@@ -602,7 +677,7 @@ while (!gui.windowShouldClose()) {
   }
   else if (state == const.STATE_TRACK_SELECT) {
     let trkSpec = const.getTrackSpec(selectedTrack);
-    ui.drawTrackSelectScreen(selectedTrack, trkSpec, recordManager, t);
+    ui.drawTrackSelectScreen(selectedTrack, trkSpec, recordManager, t, aiDifficulty);
   }
   else if (state == const.STATE_COUNTDOWN) {
     ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
@@ -613,7 +688,7 @@ while (!gui.windowShouldClose()) {
   }
   else if (state == const.STATE_PAUSED) {
     ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
-    ui.drawPauseMenu(pauseSelection);
+    ui.drawPauseMenu(pauseSelection, cam.getPovName(), getAiDifficultyName(aiDifficulty));
   }
   else if (state == const.STATE_FINISH) {
     ui.drawResultsScreen(racePosition, len(rivals) + 1, bestLapTime, recordManager.getRecord(selectedTrack), isNewRecord, t);

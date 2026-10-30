@@ -169,7 +169,7 @@ export class UIRenderer {
     gui.drawText("A / D  CHOOSE MACHINE     ENTER  SELECT TRACK     ESC  BACK", 80, 672, 20, 255, 240, 90);
   }
 
-  drawTrackSelectScreen(selectedTrack, trackSpec, recordManager, t) {
+  drawTrackSelectScreen(selectedTrack, trackSpec, recordManager, t, aiDifficulty) {
     gui.drawRectangleAlpha(0, 0, this.w, this.h, 4, 6, 18, 150);
 
     gui.drawText("CHAMPIONSHIP CIRCUIT SELECT", 80, 50, 48, 240, 250, 255);
@@ -254,7 +254,18 @@ export class UIRenderer {
     gui.drawText(curInfo["elevationProfile"], pX + 18, pY + 406, 13, 240, 240, 255);
     gui.drawText("CHAMPIONSHIP CLASS: " + curInfo["difficulty"], pX + 18, pY + 434, 14, 255, 220, 60);
 
-    gui.drawText("W / S  CHOOSE TRACK     ENTER  IGNITE ENGINES     ESC  BACK", 80, 665, 22, 255, 230, 90);
+    let diffStr = "EXPERT (MAX HARD)";
+    let diffR = 255; let diffG = 75; let diffB = 95;
+    if (aiDifficulty == 0) {
+      diffStr = "ROOKIE (EASY)";
+      diffR = 80; diffG = 240; diffB = 140;
+    } else if (aiDifficulty == 1) {
+      diffStr = "AMATEUR (MEDIUM)";
+      diffR = 255; diffG = 220; diffB = 60;
+    }
+
+    gui.drawText("AI DIFFICULTY: < " + diffStr + " >   [A / D TO CHANGE]", 80, 638, 20, diffR, diffG, diffB);
+    gui.drawText("W / S  CHOOSE TRACK     ENTER  IGNITE ENGINES     ESC  BACK", 80, 668, 19, 255, 230, 90);
   }
 
   drawStatBar(x, y, label, ratio, r, g, b) {
@@ -622,25 +633,52 @@ export class UIRenderer {
     }
   }
 
-  drawPauseMenu(selectedOption) {
-    gui.drawRectangleAlpha(0, 0, this.w, this.h, 2, 4, 12, 200);
+  drawPauseMenu(selectedOption, currentPovName, currentDiffName) {
+    this.updateDimensions();
+    gui.drawRectangleAlpha(0, 0, this.w, this.h, 2, 4, 12, 210);
 
-    let mX = math.floor(this.w * 0.5) - 200;
-    let mY = 200;
-    gui.drawRectangleAlpha(mX, mY, 400, 280, 16, 24, 48, 240);
-    gui.drawRectangleLines(mX, mY, 400, 280, 0, 240, 255);
+    let mW = 520;
+    let mH = 390;
+    let mX = math.floor(this.w * 0.5) - math.floor(mW * 0.5);
+    let mY = math.floor(this.h * 0.5) - math.floor(mH * 0.5);
 
-    gui.drawText("PAUSED", mX + 120, mY + 30, 42, 255, 255, 255);
+    // Frosted dark chassis panel with cyan laser border
+    gui.drawRectangleAlpha(mX, mY, mW, mH, 12, 18, 34, 248);
+    gui.drawRectangleLines(mX, mY, mW, mH, 0, 240, 255);
+    gui.drawRectangleLines(mX + 2, mY + 2, mW - 4, mH - 4, 0, 110, 160);
 
-    let options = ["RESUME RACE", "RESTART TRACK", "RETURN TO GARAGE"];
+    // Glowing Header
+    gui.drawText("SYSTEM PAUSED", mX + 145, mY + 26, 32, 255, 255, 255);
+    gui.drawRectangle(mX + 35, mY + 68, mW - 70, 2, 0, 240, 255);
+
+    let povStr = "CAMERA POV: CLOSE CHASE";
+    if (currentPovName != nil) povStr = "CAMERA POV: " + currentPovName;
+
+    let diffStr = "AI DIFFICULTY: EXPERT";
+    if (currentDiffName != nil) diffStr = "AI DIFFICULTY: " + currentDiffName;
+
+    let options = [
+      "RESUME RACE",
+      "RESTART TRACK",
+      povStr,
+      diffStr,
+      "RETURN TO GARAGE"
+    ];
+
     for (let i = 0; i < len(options); i += 1) {
-      let optY = mY + 110 + i * 50;
+      let optY = mY + 92 + i * 46;
       if (i == selectedOption) {
-        gui.drawText("> " + options[i], mX + 50, optY, 22, 255, 230, 80);
+        gui.drawRectangleAlpha(mX + 25, optY - 5, mW - 50, 38, 0, 200, 255, 55);
+        gui.drawRectangleLines(mX + 25, optY - 5, mW - 50, 38, 0, 240, 255);
+        gui.drawText(">>  " + options[i], mX + 45, optY + 2, 21, 255, 230, 80);
       } else {
-        gui.drawText("  " + options[i], mX + 50, optY, 20, 170, 190, 210);
+        gui.drawText("    " + options[i], mX + 45, optY + 2, 19, 170, 190, 210);
       }
     }
+
+    // Interactive Keybinding Guide Footer
+    gui.drawRectangle(mX + 35, mY + mH - 46, mW - 70, 1, 60, 80, 110);
+    gui.drawText("[W/S] NAVIGATE   [A/D] ADJUST   [ENTER] SELECT   [ESC] RESUME", mX + 40, mY + mH - 32, 14, 130, 160, 190);
   }
 
   drawResultsScreen(position, totalRacers, bestLap, trackRecord, isNewRecord, t) {

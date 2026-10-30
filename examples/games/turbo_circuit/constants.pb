@@ -22,6 +22,12 @@ export let MODE_GRAND_PRIX = 0;
 export let MODE_OUTRUN = 1;
 export let MODE_TIME_ATTACK = 2;
 
+// AI Difficulty Levels
+export let AI_DIFF_ROOKIE = 0;   // Easy (relaxed pace, gentle cornering, no nitro)
+export let AI_DIFF_AMATEUR = 1;  // Medium (balanced pace, cautious braking, moderate nitro)
+export let AI_DIFF_PRO = 2;      // Hard / Max (full throttle, late trail braking, aggressive nitro)
+export let TOTAL_AI_DIFFS = 3;
+
 // Vehicle IDs
 export let CAR_PHANTOM = 0;   // Formula futuristic interceptor (high top speed, fast nitro)
 export let CAR_VALKYRIE = 1;  // Heavy armored SUV (massive ramming hull, bulldozer)

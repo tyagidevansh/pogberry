@@ -63,6 +63,7 @@ export class Vehicle {
     this.aiLane = 0.0;
     this.aiLaneTimer = 0.0;
     this.aiSkill = mu.randFloat(0.88, 1.12);
+    this.aiDifficulty = 2; // 0=Rookie, 1=Amateur, 2=Pro/Expert (Max)
 
     // Visuals
     let col = this.spec["primaryColor"];
@@ -413,85 +414,136 @@ export class Vehicle {
   updateAi(dDist, playerSpeed, dt, track) {
     if (track == nil) return;
 
-    let lapLen = track.spec["length"];
-    let aiCurvature = track.getCurvature(0.0, this.trackDistance);
-    let absCurv = math.abs(aiCurvature);
-    let aiCornerLoad = mu.clamp(absCurv * 22.0, 0.0, 1.0);
+    // Pure Newtonian AI: Compute authentic steering, throttle, braking, drift & nitro inputs
+    let lookDist = 22.0 + (math.abs(this.speed) / 70.0) * 16.0;
+    let targetS = this.trackDistance + lookDist;
 
-    // AI speed calculation with rubberbanding
-    let minAiCruise = 85.0 * this.aiSkill;
-    let baseSpeed = this.maxSpeed * this.aiSkill;
-    if (playerSpeed > 50.0) {
-      baseSpeed = playerSpeed * (0.98 + (this.aiSkill - 1.0) * 0.06);
-    } else {
-      if (baseSpeed < minAiCruise) baseSpeed = minAiCruise;
+    let tPt = const.getTrackWorldPoint(track.trackId, targetS);
+    let tTan = const.getTrackTangent(track.trackId, targetS);
+    let tMag = math.sqrt(tTan[0] * tTan[0] + tTan[1] * tTan[1]);
+    if (tMag < 0.0001) tMag = 1.0;
+    let tNx = -tTan[1] / tMag;
+    let tNz = tTan[0] / tMag;
+
+    let targetX = tPt[0] + tNx * this.aiLane;
+    let targetZ = tPt[1] + tNz * this.aiLane;
+
+    let toTgtX = targetX - this.worldX;
+    let toTgtZ = targetZ - this.worldZ;
+    let desiredHeading = math.atan2(toTgtX, toTgtZ);
+    let headingErr = desiredHeading - this.worldHeading;
+    while (headingErr > 3.14159) headingErr = headingErr - 6.28318;
+    while (headingErr < -3.14159) headingErr = headingErr + 6.28318;
+    // AI Difficulty Configuration:
+    // 0 = ROOKIE (Easy): cruise ~74%, early braking, no nitro
+    // 1 = AMATEUR (Medium): cruise ~88%, moderate braking, occasional nitro
+    // 2 = EXPERT / PRO (Max Hardness): 100% full throttle, late apex trail-braking, aggressive nitro
+    let diff = this.aiDifficulty;
+    if (diff == nil) diff = 2;
+
+    let cruiseRatio = 1.0;
+    let brakeCurvLow = 0.016;
+    let brakeSpdLow = 72.0;
+    let brakeCurvHigh = 0.024;
+    let brakeSpdHigh = 52.0;
+    let steerGain = 2.8;
+    let allowNitro = true;
+    let allowDrift = true;
+
+    if (diff == 0) {
+      cruiseRatio = 0.74;
+      brakeCurvLow = 0.011;
+      brakeSpdLow = 46.0;
+      brakeCurvHigh = 0.017;
+      brakeSpdHigh = 34.0;
+      steerGain = 1.9;
+      allowNitro = false;
+      allowDrift = false;
+    } else if (diff == 1) {
+      cruiseRatio = 0.88;
+      brakeCurvLow = 0.014;
+      brakeSpdLow = 60.0;
+      brakeCurvHigh = 0.021;
+      brakeSpdHigh = 44.0;
+      steerGain = 2.3;
+      allowNitro = true;
+      allowDrift = true;
     }
 
-    if (dDist < -10.0) {
-      let catchUp = 14.0 + (-dDist) * 0.40;
-      let boostTarget = playerSpeed + catchUp;
-      if (boostTarget > baseSpeed) baseSpeed = boostTarget;
-    } else if (dDist > 28.0 and playerSpeed > 50.0) {
-      let pullBack = (dDist - 25.0) * 0.30;
-      let slowed = playerSpeed - pullBack;
-      let minFloor = playerSpeed * 0.88;
-      if (minFloor < minAiCruise) minFloor = minAiCruise;
-      if (slowed < minFloor) slowed = minFloor;
-      baseSpeed = slowed;
+    let steerInput = mu.clamp(headingErr * steerGain, -1.0, 1.0);
+
+    // Lookahead corner curvature for trail braking & apex entry
+    let upcomingCurv = const.getTrackCurvature(track.trackId, this.trackDistance + 46.0);
+    let absCurv = math.abs(upcomingCurv);
+    let throttleInput = true;
+    let brakeInput = false;
+    let boostInput = false;
+    let driftInput = false;
+
+    // Cruise throttle cap based on difficulty
+    let targetCruise = this.maxSpeed * cruiseRatio;
+    if (this.speed > targetCruise) {
+      throttleInput = false;
     }
 
-    if (aiCornerLoad > 0.16) {
-      let aiCornerSpeed = 135.0 - aiCornerLoad * 45.0;
-      if (baseSpeed > aiCornerSpeed) baseSpeed = aiCornerSpeed;
+    // Active trail-braking deceleration into sharp corners (Identical physics to player)
+    if ((absCurv > brakeCurvLow and this.speed > brakeSpdLow) or (absCurv > brakeCurvHigh and this.speed > brakeSpdHigh)) {
+      brakeInput = true;
+      throttleInput = false;
     }
-    this.speed = mu.approach(this.speed, baseSpeed, dt * 26.0);
 
-    // AI progression along track
-    this.trackDistance = this.trackDistance + this.speed * dt;
-    if (this.trackDistance > lapLen * 0.5) this.hasCrossedMidpoint = true;
-    if (this.trackDistance >= lapLen) {
-      this.trackDistance = this.trackDistance - lapLen;
-      if (this.hasCrossedMidpoint) {
-        this.completedLaps = this.completedLaps + 1;
-        this.hasCrossedMidpoint = false;
+    // Power drift initiation on hairpin apices
+    if (allowDrift and absCurv > 0.015 and math.abs(steerInput) > 0.35 and this.speed > 35.0) {
+      driftInput = true;
+    }
+
+    // Nitro overdrive on clean straightaways
+    if (allowNitro and absCurv < 0.005 and math.abs(this.x) < 4.0 and this.speed > 55.0 and this.nitro > 20.0) {
+      if (diff == 1) {
+        if (this.nitro > 40.0) boostInput = true;
+      } else {
+        boostInput = true;
       }
     }
-    while (this.trackDistance < 0.0) this.trackDistance = this.trackDistance + lapLen;
 
-    // AI lateral lane management
-    let aiRoadLimit = track.roadWidth * 0.5 - 2.0;
-    this.x = mu.clamp(this.aiLane, -aiRoadLimit, aiRoadLimit);
-
-    // Sync world coordinates from track station
-    let p = const.getTrackWorldPoint(track.trackId, this.trackDistance);
-    let tan = const.getTrackTangent(track.trackId, this.trackDistance);
-    let mag = math.sqrt(tan[0] * tan[0] + tan[1] * tan[1]);
-    if (mag < 0.0001) mag = 1.0;
-    let tx = tan[0] / mag; let tz = tan[1] / mag;
-    let nx = -tz; let nz = tx;
-
-    this.worldX = p[0] + nx * this.x;
-    this.worldZ = p[1] + nz * this.x;
-    this.worldY = track.getElevationAt(this.trackDistance) + 0.15;
-    this.y = this.worldY;
-    this.worldHeading = math.atan2(tx, tz);
-    this.heading = 0.0;
+    // Execute through the EXACT same Newtonian physics engine pipeline
+    this.inputOverride = {
+      "steer": steerInput,
+      "throttle": throttleInput,
+      "brake": brakeInput,
+      "boost": boostInput,
+      "drift": driftInput
+    };
+    this.updatePlayer(dt, track, nil, nil);
   }
 
   draw(assets, t) {
-    let rotY = this.worldHeading * 57.29578 + 180.0 + this.driftAngle;
+    let yawRad = this.worldHeading + this.driftAngle * 0.0174533;
+    let rotY = yawRad * 57.29578 + 180.0;
     let r = 255; let g = 255; let b = 255;
     if (this.hitFlash > 0.0) { r = 255; g = 120; b = 120; }
 
-    // Ground contact shadow
-    gui.drawPlane3D(this.worldX, this.worldY - 0.12, this.worldZ, 2.1 * this.scale, 3.4 * this.scale, 10, 12, 18);
+    // Authentic Rotated Aerodynamic Ground Contact Shadow
+    this.drawShadow(this.scale, yawRad);
 
-    // Nitro boost underglow
+    // Nitro boost underglow (oriented with vehicle yaw)
     if (this.isBoosting) {
       let glow = this.spec["glowColor"];
       if (glow != nil) {
-        gui.drawPlane3D(this.worldX, this.worldY - 0.10, this.worldZ, 1.6 * this.scale, 2.6 * this.scale,
-                        math.floor(glow[0] * 0.18), math.floor(glow[1] * 0.18), math.floor(glow[2] * 0.18));
+        let fwdX = math.sin(yawRad); let fwdZ = math.cos(yawRad);
+        let rgtX = -math.cos(yawRad); let rgtZ = math.sin(yawRad);
+        let yG = this.worldY - 0.09;
+        let gw = 0.85 * this.scale; let gl = 1.35 * this.scale;
+        let gr = math.floor(glow[0] * 0.35);
+        let gg = math.floor(glow[1] * 0.35);
+        let gb = math.floor(glow[2] * 0.35);
+        gui.drawQuad3D(
+          this.worldX - rgtX * gw - fwdX * gl, yG, this.worldZ - rgtZ * gw - fwdZ * gl,
+          this.worldX + rgtX * gw - fwdX * gl, yG, this.worldZ + rgtZ * gw - fwdZ * gl,
+          this.worldX + rgtX * gw + fwdX * gl, yG, this.worldZ + rgtZ * gw + fwdZ * gl,
+          this.worldX - rgtX * gw + fwdX * gl, yG, this.worldZ - rgtZ * gw + fwdZ * gl,
+          gr, gg, gb
+        );
       }
     }
 
@@ -511,6 +563,96 @@ export class Vehicle {
       gui.drawSphere3D(rLeftX, this.worldY + 0.38 * this.scale, rLeftZ, 0.08, 255, 30, 30);
       gui.drawSphere3D(rRightX, this.worldY + 0.38 * this.scale, rRightZ, 0.08, 255, 30, 30);
     }
+  }
+
+  drawShadow(sc, yawRad) {
+    let fwdX = math.sin(yawRad);
+    let fwdZ = math.cos(yawRad);
+    let rgtX = -math.cos(yawRad);
+    let rgtZ = math.sin(yawRad);
+    let y0 = this.worldY - 0.12;
+
+    // 1. Soft Outer Ambient Penumbra (feathered aerodynamic falloff)
+    let wRearOut = 1.15 * sc;
+    let wFrontOut = 0.85 * sc;
+    let lBackOut = -2.1 * sc;
+    let lFrontOut = 2.1 * sc;
+
+    let p1x = this.worldX - rgtX * wRearOut + fwdX * lBackOut;
+    let p1z = this.worldZ - rgtZ * wRearOut + fwdZ * lBackOut;
+    let p2x = this.worldX + rgtX * wRearOut + fwdX * lBackOut;
+    let p2z = this.worldZ + rgtZ * wRearOut + fwdZ * lBackOut;
+    let p3x = this.worldX + rgtX * wFrontOut + fwdX * lFrontOut;
+    let p3z = this.worldZ + rgtZ * wFrontOut + fwdZ * lFrontOut;
+    let p4x = this.worldX - rgtX * wFrontOut + fwdX * lFrontOut;
+    let p4z = this.worldZ - rgtZ * wFrontOut + fwdZ * lFrontOut;
+    gui.drawQuad3D(p1x, y0, p1z, p2x, y0, p2z, p3x, y0, p3z, p4x, y0, p4z, 26, 30, 38);
+
+    // 2. Dense Inner Chassis Contact Core
+    let y1 = this.worldY - 0.11;
+    let wRearIn = 0.90 * sc;
+    let wFrontIn = 0.65 * sc;
+    let lBackIn = -1.6 * sc;
+    let lFrontIn = 1.6 * sc;
+
+    let c1x = this.worldX - rgtX * wRearIn + fwdX * lBackIn;
+    let c1z = this.worldZ - rgtZ * wRearIn + fwdZ * lBackIn;
+    let c2x = this.worldX + rgtX * wRearIn + fwdX * lBackIn;
+    let c2z = this.worldZ + rgtZ * wRearIn + fwdZ * lBackIn;
+    let c3x = this.worldX + rgtX * wFrontIn + fwdX * lFrontIn;
+    let c3z = this.worldZ + rgtZ * wFrontIn + fwdZ * lFrontIn;
+    let c4x = this.worldX - rgtX * wFrontIn + fwdX * lFrontIn;
+    let c4z = this.worldZ - rgtZ * wFrontIn + fwdZ * lFrontIn;
+    gui.drawQuad3D(c1x, y1, c1z, c2x, y1, c2z, c3x, y1, c3z, c4x, y1, c4z, 8, 10, 14);
+
+    // 3. Wheel Contact Patches (4 distinct tire ground contact spots)
+    let y2 = this.worldY - 0.10;
+    let tw = 0.22 * sc;
+    let tl = 0.40 * sc;
+
+    // Front Left Tire
+    let flX = this.worldX - rgtX * (0.92 * sc) + fwdX * (1.20 * sc);
+    let flZ = this.worldZ - rgtZ * (0.92 * sc) + fwdZ * (1.20 * sc);
+    gui.drawQuad3D(
+      flX - rgtX * tw - fwdX * tl, y2, flZ - rgtZ * tw - fwdZ * tl,
+      flX + rgtX * tw - fwdX * tl, y2, flZ + rgtZ * tw - fwdZ * tl,
+      flX + rgtX * tw + fwdX * tl, y2, flZ + rgtZ * tw + fwdZ * tl,
+      flX - rgtX * tw + fwdX * tl, y2, flZ - rgtZ * tw + fwdZ * tl,
+      4, 5, 8
+    );
+
+    // Front Right Tire
+    let frX = this.worldX + rgtX * (0.92 * sc) + fwdX * (1.20 * sc);
+    let frZ = this.worldZ + rgtZ * (0.92 * sc) + fwdZ * (1.20 * sc);
+    gui.drawQuad3D(
+      frX - rgtX * tw - fwdX * tl, y2, frZ - rgtZ * tw - fwdZ * tl,
+      frX + rgtX * tw - fwdX * tl, y2, frZ + rgtZ * tw - fwdZ * tl,
+      frX + rgtX * tw + fwdX * tl, y2, frZ + rgtZ * tw + fwdZ * tl,
+      frX - rgtX * tw + fwdX * tl, y2, frZ - rgtZ * tw + fwdZ * tl,
+      4, 5, 8
+    );
+
+    // Rear Left Tire
+    let rlX = this.worldX - rgtX * (0.98 * sc) - fwdX * (1.20 * sc);
+    let rlZ = this.worldZ - rgtZ * (0.98 * sc) - fwdZ * (1.20 * sc);
+    gui.drawQuad3D(
+      rlX - rgtX * (tw * 1.2) - fwdX * (tl * 1.1), y2, rlZ - rgtZ * (tw * 1.2) - fwdZ * (tl * 1.1),
+      rlX + rgtX * (tw * 1.2) - fwdX * (tl * 1.1), y2, rlZ + rgtZ * (tw * 1.2) - fwdZ * (tl * 1.1),
+      rlX + rgtX * (tw * 1.2) + fwdX * (tl * 1.1), y2, rlZ + rgtZ * (tw * 1.2) + fwdZ * (tl * 1.1),
+      rlX - rgtX * (tw * 1.2) + fwdX * (tl * 1.1), y2, rlZ - rgtZ * (tw * 1.2) + fwdZ * (tl * 1.1),
+      4, 5, 8
+    );
+
+    // Rear Right Tire
+    let rrX = this.worldX + rgtX * (0.98 * sc) - fwdX * (1.20 * sc);
+    let rrZ = this.worldZ + rgtZ * (0.98 * sc) - fwdZ * (1.20 * sc);
+    gui.drawQuad3D(
+      rrX - rgtX * (tw * 1.2) - fwdX * (tl * 1.1), y2, rrZ - rgtZ * (tw * 1.2) - fwdZ * (tl * 1.1),
+      rrX + rgtX * (tw * 1.2) - fwdX * (tl * 1.1), y2, rrZ + rgtZ * (tw * 1.2) - fwdZ * (tl * 1.1),
+      rrX + rgtX * (tw * 1.2) + fwdX * (tl * 1.1), y2, rrZ + rgtZ * (tw * 1.2) + fwdZ * (tl * 1.1),
+      rrX - rgtX * (tw * 1.2) + fwdX * (tl * 1.1), y2, rrZ - rgtZ * (tw * 1.2) + fwdZ * (tl * 1.1),
+      4, 5, 8
+    );
   }
 }
 
