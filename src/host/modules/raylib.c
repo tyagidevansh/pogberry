@@ -7,7 +7,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 #include <dlfcn.h>
 #else
 #error "Unsupported platform"
@@ -1908,8 +1908,24 @@ static bool openRaylibLibrary(void) {
   if (overridePath != NULL && overridePath[0] != '\0') {
     raylibLibrary = dlopen(overridePath, RTLD_NOW | RTLD_LOCAL);
   } else {
-    const char *paths[] = {"build/pb_raylib_linux.so", "$ORIGIN/pb_raylib_linux.so", "lib/pb_raylib_linux.so",
-                           "$ORIGIN/../lib/pb_raylib_linux.so", "$ORIGIN/../lib/pb/pb_raylib_linux.so"};
+    const char *paths[] = {
+#ifdef __APPLE__
+        "build/pb_raylib_darwin.dylib",
+        "@executable_path/pb_raylib_darwin.dylib",
+        "lib/pb_raylib_darwin.dylib",
+        "@executable_path/../lib/pb_raylib_darwin.dylib",
+        "@executable_path/../lib/pb/pb_raylib_darwin.dylib",
+        "build/pb_raylib_darwin.so",
+        "@executable_path/pb_raylib_darwin.so",
+        "lib/pb_raylib_darwin.so",
+        "@executable_path/../lib/pb_raylib_darwin.so",
+        "@executable_path/../lib/pb/pb_raylib_darwin.so",
+#endif
+        "build/pb_raylib_linux.so",
+        "$ORIGIN/pb_raylib_linux.so",
+        "lib/pb_raylib_linux.so",
+        "$ORIGIN/../lib/pb_raylib_linux.so",
+        "$ORIGIN/../lib/pb/pb_raylib_linux.so"};
     for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]) && raylibLibrary == NULL; i++)
       raylibLibrary = dlopen(paths[i], RTLD_NOW | RTLD_LOCAL);
   }

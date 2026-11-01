@@ -9,6 +9,7 @@ PKG_CONFIG ?= pkg-config
 
 SRC_DIR := src
 BUILD_DIR := build
+UNAME_S := $(shell uname -s)
 
 ifeq ($(OS),Windows_NT)
 EXEEXT := .exe
@@ -23,7 +24,11 @@ EXEEXT :=
 LDLIBS := -lm -lreadline -ldl
 CORE_LDLIBS := -lm
 PLATFORM_CFLAGS := -fPIC
+ifeq ($(UNAME_S),Darwin)
+SHARED_LIBRARY := $(BUILD_DIR)/libpb.dylib
+else
 SHARED_LIBRARY := $(BUILD_DIR)/libpb.so
+endif
 MAKE_DIR = mkdir -p "$(1)"
 CLEAN_BUILD = rm -rf "$(BUILD_DIR)"
 endif
@@ -48,7 +53,7 @@ OPTFLAGS += -DDEBUG_OPCODE_STATS
 endif
 CPPFLAGS := -I$(SRC_DIR)
 CFLAGS := $(OPTFLAGS) -std=c11 -Wall -Wextra -Wpedantic -MMD -MP $(PLATFORM_CFLAGS)
-PYTHON ?= python
+PYTHON ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 TEST_PATH ?=
 TEST_ARGS ?=
 TEST_RUNNER := tests/runner/run_tests.py
@@ -56,17 +61,27 @@ CLI_MODULE_TEST := tests/runner/cli_module_test.py
 HOST_API_TEST := $(BUILD_DIR)/host_api_test$(EXEEXT)
 BYTECODE_ENCODING_TEST := $(BUILD_DIR)/bytecode_encoding_test$(EXEEXT)
 BENCH_RUNNER := bench/run_bench.py
+ifeq ($(UNAME_S),Darwin)
+RAYLIB_BACKEND := $(BUILD_DIR)/pb_raylib_darwin.dylib
+else
 RAYLIB_BACKEND := $(BUILD_DIR)/pb_raylib_linux.so
+endif
 RAYLIB_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags raylib)
 RAYLIB_LIBS ?= $(shell $(PKG_CONFIG) --libs raylib)
+RAYLIB_RPATH ?= $(shell $(PKG_CONFIG) --libs-only-L raylib 2>/dev/null | sed 's/-L/-Wl,-rpath,/g') -Wl,-rpath,/opt/homebrew/lib -Wl,-rpath,/usr/local/lib
 
 ifeq ($(OS),Windows_NT)
 RAYLIB_TEST_LIBRARY := $(BUILD_DIR)/pb_raylib_test.dll
-RAYLIB_TEST_FLAGS :=
+RAYLIB_TEST_FLAGS := -shared
 TEST_RAYLIB_ENV := set "PB_RAYLIB_LIBRARY=$(abspath $(RAYLIB_TEST_LIBRARY))" &&
 else
+ifeq ($(UNAME_S),Darwin)
+RAYLIB_TEST_LIBRARY := $(BUILD_DIR)/pb_raylib_test.dylib
+RAYLIB_TEST_FLAGS := -dynamiclib
+else
 RAYLIB_TEST_LIBRARY := $(BUILD_DIR)/pb_raylib_test.so
-RAYLIB_TEST_FLAGS := -fPIC
+RAYLIB_TEST_FLAGS := -fPIC -shared
+endif
 TEST_RAYLIB_ENV := PB_RAYLIB_LIBRARY="$(abspath $(RAYLIB_TEST_LIBRARY))"
 endif
 
@@ -90,20 +105,29 @@ shared: $(SHARED_LIBRARY)
 
 ifeq ($(OS),Windows_NT)
 raylib-backend:
-	@echo "raylib-backend is currently only available on Linux."
+	@echo "raylib-backend is currently only available on Linux and macOS."
 else
 raylib-backend: $(RAYLIB_BACKEND)
 
 $(RAYLIB_BACKEND): backends/raylib/linux.c | $(BUILD_DIR)
-	@$(PKG_CONFIG) --exists raylib || { echo "Raylib development files were not found. Install raylib-devel."; exit 1; }
+	@$(PKG_CONFIG) --exists raylib || { echo "Raylib development files were not found. Install raylib (e.g. 'brew install raylib' on macOS)."; exit 1; }
+ifeq ($(UNAME_S),Darwin)
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic $(RAYLIB_CFLAGS) -dynamiclib $< -o $@ $(RAYLIB_LIBS) $(RAYLIB_RPATH)
+else
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -fPIC $(RAYLIB_CFLAGS) -shared $< -o $@ $(RAYLIB_LIBS)
+endif
 endif
 
 $(TARGET): $(OBJECTS) | $(BUILD_DIR)
 	$(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@
 
+ifeq ($(UNAME_S),Darwin)
+$(SHARED_LIBRARY): $(CORE_OBJECTS) | $(BUILD_DIR)
+	$(CC) -dynamiclib $(CORE_OBJECTS) $(LDFLAGS) $(CORE_LDLIBS) -o $@
+else
 $(SHARED_LIBRARY): $(CORE_OBJECTS) | $(BUILD_DIR)
 	$(CC) -shared $(CORE_OBJECTS) $(LDFLAGS) $(CORE_LDLIBS) -o $@
+endif
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(call MAKE_DIR,$(@D))
@@ -132,21 +156,23 @@ bench: $(TARGET)
 
 ifeq ($(OS),Windows_NT)
 install:
-	@echo "make install is only available on Linux."
+	@echo "make install is not available on Windows."
 else
 install: $(TARGET)
 	$(INSTALL) -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(RUNTIME_DIR)" "$(DESTDIR)$(STDLIB_DIR)"
 	$(INSTALL) -m 755 "$(TARGET)" "$(DESTDIR)$(BINDIR)/pb"
-	$(INSTALL) -m 644 "lib/pb_raylib_linux.so" "$(DESTDIR)$(RUNTIME_DIR)/pb_raylib_linux.so"
-	$(INSTALL) -m 644 "lib/pb_raylib_runtime_linux.so" "$(DESTDIR)$(RUNTIME_DIR)/pb_raylib_runtime_linux.so"
-	$(INSTALL) -m 644 "stdlib/std.math.pb" "$(DESTDIR)$(STDLIB_DIR)/std.math.pb"
-	$(INSTALL) -m 644 "stdlib/std.file.pb" "$(DESTDIR)$(STDLIB_DIR)/std.file.pb"
-	$(INSTALL) -m 644 "stdlib/std.json.pb" "$(DESTDIR)$(STDLIB_DIR)/std.json.pb"
-	$(INSTALL) -m 644 "stdlib/std.ui.pb" "$(DESTDIR)$(STDLIB_DIR)/std.ui.pb"
+ifeq ($(UNAME_S),Darwin)
+	@if [ -f "$(RAYLIB_BACKEND)" ]; then $(INSTALL) -m 644 "$(RAYLIB_BACKEND)" "$(DESTDIR)$(RUNTIME_DIR)/"; fi
+	@if [ -f "lib/pb_raylib_darwin.dylib" ]; then $(INSTALL) -m 644 "lib/pb_raylib_darwin.dylib" "$(DESTDIR)$(RUNTIME_DIR)/"; fi
+else
+	@if [ -f "lib/pb_raylib_linux.so" ]; then $(INSTALL) -m 644 "lib/pb_raylib_linux.so" "$(DESTDIR)$(RUNTIME_DIR)/pb_raylib_linux.so"; fi
+	@if [ -f "lib/pb_raylib_runtime_linux.so" ]; then $(INSTALL) -m 644 "lib/pb_raylib_runtime_linux.so" "$(DESTDIR)$(RUNTIME_DIR)/pb_raylib_runtime_linux.so"; fi
+endif
+	$(INSTALL) -m 644 stdlib/*.pb "$(DESTDIR)$(STDLIB_DIR)/"
 endif
 
 $(RAYLIB_TEST_LIBRARY): tests/runner/fake_raylib.c | $(BUILD_DIR)
-	$(CC) -std=c11 -Wall -Wextra -Wpedantic $(RAYLIB_TEST_FLAGS) -shared $< -o $@
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic $(RAYLIB_TEST_FLAGS) $< -o $@
 
 $(HOST_API_TEST): tests/runner/host_api_test.c $(CORE_OBJECTS) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -std=c11 -Wall -Wextra -Wpedantic $< $(CORE_OBJECTS) $(LDFLAGS) $(CORE_LDLIBS) -o $@

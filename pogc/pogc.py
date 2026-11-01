@@ -53,12 +53,18 @@ def compile_script(script_path):
         compile_command.append(output_name)
         # on Linux, we link the math library and set the rpath
         compile_command.extend([f"-L{PB_LIB_PATH}", "-lpb", "-lm", "-Wl,-rpath,."])
+    elif sys.platform == "darwin":
+        print("Platform: macOS")
+        output_name = base_name
+        compile_command.append(output_name)
+        compile_command.extend([f"-L{PB_LIB_PATH}", "-lpb", "-lm", "-Wl,-rpath,@executable_path"])
     else:
         print(f"Error: Unsupported platform '{sys.platform}'")
         os.remove(temp_c_file)
         return
 
-    compile_command.append("-s")
+    if sys.platform != "darwin":
+        compile_command.append("-s")
 
     print(f"Compiling into: {output_name}...")
     

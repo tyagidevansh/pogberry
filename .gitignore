@@ -8,3 +8,4 @@ pb
 .clang-format
 *.md
 docs/
+*.dylib

@@ -1077,8 +1077,12 @@ class ProgressPrinter:
 def check_gui_available(project_root: Path) -> bool:
     """Check if pb_gui (Raylib backend) is available."""
     raylib_paths = [
+        project_root / "lib" / "pb_raylib_darwin.dylib",
+        project_root / "build" / "pb_raylib_darwin.dylib",
         project_root / "lib" / "pb_raylib_linux.so",
         project_root / "build" / "pb_raylib_linux.so",
+        project_root / "lib" / "pb_raylib_windows.dll",
+        project_root / "build" / "pb_raylib_windows.dll",
     ]
     return any(p.exists() for p in raylib_paths)
 

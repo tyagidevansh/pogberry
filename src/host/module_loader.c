@@ -11,6 +11,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <limits.h>
+#include <unistd.h>
 #else
 #include <unistd.h>
 #endif
@@ -74,6 +78,15 @@ static char *executableDirectory(void) {
   char path[MAX_PATH];
   DWORD length = GetModuleFileNameA(NULL, path, sizeof(path));
   if (length == 0 || length >= sizeof(path)) return NULL;
+#elif defined(__APPLE__)
+  char rawPath[PATH_MAX];
+  uint32_t size = sizeof(rawPath);
+  if (_NSGetExecutablePath(rawPath, &size) != 0) return NULL;
+  char path[PATH_MAX];
+  if (realpath(rawPath, path) == NULL) {
+    strncpy(path, rawPath, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+  }
 #else
   char path[4096];
   ssize_t length = readlink("/proc/self/exe", path, sizeof(path) - 1);
