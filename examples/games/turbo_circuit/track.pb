@@ -120,8 +120,106 @@ export class Track {
         "cl_x": cl_x, "cl_z": cl_z,
         "cr_x": cr_x, "cr_z": cr_z,
         "ol_x": ol_x, "ol_z": ol_z,
-        "or_x": or_x, "or_z": or_z
+        "or_x": or_x, "or_z": or_z,
+        "outL": corridor, "outR": corridor,
+        "embL": corridor + 14.0, "embR": corridor + 14.0,
+        "runL": true, "runR": true, "embOkL": true, "embOkR": true
       });
+    }
+
+    // ------------------------------------------------------------------
+    // CLEARANCE & CURVATURE PASS
+    // Narrows the verge, barrier and grass skirt where two sections of the
+    // circuit run close together, and on the inside of very tight corners.
+    // This stops gravel/kerbs/barriers folding across the racing surface.
+    // ------------------------------------------------------------------
+    let roadEdge = halfW + curbW;
+    for (let i = 0; i < numStations; i += 1) {
+      let st = this.stations[i];
+      let curv = st["curv"];
+      let absCurv = math.abs(curv);
+      let curveRadius = 99999.0;
+      if (absCurv > 0.0001) curveRadius = 1.0 / absCurv;
+
+      let outL = corridor;
+      let outR = corridor;
+      let embL = corridor + 14.0;
+      let embR = corridor + 14.0;
+
+      // Inside of tight corners: never push geometry past the centre of curvature.
+      let innerRun = curveRadius * 0.62;
+      let innerEmb = curveRadius * 0.78;
+      if (curv < 0.0) {
+        if (innerRun < outL) outL = innerRun;
+        if (innerEmb < embL) embL = innerEmb;
+      } else if (curv > 0.0) {
+        if (innerRun < outR) outR = innerRun;
+        if (innerEmb < embR) embR = innerEmb;
+      }
+
+      // Nearest other part of the circuit on each side of this station.
+      let gapL = 99999.0; let gapR = 99999.0;
+      let lowGapL = 99999.0; let lowGapR = 99999.0;
+      for (let j = 0; j < numStations; j += 2) {
+        let ds = st["s"] - this.stations[j]["s"];
+        if (ds < 0.0) ds = -ds;
+        if (ds > lapLen * 0.5) ds = lapLen - ds;
+        if (ds < 210.0) continue;
+        let ox = this.stations[j]["x"] - st["x"];
+        let oz = this.stations[j]["z"] - st["z"];
+        let d = math.sqrt(ox * ox + oz * oz);
+        if (d > 145.0) continue;
+        let lateral = ox * st["nx"] + oz * st["nz"];
+        let dy = this.stations[j]["y"] - st["y"];
+        let sameLevel = (math.abs(dy) < 6.0);
+        if (lateral > -3.0) {
+          if (sameLevel and d < gapR) gapR = d;
+          if (dy < 2.5 and d < lowGapR) lowGapR = d;
+        }
+        if (lateral < 3.0) {
+          if (sameLevel and d < gapL) gapL = d;
+          if (dy < 2.5 and d < lowGapL) lowGapL = d;
+        }
+      }
+      if (gapL < 900.0) {
+        let clear = gapL - roadEdge - 1.5;
+        if (clear < outL) outL = clear;
+      }
+      if (gapR < 900.0) {
+        let clear = gapR - roadEdge - 1.5;
+        if (clear < outR) outR = clear;
+      }
+      if (lowGapL < 900.0) {
+        let clear = lowGapL - roadEdge - 2.5;
+        if (clear < embL) embL = clear;
+      }
+      if (lowGapR < 900.0) {
+        let clear = lowGapR - roadEdge - 2.5;
+        if (clear < embR) embR = clear;
+      }
+
+      // Never let the barrier end up inside the racing surface itself.
+      // Keep it just outside the kerb so it can never sit on top of it.
+      if (outL < roadEdge + 0.15) outL = roadEdge + 0.15;
+      if (outR < roadEdge + 0.15) outR = roadEdge + 0.15;
+
+      st["outL"] = outL;
+      st["outR"] = outR;
+      st["embL"] = embL;
+      st["embR"] = embR;
+      st["runL"] = (outL >= roadEdge + 0.3);
+      st["runR"] = (outR >= roadEdge + 0.3);
+      st["embOkL"] = (embL >= outL + 0.9);
+      st["embOkR"] = (embR >= outR + 0.9);
+
+      st["ol_x"] = st["x"] - outL * st["nx"];
+      st["ol_z"] = st["z"] - outL * st["nz"];
+      st["or_x"] = st["x"] + outR * st["nx"];
+      st["or_z"] = st["z"] + outR * st["nz"];
+      st["el_x"] = st["x"] - embL * st["nx"];
+      st["el_z"] = st["z"] - embL * st["nz"];
+      st["er_x"] = st["x"] + embR * st["nx"];
+      st["er_z"] = st["z"] + embR * st["nz"];
     }
 
     // Formula 1 Racing Team Livery Palettes (Authentic Grand Prix Paddock)
@@ -161,7 +259,7 @@ export class Track {
           // Team Pit Garages on inside of pit straight
           if (k % 2 == 0) {
             rawProps.push({ "kind": "pitsGarage", "x": rx + 5.0 * st["nx"], "y": py, "z": rz + 5.0 * st["nz"], "scale": 11.5, "rot": pAngle - 90.0, "r": teamCol[0], "g": teamCol[1], "b": teamCol[2], "radius": 7.5 });
-            rawProps.push({ "kind": "paddockHauler", "x": rx + 17.0 * st["nx"], "y": py, "z": rz + 17.0 * st["nx"], "scale": 1.4, "rot": pAngle - 90.0, "r": teamCol[0], "g": teamCol[1], "b": teamCol[2], "radius": 5.0 });
+            rawProps.push({ "kind": "paddockHauler", "x": rx + 17.0 * st["nx"], "y": py, "z": rz + 17.0 * st["nz"], "scale": 1.4, "rot": pAngle - 90.0, "r": teamCol[0], "g": teamCol[1], "b": teamCol[2], "radius": 5.0 });
           } else {
             rawProps.push({ "kind": "tentLong", "x": rx + 14.0 * st["nx"], "y": py, "z": rz + 14.0 * st["nz"], "scale": 11.0, "rot": pAngle - 90.0, "r": 135, "g": 145, "b": 160, "radius": 6.5 });
           }
@@ -523,81 +621,88 @@ export class Track {
 
       let y1 = st1["y"];
       let y2 = st2["y"];
-
-      // A. Tarmac Surface (with rich speed-alternating asphalt)
-      let rdR = roadCol[0]; let rdG = roadCol[1]; let rdB = roadCol[2];
-      if (i % 2 == 1) { rdR = rdR + 5; rdG = rdG + 5; rdB = rdB + 7; }
-      gui.drawQuad3D(st1["rl_x"], y1, st1["rl_z"], st1["rr_x"], y1, st1["rr_z"],
-                     st2["rr_x"], y2, st2["rr_z"], st2["rl_x"], y2, st2["rl_z"],
-                     rdR, rdG, rdB);
-
-      // B. Rubberized Racing Grooves
-      if (i % 2 == 0 and distSq < 300.0 * 300.0) {
-        let grvR = math.floor(rdR * 0.70); let grvG = math.floor(rdG * 0.70); let grvB = math.floor(rdB * 0.70);
-        let nx1 = st1["nx"]; let nz1 = st1["nz"];
-        let nx2 = st2["nx"]; let nz2 = st2["nz"];
-        gui.drawQuad3D(st1["x"] - 3.2 * nx1, y1 + 0.015, st1["z"] - 3.2 * nz1,
-                       st1["x"] - 2.4 * nx1, y1 + 0.015, st1["z"] - 2.4 * nz1,
-                       st2["x"] - 2.4 * nx2, y2 + 0.015, st2["z"] - 2.4 * nz2,
-                       st2["x"] - 3.2 * nx2, y2 + 0.015, st2["z"] - 3.2 * nz2,
-                       grvR, grvG, grvB);
-        gui.drawQuad3D(st1["x"] + 2.4 * nx1, y1 + 0.015, st1["z"] + 2.4 * nz1,
-                       st1["x"] + 3.2 * nx1, y1 + 0.015, st1["z"] + 3.2 * nz1,
-                       st2["x"] + 3.2 * nx2, y2 + 0.015, st2["z"] + 3.2 * nz2,
-                       st2["x"] + 2.4 * nx2, y2 + 0.015, st2["z"] + 2.4 * nz2,
-                       grvR, grvG, grvB);
-      }
-
-      // C. Centerline Markings
-      if (i % 2 == 0) {
-        let nx1 = st1["nx"]; let nz1 = st1["nz"];
-        let nx2 = st2["nx"]; let nz2 = st2["nz"];
-        gui.drawQuad3D(st1["x"] - 0.22 * nx1, y1 + 0.02, st1["z"] - 0.22 * nz1,
-                       st1["x"] + 0.22 * nx1, y1 + 0.02, st1["z"] + 0.22 * nz1,
-                       st2["x"] + 0.22 * nx2, y2 + 0.02, st2["z"] + 0.22 * nz2,
-                       st2["x"] - 0.22 * nx2, y2 + 0.02, st2["z"] - 0.22 * nz2,
-                       245, 245, 250);
-      }
-
-      // D. Rumble Curbs (Alternating vibrant racing kerb colors with bevel height)
-      let cR = 245; let cG = 245; let cB = 250;
-      if (i % 2 == 0) { cR = curbCol[0]; cG = curbCol[1]; cB = curbCol[2]; }
-      gui.drawQuad3D(st1["cl_x"], y1 + 0.05, st1["cl_z"], st1["rl_x"], y1 + 0.05, st1["rl_z"],
-                     st2["rl_x"], y2 + 0.05, st2["rl_z"], st2["cl_x"], y2 + 0.05, st2["cl_z"],
-                     cR, cG, cB);
-      gui.drawQuad3D(st1["rr_x"], y1 + 0.05, st1["rr_z"], st1["cr_x"], y1 + 0.05, st1["cr_z"],
-                     st2["cr_x"], y2 + 0.05, st2["cr_z"], st2["rr_x"], y2 + 0.05, st2["rr_z"],
-                     cR, cG, cB);
-
-      // E. Asphalt Runoff with High-Friction Painted Deceleration Stripes
-      let isHighCurv = (math.abs(st1["curv"]) > 0.012);
-      if (isHighCurv and i % 2 == 1) {
-        // Modern F1 Painted Runoff Deceleration Band (Paul Ricard / Austin Blue)
-        gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"], st1["cl_x"], y1 - 0.02, st1["cl_z"],
-                       st2["cl_x"], y2 - 0.02, st2["cl_z"], st2["ol_x"], y2 - 0.02, st2["ol_z"],
-                       28, 88, 205);
-        gui.drawQuad3D(st1["cr_x"], y1 - 0.02, st1["cr_z"], st1["or_x"], y1 - 0.02, st1["or_z"],
-                       st2["or_x"], y2 - 0.02, st2["or_z"], st2["cr_x"], y2 - 0.02, st2["cr_z"],
-                       28, 88, 205);
-      } else {
-        gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"], st1["cl_x"], y1 - 0.02, st1["cl_z"],
-                       st2["cl_x"], y2 - 0.02, st2["cl_z"], st2["ol_x"], y2 - 0.02, st2["ol_z"],
-                       gravelCol[0], gravelCol[1], gravelCol[2]);
-        gui.drawQuad3D(st1["cr_x"], y1 - 0.02, st1["cr_z"], st1["or_x"], y1 - 0.02, st1["or_z"],
-                       st2["or_x"], y2 - 0.02, st2["or_z"], st2["cr_x"], y2 - 0.02, st2["cr_z"],
-                       gravelCol[0], gravelCol[1], gravelCol[2]);
-      }
-
-      // E2. Natural Sloped Grass Embankment Skirts / Structural Overpass Bridge / Underpass Walls
-      let sMid = st1["s"];
       let nx1 = st1["nx"]; let nz1 = st1["nz"];
       let nx2 = st2["nx"]; let nz2 = st2["nz"];
-      let isSuzukaBridge = (this.trackId == 0 and sMid >= 7350.0 and sMid <= 7570.0);
-      let isSuzukaUnderpass = (this.trackId == 0 and sMid >= 3650.0 and sMid <= 3770.0);
+
+      // A. Tarmac Surface + painted edge lines + rubbered-in racing grooves.
+      //    Everything is built from adjacent lateral strips so markings never
+      //    z-fight with the road or shimmer at distance.
+      let hw = this.roadWidth * 0.5;
+      let edgeLine = 0.34;
+      let grooveIn = 2.55;
+      let grooveOut = 3.25;
+      let stripA = [-hw, -hw + edgeLine, -grooveOut, -grooveIn, grooveIn, grooveOut, hw - edgeLine, hw];
+      let rdR = roadCol[0]; let rdG = roadCol[1]; let rdB = roadCol[2];
+      let grvR = math.floor(rdR * 0.74); let grvG = math.floor(rdG * 0.74); let grvB = math.floor(rdB * 0.74);
+      let whiteR = 232; let whiteG = 234; let whiteB = 240;
+      for (let b = 0; b < 7; b += 1) {
+        let aOff = stripA[b];
+        let bOff = stripA[b + 1];
+        let bR = rdR; let bG = rdG; let bB = rdB;
+        if (b == 0 or b == 6) { bR = whiteR; bG = whiteG; bB = whiteB; }
+        else if (b == 2 or b == 4) { bR = grvR; bG = grvG; bB = grvB; }
+        gui.drawQuad3D(st1["x"] + aOff * nx1, y1, st1["z"] + aOff * nz1,
+                       st1["x"] + bOff * nx1, y1, st1["z"] + bOff * nz1,
+                       st2["x"] + bOff * nx2, y2, st2["z"] + bOff * nz2,
+                       st2["x"] + aOff * nx2, y2, st2["z"] + aOff * nz2,
+                       bR, bG, bB);
+      }
+
+      // A2. Checkered start / finish band across the road.
+      if (i == 0) {
+        let tiles = 16;
+        let tileW = (hw * 2.0) / tiles;
+        for (let q = 0; q < tiles; q += 1) {
+          let aOff = -hw + q * tileW;
+          let bOff = aOff + tileW;
+          let qR = 20; let qG = 22; let qB = 28;
+          if (q % 2 == 0) { qR = 235; qG = 236; qB = 242; }
+          gui.drawQuad3D(st1["x"] + aOff * nx1, y1 + 0.012, st1["z"] + aOff * nz1,
+                         st1["x"] + bOff * nx1, y1 + 0.012, st1["z"] + bOff * nz1,
+                         st2["x"] + bOff * nx2, y2 + 0.012, st2["z"] + bOff * nz2,
+                         st2["x"] + aOff * nx2, y2 + 0.012, st2["z"] + aOff * nz2,
+                         qR, qG, qB);
+        }
+      }
+
+      // D. Rumble Curbs. Vibrant alternating blocks through the corners,
+      //    calm concrete edging along the straights.
+      let isCornerCurb = (math.abs(st1["curv"]) > 0.0055 or math.abs(st2["curv"]) > 0.0055);
+      let cR = 196; let cG = 198; let cB = 206;
+      if (isCornerCurb) {
+        if (i % 2 == 0) { cR = curbCol[0]; cG = curbCol[1]; cB = curbCol[2]; }
+        else { cR = 238; cG = 238; cB = 244; }
+      }
+      gui.drawQuad3D(st1["cl_x"], y1 + 0.045, st1["cl_z"], st1["rl_x"], y1 + 0.045, st1["rl_z"],
+                     st2["rl_x"], y2 + 0.045, st2["rl_z"], st2["cl_x"], y2 + 0.045, st2["cl_z"],
+                     cR, cG, cB);
+      gui.drawQuad3D(st1["rr_x"], y1 + 0.045, st1["rr_z"], st1["cr_x"], y1 + 0.045, st1["cr_z"],
+                     st2["cr_x"], y2 + 0.045, st2["cr_z"], st2["rr_x"], y2 + 0.045, st2["rr_z"],
+                     cR, cG, cB);
+
+      // E. Runoff: gravel on straights, blue high-friction bands at speed corners.
+      let isHighCurv = (math.abs(st1["curv"]) > 0.012 and math.abs(st2["curv"]) > 0.010);
+      let runR = gravelCol[0]; let runG = gravelCol[1]; let runB = gravelCol[2];
+      if (isHighCurv and i % 2 == 1) { runR = 28; runG = 88; runB = 205; }
+      if (st1["runL"] and st2["runL"]) {
+        gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"], st1["cl_x"], y1 - 0.02, st1["cl_z"],
+                       st2["cl_x"], y2 - 0.02, st2["cl_z"], st2["ol_x"], y2 - 0.02, st2["ol_z"],
+                       runR, runG, runB);
+      }
+      if (st1["runR"] and st2["runR"]) {
+        gui.drawQuad3D(st1["cr_x"], y1 - 0.02, st1["cr_z"], st1["or_x"], y1 - 0.02, st1["or_z"],
+                       st2["or_x"], y2 - 0.02, st2["or_z"], st2["cr_x"], y2 - 0.02, st2["cr_z"],
+                       runR, runG, runB);
+      }
+
+      // E2. Grass Embankments / Suzuka Overpass Structure / Underpass Retaining Walls
+      let sMid = st1["s"];
+      let isSuzukaBridge = (this.trackId == 0 and sMid >= 7290.0 and sMid <= 7644.0);
+      let isSuzukaUnderpass = (this.trackId == 0 and sMid >= 3640.0 and sMid <= 3780.0);
 
       if (isSuzukaBridge) {
-        // A. Bridge Concrete Deck Fascia Sides (down 1.4m from bridge road)
-        let deckD = 1.40;
+        // A. Concrete deck fascia along both edges of the elevated section.
+        let deckD = 1.55;
         gui.drawQuad3D(st1["ol_x"], y1, st1["ol_z"], st1["ol_x"], y1 - deckD, st1["ol_z"],
                        st2["ol_x"], y2 - deckD, st2["ol_z"], st2["ol_x"], y2, st2["ol_z"],
                        52, 58, 70);
@@ -605,18 +710,28 @@ export class Track {
                        st2["or_x"], y2 - deckD, st2["or_z"], st1["or_x"], y1 - deckD, st1["or_z"],
                        52, 58, 70);
 
-        // B. Bridge Structural Underside (visible when looking up from the underpass below)
+        // B. Structural underside, visible from the underpass beneath.
         gui.drawQuad3D(st1["ol_x"], y1 - deckD, st1["ol_z"], st1["or_x"], y1 - deckD, st1["or_z"],
                        st2["or_x"], y2 - deckD, st2["or_z"], st2["ol_x"], y2 - deckD, st2["ol_z"],
                        40, 45, 54);
 
-        // C. Massive Concrete Support Abutment Pillars at bridge ends (stations 1236 and 1248)
-        if (i == 1236 or i == 1248) {
-          gui.drawCube3D(st1["ol_x"], y1 * 0.5, st1["ol_z"], 3.4, y1, 4.2, 58, 64, 76);
-          gui.drawCube3D(st1["or_x"], y1 * 0.5, st1["or_z"], 3.4, y1, 4.2, 58, 64, 76);
+        // C. End caps so the deck reads as a solid structure at both approaches.
+        if (sMid < 7296.0 or sMid > 7638.0) {
+          gui.drawQuad3D(st1["ol_x"], y1, st1["ol_z"], st1["or_x"], y1, st1["or_z"],
+                         st1["or_x"], y1 - deckD, st1["or_z"], st1["ol_x"], y1 - deckD, st1["ol_z"],
+                         46, 51, 62);
+        }
+
+        // D. Twin portal piers, deliberately clear of the road passing underneath.
+        if (i == 1227 or i == 1259) {
+          let pierH = y1;
+          gui.drawCube3D(st1["ol_x"], pierH * 0.5, st1["ol_z"], 3.0, pierH, 4.4, 58, 64, 76);
+          gui.drawCube3D(st1["or_x"], pierH * 0.5, st1["or_z"], 3.0, pierH, 4.4, 58, 64, 76);
+          gui.drawCube3D(st1["ol_x"], pierH - 0.25, st1["ol_z"], 3.6, 0.5, 5.0, 48, 54, 66);
+          gui.drawCube3D(st1["or_x"], pierH - 0.25, st1["or_z"], 3.6, 0.5, 5.0, 48, 54, 66);
         }
       } else if (isSuzukaUnderpass) {
-        // Retaining cutting walls lining the underpass approach
+        // Retaining walls lining the cutting as it dives under the overpass.
         let retH = 2.8;
         gui.drawQuad3D(st1["ol_x"], y1, st1["ol_z"], st1["ol_x"], y1 + retH, st1["ol_z"],
                        st2["ol_x"], y2 + retH, st2["ol_z"], st2["ol_x"], y2, st2["ol_z"],
@@ -625,18 +740,34 @@ export class Track {
                        st2["or_x"], y2 + retH, st2["or_z"], st2["or_x"], y2, st2["or_z"],
                        50, 56, 68);
       } else {
-        // Standard Natural Sloped Grass Embankment Skirts
-        let embW = 14.0;
-        gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"],
-                       st1["ol_x"] - embW * nx1, -0.2, st1["ol_z"] - embW * nz1,
-                       st2["ol_x"] - embW * nx2, -0.2, st2["ol_z"] - embW * nz2,
-                       st2["ol_x"], y2 - 0.02, st2["ol_z"],
-                       grassCol[0], grassCol[1], grassCol[2]);
-        gui.drawQuad3D(st1["or_x"], y1 - 0.02, st1["or_z"],
-                       st2["or_x"], y2 - 0.02, st2["or_z"],
-                       st2["or_x"] + embW * nx2, -0.2, st2["or_z"] + embW * nz2,
-                       st1["or_x"] + embW * nx1, -0.2, st1["or_z"] + embW * nz1,
-                       grassCol[0], grassCol[1], grassCol[2]);
+        // Natural sloped banks, clipped by the clearance pass so they can
+        // never spill across another part of the circuit.
+        if (st1["embOkL"] and st2["embOkL"]) {
+          gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"],
+                         st1["el_x"], -0.2, st1["el_z"],
+                         st2["el_x"], -0.2, st2["el_z"],
+                         st2["ol_x"], y2 - 0.02, st2["ol_z"],
+                         grassCol[0], grassCol[1], grassCol[2]);
+        } else if (y1 > 0.30 or y2 > 0.30) {
+          gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"],
+                         st1["ol_x"], -0.2, st1["ol_z"],
+                         st2["ol_x"], -0.2, st2["ol_z"],
+                         st2["ol_x"], y2 - 0.02, st2["ol_z"],
+                         grassCol[0], grassCol[1], grassCol[2]);
+        }
+        if (st1["embOkR"] and st2["embOkR"]) {
+          gui.drawQuad3D(st1["or_x"], y1 - 0.02, st1["or_z"],
+                         st2["or_x"], y2 - 0.02, st2["or_z"],
+                         st2["er_x"], -0.2, st2["er_z"],
+                         st1["er_x"], -0.2, st1["er_z"],
+                         grassCol[0], grassCol[1], grassCol[2]);
+        } else if (y1 > 0.30 or y2 > 0.30) {
+          gui.drawQuad3D(st1["or_x"], y1 - 0.02, st1["or_z"],
+                         st1["or_x"], -0.2, st1["or_z"],
+                         st2["or_x"], -0.2, st2["or_z"],
+                         st2["or_x"], y2 - 0.02, st2["or_z"],
+                         grassCol[0], grassCol[1], grassCol[2]);
+        }
       }
 
       // F. Concrete Perimeter Barriers (Slate gray with alternating red/white safety top rails)
@@ -648,8 +779,8 @@ export class Track {
                      st2["or_x"], y2 + bH, st2["or_z"], st2["or_x"], y2, st2["or_z"],
                      barCol[0], barCol[1], barCol[2]);
 
-      let topR = 230; let topG = 40; let topB = 50;
-      if ((math.floor(i / 3)) % 2 == 1) { topR = 245; topG = 245; topB = 250; }
+      let topR = barTopCol[0]; let topG = barTopCol[1]; let topB = barTopCol[2];
+      if ((math.floor(i / 3)) % 2 == 1) { topR = 242; topG = 243; topB = 248; }
       gui.drawQuad3D(st1["ol_x"], y1 + bH, st1["ol_z"], st1["ol_x"] + 0.28 * nx1, y1 + bH, st1["ol_z"] + 0.28 * nz1,
                      st2["ol_x"] + 0.28 * nx2, y2 + bH, st2["ol_z"] + 0.28 * nz2, st2["ol_x"], y2 + bH, st2["ol_z"],
                      topR, topG, topB);
