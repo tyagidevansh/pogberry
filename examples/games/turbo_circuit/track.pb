@@ -160,13 +160,16 @@ export class Track {
       // Nearest other part of the circuit on each side of this station.
       let gapL = 99999.0; let gapR = 99999.0;
       let lowGapL = 99999.0; let lowGapR = 99999.0;
-      for (let j = 0; j < numStations; j += 2) {
+      for (let j = 0; j < numStations; j += 1) {
+        let ox = this.stations[j]["x"] - st["x"];
+        if (ox > 145.0 or ox < -145.0) continue;
+        let oz = this.stations[j]["z"] - st["z"];
+        if (oz > 145.0 or oz < -145.0) continue;
         let ds = st["s"] - this.stations[j]["s"];
         if (ds < 0.0) ds = -ds;
         if (ds > lapLen * 0.5) ds = lapLen - ds;
-        if (ds < 210.0) continue;
-        let ox = this.stations[j]["x"] - st["x"];
-        let oz = this.stations[j]["z"] - st["z"];
+        let dotT = st["tx"] * this.stations[j]["tx"] + st["tz"] * this.stations[j]["tz"];
+        if (ds < 26.0 and dotT > 0.4) continue;
         let d = math.sqrt(ox * ox + oz * oz);
         if (d > 145.0) continue;
         let lateral = ox * st["nx"] + oz * st["nz"];
@@ -182,11 +185,15 @@ export class Track {
         }
       }
       if (gapL < 900.0) {
+        let maxHalf = gapL * 0.49 - 0.3;
         let clear = gapL - roadEdge - 1.5;
+        if (maxHalf < clear) clear = maxHalf;
         if (clear < outL) outL = clear;
       }
       if (gapR < 900.0) {
+        let maxHalf = gapR * 0.49 - 0.3;
         let clear = gapR - roadEdge - 1.5;
+        if (maxHalf < clear) clear = maxHalf;
         if (clear < outR) outR = clear;
       }
       if (lowGapL < 900.0) {
@@ -198,10 +205,21 @@ export class Track {
         if (clear < embR) embR = clear;
       }
 
-      // Never let the barrier end up inside the racing surface itself.
-      // Keep it just outside the kerb so it can never sit on top of it.
-      if (outL < roadEdge + 0.15) outL = roadEdge + 0.15;
-      if (outR < roadEdge + 0.15) outR = roadEdge + 0.15;
+      // Never let the barrier cross into an adjacent track's corridor or tarmac
+      let maxAllowedL = gapL * 0.49 - 0.2;
+      let maxAllowedR = gapR * 0.49 - 0.2;
+      let minBarrierL = halfW + 0.35;
+      let minBarrierR = halfW + 0.35;
+      if (minBarrierL > maxAllowedL) minBarrierL = maxAllowedL;
+      if (minBarrierR > maxAllowedR) minBarrierR = maxAllowedR;
+      if (outL < minBarrierL) outL = minBarrierL;
+      if (outR < minBarrierR) outR = minBarrierR;
+
+      // On start/finish straight, right barrier aligns with solid Pit Wall
+      let isPitStraight = (i < 55 or i > numStations - 35);
+      if (isPitStraight) {
+        if (outR > halfW + 0.40) outR = halfW + 0.40;
+      }
 
       st["outL"] = outL;
       st["outR"] = outR;
@@ -473,6 +491,30 @@ export class Track {
     if (this.trackId == 2 and prog > 4100.0 and prog < 4450.0) return true;
     if (this.trackId == 3 and prog > 2550.0 and prog < 2750.0) return true;
     return false;
+  }
+
+  getBarrierLimits(s) {
+    let lapLen = this.spec["length"];
+    while (s < 0.0) s = s + lapLen;
+    while (s >= lapLen) s = s - lapLen;
+    let step = this.segmentLength;
+    if (step <= 0.001) step = 8.0;
+    let numStations = len(this.stations);
+    if (numStations == 0) {
+      let defLim = this.roadWidth * 0.5 + this.curbWidth + this.runoffWidth;
+      return [defLim, defLim];
+    }
+    let idx = math.floor(s / step) % numStations;
+    while (idx < 0) idx = idx + numStations;
+    let nextIdx = (idx + 1) % numStations;
+    let u = (s - idx * step) / step;
+    if (u < 0.0) u = 0.0;
+    if (u > 1.0) u = 1.0;
+    let st1 = this.stations[idx];
+    let st2 = this.stations[nextIdx];
+    let limL = st1["outL"] * (1.0 - u) + st2["outL"] * u;
+    let limR = st1["outR"] * (1.0 - u) + st2["outR"] * u;
+    return [limL, limR];
   }
 
   update(scrollSpeed, dt) {

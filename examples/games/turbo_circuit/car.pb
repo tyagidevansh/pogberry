@@ -63,7 +63,7 @@ export class Vehicle {
     this.aiLane = 0.0;
     this.aiLaneTimer = 0.0;
     this.aiSkill = mu.randFloat(0.88, 1.12);
-    this.aiDifficulty = 2; // 0=Rookie, 1=Amateur, 2=Pro/Expert (Max)
+    this.aiDifficulty = 1; // 0=Rookie, 1=Amateur, 2=Pro/Expert
 
     // Visuals
     let col = this.spec["primaryColor"];
@@ -100,6 +100,14 @@ export class Vehicle {
     // Sync world position from track if uninitialized
     if (this.worldX == 0.0 and this.worldZ == 0.0 and track != nil) {
       this.setTrackPosition(track, this.trackDistance, this.x);
+    } else if (track != nil) {
+      let curTrkHead = const.getTrackHeading(track.trackId, this.trackDistance);
+      let expRelH = this.worldHeading - curTrkHead;
+      while (expRelH > 3.14159265) expRelH = expRelH - 6.2831853;
+      while (expRelH < -3.14159265) expRelH = expRelH + 6.2831853;
+      if (math.abs(this.heading - expRelH) > 0.05) {
+        this.worldHeading = curTrkHead + this.heading;
+      }
     }
 
     // 0. Spin-out recovery
@@ -121,6 +129,7 @@ export class Vehicle {
 
     if (this.wallDamageCooldown > 0.0) this.wallDamageCooldown = this.wallDamageCooldown - dt;
     if (this.impactCooldown > 0.0) this.impactCooldown = this.impactCooldown - dt;
+    if (this.hitFlash > 0.0) this.hitFlash = this.hitFlash - dt;
 
     let cruiseTop = this.maxSpeed;
     let boostTop = this.boostSpeed;
@@ -349,23 +358,34 @@ export class Vehicle {
       // Check curbs and off-track status
       let halfRoad = track.roadWidth * 0.5;
       let curbLimit = halfRoad + track.curbWidth;
-      let wallLimit = halfRoad + track.curbWidth + track.runoffWidth;
       let absOffset = math.abs(this.x);
-      let distFromCenter = proj[2];
-
       this.onCurb = (absOffset >= halfRoad and absOffset <= curbLimit);
       this.isOffTrack = (absOffset > curbLimit);
 
-      // Perimeter concrete barrier bounce collision (Continuous Impenetrable Clamping)
-      if (absOffset >= wallLimit or distFromCenter >= wallLimit) {
-        let sign = 1.0;
-        if (this.x < 0.0) sign = -1.0;
+      // Exact physical barrier limits at this station on track
+      let barLims = track.getBarrierLimits(this.trackDistance);
+      let limL = barLims[0];
+      let limR = barLims[1];
+      let carHalfW = 1.30 * (this.scale / 1.45); // Physical half-width of car body (1.30m)
+      let maxRight = limR - carHalfW;
+      let maxLeft = -(limL - carHalfW);
 
-        // Strictly clamp vehicle inside barrier limit
-        let safeWallX = sign * (wallLimit - 0.25);
-        this.x = safeWallX;
+      let hitWall = false;
+      let sign = 0.0;
 
-        // Re-project clamped world coordinates onto barrier inner edge
+      if (this.x >= maxRight) {
+        hitWall = true;
+        sign = 1.0;
+        this.x = maxRight;
+      } else if (this.x <= maxLeft) {
+        hitWall = true;
+        sign = -1.0;
+        this.x = maxLeft;
+      }
+
+      // Perimeter concrete barrier collision (Impenetrable, momentum killing)
+      if (hitWall) {
+        // Strictly re-project clamped world coordinates onto barrier inner edge
         let stP = const.getTrackWorldPoint(track.trackId, this.trackDistance);
         let stTan = const.getTrackTangent(track.trackId, this.trackDistance);
         let tMag = math.sqrt(stTan[0] * stTan[0] + stTan[1] * stTan[1]);
@@ -375,36 +395,33 @@ export class Vehicle {
         this.worldX = stP[0] + nx * this.x;
         this.worldZ = stP[1] + nz * this.x;
 
-        // Check if car was moving outward into the wall
-        let carVx = fwdX * this.speed + rgtX * this.lateralVelocity;
-        let carVz = fwdZ * this.speed + rgtZ * this.lateralVelocity;
-        let vOut = carVx * (sign * nx) + carVz * (sign * nz);
+        // TOTALLY KILL MOMENTUM: Concrete barrier absorbs kinetic energy cold
+        this.speed = 0.0;
+        this.isBoosting = false;
+        this.isDrifting = false;
+        this.driftAngle = 0.0;
 
-        // Solid elastic bounce inward away from wall
-        let bounceImpulse = 6.5;
-        if (vOut > 0.0) bounceImpulse = math.max(6.5, vOut * 0.50);
-        this.lateralVelocity = -sign * bounceImpulse;
-        this.speed = this.speed * 0.72;
-        this.wallHitShake = 0.28;
+        // Firm rebound impulse pushing vehicle cleanly inward away from barrier
+        this.lateralVelocity = -sign * 5.5;
+        this.wallHitShake = 0.85;
 
-        // Deflect heading so car glances along wall instead of driving through it
-        let relH = this.worldHeading - trkHead;
-        while (relH > PI) relH = relH - TWO_PI;
-        while (relH < -PI) relH = relH + TWO_PI;
-
-        if (sign > 0.0 and relH < 0.0) {
-          // Pointing outward into right wall -> deflect counter-clockwise
+        // Deflect heading away from wall if car was angling outward
+        let curRelH = this.worldHeading - trkHead;
+        while (curRelH > 3.14159) curRelH = curRelH - 6.28318;
+        while (curRelH < -3.14159) curRelH = curRelH + 6.28318;
+        if (sign > 0.0 and curRelH < 0.0 and curRelH > -1.7) {
           this.worldHeading = trkHead + 0.12;
           this.yawRate = 2.5;
-        } else if (sign < 0.0 and relH > 0.0) {
-          // Pointing outward into left wall -> deflect clockwise
+        } else if (sign < 0.0 and curRelH > 0.0 and curRelH < 1.7) {
           this.worldHeading = trkHead - 0.12;
           this.yawRate = -2.5;
         }
 
         if (this.impactCooldown <= 0.0) {
           this.impactCooldown = 0.35;
-          if (particles != nil) particles.emitSparks(this.worldX, this.worldY + 0.3, this.worldZ, 8);
+          this.hitFlash = 0.35;
+          this.hull = math.max(0.0, this.hull - 12.0);
+          if (particles != nil) particles.emitSparks(this.worldX, this.worldY + 0.3, this.worldZ, 16);
           if (assets != nil) assets.playSfx(assets.sndCrash);
         }
       }
@@ -435,39 +452,39 @@ export class Vehicle {
     while (headingErr > 3.14159) headingErr = headingErr - 6.28318;
     while (headingErr < -3.14159) headingErr = headingErr + 6.28318;
     // AI Difficulty Configuration:
-    // 0 = ROOKIE (Easy): cruise ~74%, early braking, no nitro
-    // 1 = AMATEUR (Medium): cruise ~88%, moderate braking, occasional nitro
-    // 2 = EXPERT / PRO (Max Hardness): 100% full throttle, late apex trail-braking, aggressive nitro
+    // 0 = ROOKIE (Easy): cruise ~58%, early braking, gentle steering, no nitro
+    // 1 = AMATEUR (Medium): cruise ~70%, cautious braking, natural lines, catch-up handicap
+    // 2 = EXPERT / PRO (Challenging): cruise ~84%, late apex braking, tactical nitro
     let diff = this.aiDifficulty;
-    if (diff == nil) diff = 2;
+    if (diff == nil) diff = 1;
 
-    let cruiseRatio = 1.0;
-    let brakeCurvLow = 0.016;
-    let brakeSpdLow = 72.0;
-    let brakeCurvHigh = 0.024;
-    let brakeSpdHigh = 52.0;
-    let steerGain = 2.8;
+    let cruiseRatio = 0.84;
+    let brakeCurvLow = 0.014;
+    let brakeSpdLow = 62.0;
+    let brakeCurvHigh = 0.020;
+    let brakeSpdHigh = 46.0;
+    let steerGain = 2.1;
     let allowNitro = true;
     let allowDrift = true;
 
     if (diff == 0) {
-      cruiseRatio = 0.74;
-      brakeCurvLow = 0.011;
-      brakeSpdLow = 46.0;
-      brakeCurvHigh = 0.017;
-      brakeSpdHigh = 34.0;
-      steerGain = 1.9;
+      cruiseRatio = 0.58;
+      brakeCurvLow = 0.009;
+      brakeSpdLow = 38.0;
+      brakeCurvHigh = 0.014;
+      brakeSpdHigh = 28.0;
+      steerGain = 1.35;
       allowNitro = false;
       allowDrift = false;
     } else if (diff == 1) {
-      cruiseRatio = 0.88;
-      brakeCurvLow = 0.014;
-      brakeSpdLow = 60.0;
-      brakeCurvHigh = 0.021;
-      brakeSpdHigh = 44.0;
-      steerGain = 2.3;
-      allowNitro = true;
-      allowDrift = true;
+      cruiseRatio = 0.70;
+      brakeCurvLow = 0.012;
+      brakeSpdLow = 48.0;
+      brakeCurvHigh = 0.017;
+      brakeSpdHigh = 36.0;
+      steerGain = 1.70;
+      allowNitro = false;
+      allowDrift = false;
     }
 
     let steerInput = mu.clamp(headingErr * steerGain, -1.0, 1.0);
@@ -480,30 +497,41 @@ export class Vehicle {
     let boostInput = false;
     let driftInput = false;
 
-    // Cruise throttle cap based on difficulty
+    // Dynamic Rubberbanding / Lead Handicap:
+    // When rival leads the player (dDist > 0), dial back cruise speed so the player can catch up
     let targetCruise = this.maxSpeed * cruiseRatio;
+    if (dDist > 8.0) {
+      let leadDist = dDist - 8.0;
+      let leadFactor = mu.clamp(leadDist / 75.0, 0.0, 1.0);
+      targetCruise = targetCruise * (1.0 - leadFactor * 0.25);
+      allowNitro = false; // Never use nitro while leading
+    } else if (dDist < -20.0 and diff == 2) {
+      targetCruise = targetCruise * 1.05;
+    }
+    if (targetCruise < 38.0) targetCruise = 38.0; // Floor keeps race flowing and laps passing
+
+    // Throttle cap
     if (this.speed > targetCruise) {
       throttleInput = false;
     }
 
-    // Active trail-braking deceleration into sharp corners (Identical physics to player)
+    // Active trail-braking deceleration into sharp corners
     if ((absCurv > brakeCurvLow and this.speed > brakeSpdLow) or (absCurv > brakeCurvHigh and this.speed > brakeSpdHigh)) {
       brakeInput = true;
       throttleInput = false;
+    } else if (absCurv > 0.012 and this.speed > targetCruise * 0.78) {
+      // Natural cornering lift-off
+      throttleInput = false;
     }
 
-    // Power drift initiation on hairpin apices
-    if (allowDrift and absCurv > 0.015 and math.abs(steerInput) > 0.35 and this.speed > 35.0) {
+    // Power drift initiation on sharp turns (Pro only)
+    if (allowDrift and absCurv > 0.016 and math.abs(steerInput) > 0.40 and this.speed > 38.0) {
       driftInput = true;
     }
 
     // Nitro overdrive on clean straightaways
-    if (allowNitro and absCurv < 0.005 and math.abs(this.x) < 4.0 and this.speed > 55.0 and this.nitro > 20.0) {
-      if (diff == 1) {
-        if (this.nitro > 40.0) boostInput = true;
-      } else {
-        boostInput = true;
-      }
+    if (allowNitro and absCurv < 0.005 and math.abs(this.x) < 4.0 and this.speed > 50.0 and this.nitro > 30.0) {
+      boostInput = true;
     }
 
     // Execute through the EXACT same Newtonian physics engine pipeline
@@ -521,7 +549,9 @@ export class Vehicle {
     let yawRad = this.worldHeading + this.driftAngle * 0.0174533;
     let rotY = yawRad * 57.29578 + 180.0;
     let r = 255; let g = 255; let b = 255;
-    if (this.hitFlash > 0.0) { r = 255; g = 120; b = 120; }
+    if (this.hitFlash > 0.0) {
+      r = 255; g = 80; b = 80;
+    }
 
     // Authentic Rotated Aerodynamic Ground Contact Shadow
     this.drawShadow(this.scale, yawRad);

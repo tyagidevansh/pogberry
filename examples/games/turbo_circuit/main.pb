@@ -69,6 +69,7 @@ let outrunTimer = 45.0;
 let outrunStage = 1;
 let nextGateDist = 600.0;
 let totalNearMisses = 0;
+let nitroFxIntensity = 0.0;
 
 fun startRace() {
   track = track_mod.Track(selectedTrack);
@@ -164,6 +165,13 @@ while (!gui.windowShouldClose()) {
   // Music Streaming & Climax logic
   let wantClimax = (player.speed > 75.0 or player.isBoosting or state == const.STATE_FINISH);
   assets.updateAudio(wantClimax);
+
+  // Smooth Nitro FX Intensity
+  let targetNitroFx = 0.0;
+  if (player.isBoosting and state == const.STATE_RACE) {
+    targetNitroFx = 1.0;
+  }
+  nitroFxIntensity = mu.approach(nitroFxIntensity, targetNitroFx, dt * 7.5);
 
   // Dynamic Engine Pitch & Sound Loop
   if (state == const.STATE_RACE or state == const.STATE_COUNTDOWN) {
@@ -494,8 +502,8 @@ while (!gui.windowShouldClose()) {
         // Collision with Traffic Car
         if (tf.z > -2.4 and tf.z < 2.4 and math.abs(player.x - tf.x) < 1.6 and player.impactCooldown <= 0.0) {
           player.impactCooldown = 0.42;
+          player.hitFlash = 0.35;
           player.speed = player.speed * 0.90;
-          player.hitFlash = 0.25;
           cam.addShake(0.35);
           particles.emitSparks(player.worldX, 0.5, player.z, 5);
           assets.playSfx(assets.sndCrash);
@@ -656,12 +664,41 @@ while (!gui.windowShouldClose()) {
 
   cam.end3DPass();
 
-  // Speed Lines Effect in Nitro Boost
-  if (player.isBoosting and state == const.STATE_RACE) {
-    for (let i = 0; i < 48; i += 1) {
-      let lx = (i * 127 + math.floor(t * player.speed * 20)) % scrW;
-      let ly = (i * 79 + math.floor(t * player.speed * 12)) % scrH;
-      gui.drawLine(lx, ly, lx - 18, ly + 36, 0, 240, 255);
+  // Cinematic Nitro Boost Shader & Radial Hyperspace Warp
+  if (nitroFxIntensity > 0.005) {
+    if (assets.shaderVelocity != nil) {
+      gui.setShaderFloat(assets.shaderVelocity, "u_time", t);
+      let normSpd = math.abs(player.speed) / player.maxSpeed;
+      if (normSpd < 0.0) normSpd = 0.0;
+      gui.setShaderFloat(assets.shaderVelocity, "u_speed", normSpd);
+      gui.setShaderFloat(assets.shaderVelocity, "u_intensity", nitroFxIntensity);
+      gui.setShaderVec2(assets.shaderVelocity, "u_resolution", scrW, scrH);
+      gui.beginShaderMode(assets.shaderVelocity);
+      gui.drawRectangle(0, 0, scrW, scrH, 255, 255, 255);
+      gui.endShaderMode();
+    }
+
+    // Dynamic perspective-aligned arcade speed streaks radiating outward
+    let centerX = scrW * 0.5;
+    let centerY = scrH * 0.48;
+    let numStreaks = math.floor(20 * nitroFxIntensity);
+    for (let i = 0; i < numStreaks; i += 1) {
+      let ang = (i * 1.61803398875 + t * 0.45) * 6.2831853;
+      let cosA = math.cos(ang);
+      let sinA = math.sin(ang);
+      let rawDist = t * (math.abs(player.speed) * 0.06 + 2.8) + i * 0.22;
+      let distPhase = rawDist - math.floor(rawDist);
+      let rStart = (0.28 + distPhase * 0.52) * scrH;
+      let rEnd = rStart + (18.0 + nitroFxIntensity * 24.0);
+      let x1 = centerX + cosA * rStart;
+      let y1 = centerY + sinA * rStart;
+      let x2 = centerX + cosA * rEnd;
+      let y2 = centerY + sinA * rEnd;
+      if (i % 2 == 0) {
+        gui.drawLine(math.floor(x1), math.floor(y1), math.floor(x2), math.floor(y2), 0, 240, 255);
+      } else {
+        gui.drawLine(math.floor(x1), math.floor(y1), math.floor(x2), math.floor(y2), 240, 248, 255);
+      }
     }
   }
 

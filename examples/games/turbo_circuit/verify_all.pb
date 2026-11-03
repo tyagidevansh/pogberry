@@ -108,6 +108,18 @@ if (math.abs(dDistTest) < 280.0) {
 }
 cam.end3DPass();
 
+// Test Nitro velocity shader pass
+if (assets.shaderVelocity != nil) {
+  gui.setShaderFloat(assets.shaderVelocity, "u_time", 1.0);
+  gui.setShaderFloat(assets.shaderVelocity, "u_speed", 0.9);
+  gui.setShaderFloat(assets.shaderVelocity, "u_intensity", 1.0);
+  gui.setShaderVec2(assets.shaderVelocity, "u_resolution", const.SCREEN_WIDTH, const.SCREEN_HEIGHT);
+  gui.beginShaderMode(assets.shaderVelocity);
+  gui.drawRectangle(0, 0, const.SCREEN_WIDTH, const.SCREEN_HEIGHT, 255, 255, 255);
+  gui.endShaderMode();
+  print("Nitro velocity shader pass rendered cleanly");
+}
+
 gui.endDrawing();
 print("All UI state renderers executed without error!");
 
