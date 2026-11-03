@@ -366,6 +366,8 @@ export class Vehicle {
       let barLims = track.getBarrierLimits(this.trackDistance);
       let limL = barLims[0];
       let limR = barLims[1];
+      let hasWallL = barLims[2];
+      let hasWallR = barLims[3];
       let carHalfW = 1.30 * (this.scale / 1.45); // Physical half-width of car body (1.30m)
       let maxRight = limR - carHalfW;
       let maxLeft = -(limL - carHalfW);
@@ -374,11 +376,11 @@ export class Vehicle {
       let sign = 0.0;
 
       if (this.x >= maxRight) {
-        hitWall = true;
+        if (hasWallR) hitWall = true;
         sign = 1.0;
         this.x = maxRight;
       } else if (this.x <= maxLeft) {
-        hitWall = true;
+        if (hasWallL) hitWall = true;
         sign = -1.0;
         this.x = maxLeft;
       }
@@ -549,9 +551,6 @@ export class Vehicle {
     let yawRad = this.worldHeading + this.driftAngle * 0.0174533;
     let rotY = yawRad * 57.29578 + 180.0;
     let r = 255; let g = 255; let b = 255;
-    if (this.hitFlash > 0.0) {
-      r = 255; g = 80; b = 80;
-    }
 
     // Authentic Rotated Aerodynamic Ground Contact Shadow
     this.drawShadow(this.scale, yawRad);

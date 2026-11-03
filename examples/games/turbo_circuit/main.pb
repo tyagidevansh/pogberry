@@ -664,42 +664,25 @@ while (!gui.windowShouldClose()) {
 
   cam.end3DPass();
 
-  // Cinematic Nitro Boost Shader & Radial Hyperspace Warp
+  // Cinematic Nitro Boost Velocity Shader (Peripheral Speed Streaks)
   if (nitroFxIntensity > 0.005) {
     if (assets.shaderVelocity != nil) {
       gui.setShaderFloat(assets.shaderVelocity, "u_time", t);
       let normSpd = math.abs(player.speed) / player.maxSpeed;
       if (normSpd < 0.0) normSpd = 0.0;
       gui.setShaderFloat(assets.shaderVelocity, "u_speed", normSpd);
-      gui.setShaderFloat(assets.shaderVelocity, "u_intensity", nitroFxIntensity);
+      gui.setShaderFloat(assets.shaderVelocity, "u_intensity", nitroFxIntensity * 0.75);
       gui.setShaderVec2(assets.shaderVelocity, "u_resolution", scrW, scrH);
       gui.beginShaderMode(assets.shaderVelocity);
       gui.drawRectangle(0, 0, scrW, scrH, 255, 255, 255);
       gui.endShaderMode();
     }
+  }
 
-    // Dynamic perspective-aligned arcade speed streaks radiating outward
-    let centerX = scrW * 0.5;
-    let centerY = scrH * 0.48;
-    let numStreaks = math.floor(20 * nitroFxIntensity);
-    for (let i = 0; i < numStreaks; i += 1) {
-      let ang = (i * 1.61803398875 + t * 0.45) * 6.2831853;
-      let cosA = math.cos(ang);
-      let sinA = math.sin(ang);
-      let rawDist = t * (math.abs(player.speed) * 0.06 + 2.8) + i * 0.22;
-      let distPhase = rawDist - math.floor(rawDist);
-      let rStart = (0.28 + distPhase * 0.52) * scrH;
-      let rEnd = rStart + (18.0 + nitroFxIntensity * 24.0);
-      let x1 = centerX + cosA * rStart;
-      let y1 = centerY + sinA * rStart;
-      let x2 = centerX + cosA * rEnd;
-      let y2 = centerY + sinA * rEnd;
-      if (i % 2 == 0) {
-        gui.drawLine(math.floor(x1), math.floor(y1), math.floor(x2), math.floor(y2), 0, 240, 255);
-      } else {
-        gui.drawLine(math.floor(x1), math.floor(y1), math.floor(x2), math.floor(y2), 240, 248, 255);
-      }
-    }
+  // Visceral Impact Crimson Screen Flash
+  if (player.hitFlash > 0.0) {
+    let flashAlpha = math.floor((player.hitFlash / 0.35) * 140);
+    gui.drawRectangleAlpha(0, 0, scrW, scrH, 220, 24, 32, flashAlpha);
   }
 
   // UI State Overlays

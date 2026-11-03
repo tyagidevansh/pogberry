@@ -121,18 +121,18 @@ for (let i = 0; i < 4; i += 1) {
   rivals.push(rCar);
 }
 
-// 3. Capture Track 0: Suzuka GP (Casio Triangle Chicane Braking Zone)
+// 3. Capture Track 0: Suzuka GP (Turn 11 Hairpin Approach)
 let track0 = track_mod.Track(const.TRACK_SUZUKA);
 ui.setTrackId(const.TRACK_SUZUKA);
-player.setTrackPosition(track0, 5130.0, 0.0);
+player.setTrackPosition(track0, 4220.0, 0.0);
 cam.snap(player.worldX, player.worldY, player.worldZ, player.worldHeading);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 1.0 + i * dt;
-  let dist = 5130.0;
+  let dist = 4220.0;
   player.setTrackPosition(track0, dist, 0.0);
   player.speed = 88.0;
-  player.brakeWarning = 2; // Right turn brake warning
+  player.brakeWarning = 1;
 
   cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, 0.05, 0.0, true, dt);
 
@@ -156,7 +156,7 @@ for (let i = 0; i < 20; i += 1) {
 
   ui.updateDimensions();
   ui.setMode(const.MODE_GRAND_PRIX);
-  ui.drawHUD(player, 1, 3, 14.5, 0.0, 2, 5, true, t, dist, 5807.0, rivals);
+  ui.drawHUD(player, 1, 3, 14.5, 0.0, 2, 5, true, t, dist, track0.spec["length"], rivals);
   gui.endDrawing();
 }
 gui.takeScreenshot("track_shibuya.png");
@@ -195,7 +195,7 @@ for (let i = 0; i < 20; i += 1) {
   ui.updateDimensions();
   ui.setMode(const.MODE_OUTRUN);
   ui.setOutrunState(44.0, 1, 600.0, dist, 0);
-  ui.drawHUD(player, 1, 999, 22.0, 0.0, 1, 1, false, t, dist, 3337.0, nil);
+  ui.drawHUD(player, 1, 999, 22.0, 0.0, 1, 1, false, t, dist, track1.spec["length"], nil);
   gui.endDrawing();
 }
 gui.takeScreenshot("track_sunset.png");
@@ -234,7 +234,7 @@ for (let i = 0; i < 20; i += 1) {
   ui.updateDimensions();
   ui.setMode(const.MODE_TIME_ATTACK);
   ui.setTimeAttackDelta(-0.62);
-  ui.drawHUD(player, 2, 3, 38.0, 102.5, 1, 1, false, t, dist, 7004.0, nil);
+  ui.drawHUD(player, 2, 3, 38.0, 102.5, 1, 1, false, t, dist, track2.spec["length"], nil);
   gui.endDrawing();
 }
 gui.takeScreenshot("track_canyon.png");
@@ -273,7 +273,7 @@ for (let i = 0; i < 20; i += 1) {
   ui.updateDimensions();
   ui.setMode(const.MODE_GRAND_PRIX);
   ui.setBanner("AUTODROMO NAZIONALE MONZA", "CIRCUIT 4 OF 4 // TEMPLE OF SPEED", 3.0, 0, 255, 170);
-  ui.drawHUD(player, 1, 3, 18.0, 0.0, 1, 5, true, t, dist, 5793.0, nil);
+  ui.drawHUD(player, 1, 3, 18.0, 0.0, 1, 5, true, t, dist, track3.spec["length"], nil);
   gui.endDrawing();
 }
 gui.takeScreenshot("track_hyperion.png");

@@ -353,6 +353,24 @@ export class AssetManager {
     }
   }
 
+  playFenceStraight(x, y, z, scale, rotY) {
+    if (this.modelFenceStraight > 0) {
+      gui.drawModelEx(this.modelFenceStraight, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+    } else {
+      gui.drawCube3D(x, y + scale * 0.5, z, scale * 2.0, scale, 0.1, 190, 195, 205);
+    }
+  }
+
+  playBarrier(variant, x, y, z, scale, rotY) {
+    let m = this.modelBarrierRed;
+    if (variant == 1) m = this.modelBarrierWhite;
+    if (m > 0) {
+      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+    } else {
+      gui.drawCube3D(x, y + scale * 0.4, z, scale * 1.5, scale * 0.8, 0.4, 220, 40, 50);
+    }
+  }
+
   updateAudio(isClimaxWanted) {
     if (this.musicCruise > 0) gui.updateMusic(this.musicCruise);
     if (this.musicClimax > 0) gui.updateMusic(this.musicClimax);
