@@ -138,15 +138,15 @@ export class UIRenderer {
         gui.drawRectangleLines(cardX, cardY, cardW, 140, 0, 240, 255);
         gui.drawText(carInfo["name"], cardX + 16, cardY + 16, 20, 255, 235, 90);
         gui.drawText(carInfo["subtitle"], cardX + 16, cardY + 44, 14, 200, 230, 255);
-        gui.drawText("CRUISE: " + str(math.floor(carInfo["topSpeed"])) + " MPH", cardX + 16, cardY + 76, 14, 0, 240, 255);
-        gui.drawText("NITRO:  " + str(math.floor(carInfo["boostSpeed"])) + " MPH", cardX + 16, cardY + 102, 14, 255, 100, 180);
+        gui.drawText("CRUISE: " + str(math.floor(carInfo["topSpeed"] * 1.60934)) + " KPH", cardX + 16, cardY + 76, 14, 0, 240, 255);
+        gui.drawText("NITRO:  " + str(math.floor(carInfo["boostSpeed"] * 1.60934)) + " KPH", cardX + 16, cardY + 102, 14, 255, 100, 180);
       } else {
         gui.drawRectangleAlpha(cardX, cardY, cardW, 140, 10, 16, 30, 170);
         gui.drawRectangleLines(cardX, cardY, cardW, 140, 50, 70, 95);
         gui.drawText(carInfo["name"], cardX + 16, cardY + 16, 18, 160, 180, 200);
         gui.drawText(carInfo["subtitle"], cardX + 16, cardY + 44, 13, 120, 140, 160);
-        gui.drawText("CRUISE: " + str(math.floor(carInfo["topSpeed"])), cardX + 16, cardY + 76, 14, 140, 160, 180);
-        gui.drawText("NITRO:  " + str(math.floor(carInfo["boostSpeed"])), cardX + 16, cardY + 102, 14, 180, 120, 140);
+        gui.drawText("CRUISE: " + str(math.floor(carInfo["topSpeed"] * 1.60934)) + " KPH", cardX + 16, cardY + 76, 14, 140, 160, 180);
+        gui.drawText("NITRO:  " + str(math.floor(carInfo["boostSpeed"] * 1.60934)) + " KPH", cardX + 16, cardY + 102, 14, 180, 120, 140);
       }
     }
 
@@ -308,9 +308,9 @@ export class UIRenderer {
     gui.drawRectangleAlpha(gaugeX, gaugeY, 275, 155, 8, 12, 26, 215);
     gui.drawRectangleLines(gaugeX, gaugeY, 275, 155, 0, 220, 255);
 
-    let mph = math.floor(math.abs(player.speed));
-    gui.drawText(str(mph), gaugeX + 20, gaugeY + 14, 56, 255, 255, 255);
-    gui.drawText("MPH", gaugeX + 155, gaugeY + 46, 20, 0, 220, 255);
+    let kph = math.floor(math.abs(player.speed) * 1.60934);
+    gui.drawText(str(kph), gaugeX + 20, gaugeY + 14, 56, 255, 255, 255);
+    gui.drawText("KPH", gaugeX + 155, gaugeY + 46, 20, 0, 220, 255);
 
     // RPM Bar
     let rpmRatio = math.abs(player.speed) / player.maxSpeed;

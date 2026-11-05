@@ -84,10 +84,20 @@ fun startRace() {
   isNewRecord = false;
   playerMidpointCrossed = false;
 
+  let lapLen = track.spec["length"];
+  let hw = track.roadWidth * 0.5;
+  let pDist = lapLen - 47.5; // Grid Slot 4 (P4)
+  let pLane = hw * 0.40;
+  if (gameMode == const.MODE_TIME_ATTACK) {
+    pDist = lapLen - 16.0; // Pole position
+    pLane = -hw * 0.40;
+  }
+
   player = car_mod.Vehicle(selectedCar, true, "PLAYER", 0.0);
   player.speed = 0.0;
-  player.trackDistance = 0.0;
-  player.setTrackPosition(track, 0.0, 0.0);
+  player.trackDistance = pDist;
+  player.x = pLane;
+  player.setTrackPosition(track, pDist, pLane);
 
   particles.clear();
   ui.setMode(gameMode);
@@ -99,10 +109,20 @@ fun startRace() {
   if (gameMode == const.MODE_GRAND_PRIX) {
     racePosition = 4;
     prevPosition = 4;
-    // Staggered starting grid with equalized performance physics
+    // 20 Authentic Formula 1 Grid Slots: P1, P2, P3, Player(P4), P5, P6
+    let slotConfigs = [
+      [lapLen - 16.0, -hw * 0.40], // P1: Slot 1
+      [lapLen - 26.5, hw * 0.40],  // P2: Slot 2
+      [lapLen - 37.0, -hw * 0.40], // P3: Slot 3
+      [lapLen - 58.0, -hw * 0.40], // P5: Slot 5
+      [lapLen - 68.5, hw * 0.40]   // P6: Slot 6
+    ];
+
     for (let i = 0; i < 5; i += 1) {
-      let gridDist = 28.0 - i * 12.0; // P1 is at +28m, P2 at +16m, etc.
-      let rCar = car_mod.Vehicle(rivalCars[i], false, rivalNames[i], -gridDist);
+      let cfg = slotConfigs[i];
+      let gridDist = cfg[0];
+      let gridLane = cfg[1];
+      let rCar = car_mod.Vehicle(rivalCars[i], false, rivalNames[i], 0.0);
       // Strictly match acceleration, top speed, and performance specs to player for fair Grand Prix physics
       rCar.maxSpeed = player.maxSpeed;
       rCar.accel = player.accel;
@@ -114,10 +134,10 @@ fun startRace() {
       rCar.nitro = player.nitro;
       rCar.aiDifficulty = aiDifficulty;
       rCar.trackDistance = gridDist;
-      rCar.aiLane = -2.6 + (i % 3) * 2.6;
-      rCar.x = rCar.aiLane;
+      rCar.aiLane = gridLane;
+      rCar.x = gridLane;
       rCar.speed = 0.0;
-      rCar.setTrackPosition(track, gridDist, rCar.x);
+      rCar.setTrackPosition(track, gridDist, gridLane);
       rivals.push(rCar);
     }
     ui.setBanner("OBJECTIVE: PODIUM FINISH (TOP 3)", "RACE 5 RIVALS // " + str(totalLaps) + " LAPS", 4.5, 255, 220, 40);
@@ -422,7 +442,6 @@ while (!gui.windowShouldClose()) {
 
     // 5. Update AI Rivals (Grand Prix Pack Racing & Lapping)
     if (gameMode == const.MODE_GRAND_PRIX) {
-      let aheadCount = 0;
       for (let i = 0; i < len(rivals); i += 1) {
         let rCar = rivals[i];
 
@@ -434,33 +453,30 @@ while (!gui.windowShouldClose()) {
         // Dynamic pack racing update with relative distance
         rCar.updateAi(dDist, player.speed, dt, track);
         rCar.z = -dDist;
+      }
 
-        // Overall race progression (completed laps * lapDist + trackDistance)
-        let playerTotalProg = (player.completedLaps * lapDist) + player.trackDistance;
-        let rivalTotalProg = (rCar.completedLaps * lapDist) + rCar.trackDistance;
-        if (rivalTotalProg > playerTotalProg) aheadCount = aheadCount + 1;
+      // Solid Impenetrable Vehicle-to-Vehicle Collisions
+      // Cars cannot phase through each other. Trailing cars stay behind lead cars without momentum reset.
+      let allCars = [player];
+      for (let i = 0; i < len(rivals); i += 1) allCars.push(rivals[i]);
+      car_mod.resolveCarCollisions(allCars, track, lapDist, particles, assets, cam, dt);
 
-        // Bumper & Head-on Collision between Player and Rival
-        let dZ = math.abs(rCar.z);
-        let dX = math.abs(player.x - rCar.x);
-        if (dZ < 3.2 and dX < 1.8) {
-          let pushX = (player.x - rCar.x) * 10.0 * dt;
-          if (math.abs(pushX) < 0.01) {
-            if (player.x >= rCar.x) pushX = 0.04;
-            else pushX = -0.04;
-          }
-          player.x = player.x + pushX;
-          rCar.x = rCar.x - pushX;
+      // Re-synchronize distance and race positions after collision resolution
+      distance = player.trackDistance;
+      let aheadCount = 0;
+      for (let i = 0; i < len(rivals); i += 1) {
+        let rCar = rivals[i];
+        let dDist = rCar.trackDistance - player.trackDistance;
+        while (dDist > lapDist * 0.5) dDist = dDist - lapDist;
+        while (dDist < -lapDist * 0.5) dDist = dDist + lapDist;
+        rCar.z = -dDist;
 
-          if (player.impactCooldown <= 0.0) {
-            player.speed = player.speed * 0.92;
-            player.impactCooldown = 0.35;
-            cam.addShake(0.20);
-            particles.emitSparks(player.worldX, player.worldY + 0.4, player.worldZ, 6);
-            assets.playSfx(assets.sndCrash);
-          }
+        let lapDiff = rCar.completedLaps - player.completedLaps;
+        if (lapDiff > 0 or (lapDiff == 0 and dDist > 0.0)) {
+          aheadCount = aheadCount + 1;
         }
       }
+
       racePosition = aheadCount + 1;
       if (racePosition < prevPosition) {
         let posSuffix = "TH";
@@ -475,6 +491,9 @@ while (!gui.windowShouldClose()) {
 
     // 8. Update Traffic (Outrun Slalom)
     if (gameMode == const.MODE_OUTRUN) {
+      let L_col = 3.5;
+      let W_col = 1.75;
+
       for (let i = 0; i < len(trafficCars); i += 1) {
         let tf = trafficCars[i];
         tf.update(player.speed, dt);
@@ -499,14 +518,52 @@ while (!gui.windowShouldClose()) {
           tf.passed = false;
         }
 
-        // Collision with Traffic Car
-        if (tf.z > -2.4 and tf.z < 2.4 and math.abs(player.x - tf.x) < 1.6 and player.impactCooldown <= 0.0) {
-          player.impactCooldown = 0.42;
-          player.hitFlash = 0.35;
-          player.speed = player.speed * 0.90;
-          cam.addShake(0.35);
-          particles.emitSparks(player.worldX, 0.5, player.z, 5);
-          assets.playSfx(assets.sndCrash);
+        // Solid Impenetrable Traffic Collision: Cars cannot phase through.
+        // Touching a car in front blocks the trailing vehicle directly behind it without momentum reset.
+        let absDz = math.abs(tf.z);
+        let absDx = math.abs(player.x - tf.x);
+        if (absDz < L_col and absDx < W_col) {
+          let penS = (L_col - absDz) / L_col;
+          let penX = (W_col - absDx) / W_col;
+
+          if (penS < penX) {
+            // Longitudinal / Bumper contact:
+            if (tf.z <= 0.0) {
+              // Traffic is in front: block player directly behind rear bumper
+              tf.z = -L_col;
+              if (player.speed > tf.speed) {
+                player.speed = tf.speed;
+              }
+            } else {
+              // Traffic is behind player (e.g. player in reverse)
+              tf.z = L_col;
+              if (player.speed < 0.0) {
+                player.speed = 0.0;
+              }
+            }
+          } else {
+            // Lateral contact: push apart to avoid door clipping
+            let overlap = W_col - absDx;
+            let barLims = track.getBarrierLimits(player.trackDistance);
+            let halfW = 1.30;
+            let minX = -(barLims[0] - halfW);
+            let maxX = barLims[1] - halfW;
+
+            if (player.x <= tf.x) {
+              player.x = mu.clamp(player.x - overlap, minX, maxX);
+            } else {
+              player.x = mu.clamp(player.x + overlap, minX, maxX);
+            }
+            player.setTrackPosition(track, player.trackDistance, player.x);
+            if (player.lateralVelocity != 0.0) player.lateralVelocity = 0.0;
+          }
+
+          if (player.impactCooldown <= 0.0) {
+            player.impactCooldown = 0.25;
+            cam.addShake(0.18);
+            particles.emitSparks(player.worldX, player.worldY + 0.35, player.worldZ, 8);
+            assets.playSfx(assets.sndCrash);
+          }
         }
       }
     }

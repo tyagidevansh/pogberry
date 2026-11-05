@@ -178,7 +178,9 @@ export class TelemetryCollector {
     print("------------------------------------------------------------");
     print("  Time Simulated    : " + str(s["totalTime"]) + " s (" + str(this.totalFrames) + " frames)");
     print("  Lap Completed     : " + str(s["finishedLap"]) + " (Lap Time: " + str(s["lapTime"]) + " s)");
-    print("  Max Speed         : " + str(s["maxSpeed"]) + " MPH | Avg Speed: " + str(s["avgSpeed"]) + " MPH");
+    let maxKph = math.floor(s["maxSpeed"] * 1.60934);
+    let avgKph = math.floor(s["avgSpeed"] * 1.60934);
+    print("  Max Speed         : " + str(maxKph) + " KPH | Avg Speed: " + str(avgKph) + " KPH");
     print("  Max Lateral |X|   : " + str(s["maxAbsX"]) + " m");
     print("  Off-Track Time    : " + str(s["offTrackTime"]) + " s");
     print("  Wall Collisions   : " + str(s["wallHits"]));

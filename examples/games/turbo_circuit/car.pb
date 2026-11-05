@@ -717,3 +717,142 @@ export class TrafficCar {
     assets.playTrafficModel(this.type, drawX, this.y, this.z, 180.0, scale, 255, 255, 255);
   }
 }
+
+// -----------------------------------------------------------------------------
+// SOLID IMPENETRABLE VEHICLE-TO-VEHICLE COLLISION RESOLUTION
+// Cars cannot phase through each other under any condition.
+// Touching a car in front blocks the trailing vehicle directly behind its rear bumper.
+// No momentum reset: the trailing vehicle matches lead vehicle speed without stopping.
+// Lateral collisions separate vehicles so they never interpenetrate door-to-door.
+// -----------------------------------------------------------------------------
+export fun resolveCarCollisions(cars, track, lapLen, particles, assets, cam, dt) {
+  let numCars = len(cars);
+  if (numCars < 2 or track == nil) return;
+
+  let L_col = 3.5;  // Minimum bumper-to-bumper longitudinal distance (meters)
+  let W_col = 1.75; // Minimum door-to-door lateral distance (meters)
+
+  for (let iter = 0; iter < 2; iter += 1) {
+    for (let i = 0; i < numCars; i += 1) {
+      for (let j = i + 1; j < numCars; j += 1) {
+        let carA = cars[i];
+        let carB = cars[j];
+
+        // Closed-circuit distance along track from carA to carB
+        let ds = carB.trackDistance - carA.trackDistance;
+        while (ds > lapLen * 0.5) ds = ds - lapLen;
+        while (ds < -lapLen * 0.5) ds = ds + lapLen;
+
+        let absDs = math.abs(ds);
+        let dx = carB.x - carA.x;
+        let absDx = math.abs(dx);
+
+        if (absDs < L_col and absDx < W_col) {
+          let penS = (L_col - absDs) / L_col;
+          let penX = (W_col - absDx) / W_col;
+
+          if (penS < penX) {
+            // Longitudinal / Bumper collision:
+            // Leading vehicle blocks trailing vehicle cleanly behind rear bumper.
+            if (ds >= 0.0) {
+              // carB is ahead, carA is behind
+              let clampedDist = carB.trackDistance - L_col;
+              while (clampedDist < 0.0) clampedDist = clampedDist + lapLen;
+              while (clampedDist >= lapLen) clampedDist = clampedDist - lapLen;
+              carA.trackDistance = clampedDist;
+              carA.setTrackPosition(track, carA.trackDistance, carA.x);
+
+              if (carA.speed > carB.speed) {
+                carA.speed = carB.speed;
+              }
+              if (carB.speed < 0.0) {
+                carB.speed = 0.0;
+              }
+            } else {
+              // carA is ahead, carB is behind
+              let clampedDist = carA.trackDistance - L_col;
+              while (clampedDist < 0.0) clampedDist = clampedDist + lapLen;
+              while (clampedDist >= lapLen) clampedDist = clampedDist - lapLen;
+              carB.trackDistance = clampedDist;
+              carB.setTrackPosition(track, carB.trackDistance, carB.x);
+
+              if (carB.speed > carA.speed) {
+                carB.speed = carA.speed;
+              }
+              if (carA.speed < 0.0) {
+                carA.speed = 0.0;
+              }
+            }
+          } else {
+            // Lateral / Side-by-Side collision:
+            // Separate cars along lateral track axis so they do not overlap.
+            let overlap = W_col - absDx;
+            let barLimsA = track.getBarrierLimits(carA.trackDistance);
+            let barLimsB = track.getBarrierLimits(carB.trackDistance);
+            let halfW = 1.30;
+            let minXA = -(barLimsA[0] - halfW);
+            let maxXA = barLimsA[1] - halfW;
+            let minXB = -(barLimsB[0] - halfW);
+            let maxXB = barLimsB[1] - halfW;
+
+            if (dx >= 0.0) {
+              // carA is on left, carB is on right
+              let shiftA = overlap * 0.5;
+              let shiftB = overlap * 0.5;
+
+              let roomA = carA.x - minXA;
+              let roomB = maxXB - carB.x;
+              if (roomA < shiftA and roomB >= shiftA) {
+                shiftB = shiftB + (shiftA - roomA);
+                shiftA = roomA;
+              } else if (roomB < shiftB and roomA >= shiftB) {
+                shiftA = shiftA + (shiftB - roomB);
+                shiftB = roomB;
+              }
+
+              carA.x = mu.clamp(carA.x - shiftA, minXA, maxXA);
+              carB.x = mu.clamp(carB.x + shiftB, minXB, maxXB);
+
+              if (carA.lateralVelocity > 0.0) carA.lateralVelocity = 0.0;
+              if (carB.lateralVelocity < 0.0) carB.lateralVelocity = 0.0;
+            } else {
+              // carB is on left, carA is on right
+              let shiftA = overlap * 0.5;
+              let shiftB = overlap * 0.5;
+
+              let roomB = carB.x - minXB;
+              let roomA = maxXA - carA.x;
+              if (roomB < shiftB and roomA >= shiftB) {
+                shiftA = shiftA + (shiftB - roomB);
+                shiftB = roomB;
+              } else if (roomA < shiftA and roomB >= shiftA) {
+                shiftB = shiftB + (shiftA - roomA);
+                shiftA = roomA;
+              }
+
+              carB.x = mu.clamp(carB.x - shiftB, minXB, maxXB);
+              carA.x = mu.clamp(carA.x + shiftA, minXA, maxXA);
+
+              if (carB.lateralVelocity > 0.0) carB.lateralVelocity = 0.0;
+              if (carA.lateralVelocity < 0.0) carA.lateralVelocity = 0.0;
+            }
+
+            carA.setTrackPosition(track, carA.trackDistance, carA.x);
+            carB.setTrackPosition(track, carB.trackDistance, carB.x);
+          }
+
+          if (carA.isPlayer or carB.isPlayer) {
+            let pCar = carA;
+            if (carB.isPlayer) pCar = carB;
+            if (pCar.impactCooldown <= 0.0) {
+              pCar.impactCooldown = 0.25;
+              if (cam != nil) cam.addShake(0.18);
+              if (particles != nil) particles.emitSparks(pCar.worldX, pCar.worldY + 0.35, pCar.worldZ, 8);
+              if (assets != nil) assets.playSfx(assets.sndCrash);
+            }
+          }
+        }
+      }
+    }
+  }
+}

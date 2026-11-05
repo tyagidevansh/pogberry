@@ -135,16 +135,21 @@ export class ChaseCamera {
     let followSpeed = 14.0;
     let targetFov = this.baseFov;
 
+    this.lookHill = mu.lerp(this.lookHill, this.targetLookHill, dt * 6.0);
+    this.lookCurve = mu.lerp(this.lookCurve, this.targetLookCurve, dt * 6.0);
+    let normX = -fwdZ;
+    let normZ = fwdX;
+
     if (this.pov == 0) {
       // 0. CLOSE CHASE (New Default Closer Camera!)
       let camDist = 5.4 + normSpd * 1.2;
       let lookDist = 20.0 + normSpd * 4.0;
       targetCamX = carX - fwdX * camDist;
-      targetCamY = carY + 2.05;
+      targetCamY = carY + 2.05 - this.lookHill * camDist * 0.4;
       targetCamZ = carZ - fwdZ * camDist;
-      targetLookX = carX + fwdX * lookDist;
-      targetLookY = carY + 1.1;
-      targetLookZ = carZ + fwdZ * lookDist;
+      targetLookX = carX + fwdX * lookDist + normX * this.lookCurve * 2.5;
+      targetLookY = carY + 1.1 + this.lookHill * lookDist * 0.85;
+      targetLookZ = carZ + fwdZ * lookDist + normZ * this.lookCurve * 2.5;
       followSpeed = 14.0;
       targetFov = 66.0 + normSpd * 6.0;
     } else if (this.pov == 1) {
@@ -152,31 +157,33 @@ export class ChaseCamera {
       let camDist = 8.5 + normSpd * 1.6;
       let lookDist = 28.0 + normSpd * 4.0;
       targetCamX = carX - fwdX * camDist;
-      targetCamY = carY + 3.4;
+      targetCamY = carY + 3.4 - this.lookHill * camDist * 0.4;
       targetCamZ = carZ - fwdZ * camDist;
-      targetLookX = carX + fwdX * lookDist;
-      targetLookY = carY + 1.2;
-      targetLookZ = carZ + fwdZ * lookDist;
+      targetLookX = carX + fwdX * lookDist + normX * this.lookCurve * 3.0;
+      targetLookY = carY + 1.2 + this.lookHill * lookDist * 0.85;
+      targetLookZ = carZ + fwdZ * lookDist + normZ * this.lookCurve * 3.0;
       followSpeed = 12.0;
       targetFov = 64.0 + normSpd * 5.0;
     } else if (this.pov == 2) {
       // 2. COCKPIT / DRIVER EYE (In cockpit behind steering wheel looking past nose)
+      let lookDist = 35.0;
       targetCamX = carX + fwdX * 0.25;
       targetCamY = carY + 0.98;
       targetCamZ = carZ + fwdZ * 0.25;
-      targetLookX = carX + fwdX * 35.0;
-      targetLookY = carY + 0.85;
-      targetLookZ = carZ + fwdZ * 35.0;
+      targetLookX = carX + fwdX * lookDist + normX * this.lookCurve * 2.0;
+      targetLookY = carY + 0.85 + this.lookHill * lookDist * 0.85;
+      targetLookZ = carZ + fwdZ * lookDist + normZ * this.lookCurve * 2.0;
       followSpeed = 30.0;
       targetFov = 72.0 + normSpd * 6.0;
     } else if (this.pov == 3) {
       // 3. HOOD / BUMPER CAM (Low tarmac high-speed rush)
+      let lookDist = 45.0;
       targetCamX = carX + fwdX * 2.3;
       targetCamY = carY + 0.52;
       targetCamZ = carZ + fwdZ * 2.3;
-      targetLookX = carX + fwdX * 45.0;
-      targetLookY = carY + 0.40;
-      targetLookZ = carZ + fwdZ * 45.0;
+      targetLookX = carX + fwdX * lookDist + normX * this.lookCurve * 2.0;
+      targetLookY = carY + 0.40 + this.lookHill * lookDist * 0.85;
+      targetLookZ = carZ + fwdZ * lookDist + normZ * this.lookCurve * 2.0;
       followSpeed = 36.0;
       targetFov = 76.0 + normSpd * 7.0;
     } else {
@@ -186,9 +193,9 @@ export class ChaseCamera {
       targetCamX = carX - fwdX * camDist;
       targetCamY = carY + 6.2;
       targetCamZ = carZ - fwdZ * camDist;
-      targetLookX = carX + fwdX * lookDist;
-      targetLookY = carY + 0.8;
-      targetLookZ = carZ + fwdZ * lookDist;
+      targetLookX = carX + fwdX * lookDist + normX * this.lookCurve * 2.0;
+      targetLookY = carY + 0.8 + this.lookHill * lookDist * 0.7;
+      targetLookZ = carZ + fwdZ * lookDist + normZ * this.lookCurve * 2.0;
       followSpeed = 8.0;
       targetFov = 58.0;
     }

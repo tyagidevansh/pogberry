@@ -45,34 +45,104 @@ export class Track {
 
   // ---------------------------------------------------------------------------
   // SMOOTH CLOSED-LOOP PERIODIC 3D ELEVATION PROFILE
+  // Authentic Formula 1 topography: steep climbs, rollercoasters, mountain crests
   // ---------------------------------------------------------------------------
   getElevationAt(s) {
     let lapLen = this.spec["length"];
-    if (this.trackId == 0) {
-      // Suzuka: S-Curves climb, Dunlop sweep, Spoon rollercoaster
-      let w1 = (6.2831853 * 7.0) / lapLen;
-      let base = (math.sin(s * w1) + math.sin(s * w1 * 2.0) * 0.5 + 1.5) * 1.8;
+    while (s < 0.0) s = s + lapLen;
+    while (s >= lapLen) s = s - lapLen;
 
-      // Suzuka Figure-8 Overpass Bridge (West Straight crossing cleanly over Degner underpass at s=7460)
-      let bridgeDist = s - 7460.0;
-      if (math.abs(bridgeDist) < 650.0) {
-        let u = bridgeDist / 650.0;
-        let cosBell = (1.0 + math.cos(u * 3.14159265)) * 0.5;
-        base = base + cosBell * 7.5;
+    if (this.trackId == 0) {
+      // Suzuka: S-Curves climb, Dunlop sweep, Degner cutting underpass, Spoon plateau, Overpass bridge
+      let w1 = 6.2831853 / lapLen;
+      let base = 6.0 + math.sin(s * w1) * 3.5 + math.cos(s * w1 * 2.0) * 1.5;
+
+      // Degner underpass cutting (dive down under bridge at s=3710)
+      let dDist = s - 3710.0;
+      if (math.abs(dDist) < 450.0) {
+        let u = dDist / 450.0;
+        let bell = (1.0 + math.cos(u * 3.14159265)) * 0.5;
+        base = base - bell * 5.0;
+      }
+
+      // West Straight Overpass Bridge (crossing high over the cutting at s=7460)
+      let bDist = s - 7460.0;
+      if (math.abs(bDist) < 650.0) {
+        let u = bDist / 650.0;
+        let bell = (1.0 + math.cos(u * 3.14159265)) * 0.5;
+        base = base + bell * 8.5;
       }
       return base;
+
     } else if (this.trackId == 1) {
-      // Monaco: Beau Rivage uphill, Casino crest, harbor sea-level drop
-      let w1 = (6.2831853 * 6.0) / lapLen;
-      return (math.sin(s * w1) + math.cos(s * w1 * 0.6) * 0.6 + 1.6) * 2.2;
+      // Monaco: Harbor sea-level (2.0m), Beau Rivage steep climb up to Casino Square (34m),
+      // plunging descent through Fairmont hairpin to Portier, flat through tunnel and quayside.
+      let base = 2.0;
+      if (s >= 460.0 and s <= 2150.0) {
+        if (s < 1250.0) {
+          // Beau Rivage uphill climb (s=460 to 1250): climb 2.0m -> 34.0m
+          let u = (s - 460.0) / (1250.0 - 460.0);
+          let smoothU = u * u * (3.0 - 2.0 * u);
+          base = 2.0 + smoothU * 32.0;
+        } else if (s <= 1450.0) {
+          // Casino Square crest (s=1250 to 1450): plateau at 34.0m
+          let u = (s - 1250.0) / 200.0;
+          base = 34.0 - math.sin(u * 3.14159265 * 0.5) * 1.5;
+        } else {
+          // Mirabeau & Fairmont descent (s=1450 to 2150): plunge 32.5m -> 2.0m
+          let u = (s - 1450.0) / (2150.0 - 1450.0);
+          let smoothU = u * u * (3.0 - 2.0 * u);
+          base = 32.5 - smoothU * 30.5;
+        }
+      }
+      return base;
+
     } else if (this.trackId == 2) {
-      // Spa-Francorchamps: Eau Rouge 17% steep climb, Pouhon & Blanchimont
-      let w1 = (6.2831853 * 7.0) / lapLen;
-      return (math.sin(s * w1) * 3.2 + math.cos(s * w1 * 2.0) * 1.6 + 4.8);
+      // Spa-Francorchamps: The legendary Ardennes Rollercoaster
+      // Start straight at 14m, drop into Eau Rouge brook (2.5m at s=720),
+      // STEEP Raidillon wall climb up to 38.5m at s=1260 (17% grade!),
+      // elevated Kemmel Straight (38-42m), descent into Bruxelles & Pouhon (12m),
+      // climb back to Stavelot (24m), descend through Blanchimont back to start (14m).
+      let base = 14.0;
+      if (s < 450.0) {
+        // Start straight to La Source
+        let u = s / 450.0;
+        base = 14.0 - (u * u * (3.0 - 2.0 * u)) * 2.0;
+      } else if (s < 720.0) {
+        // Descent into Eau Rouge brook compression
+        let u = (s - 450.0) / 270.0;
+        base = 12.0 - (u * u * (3.0 - 2.0 * u)) * 9.5; // reaches 2.5m
+      } else if (s < 1260.0) {
+        // Raidillon 17% steep hill climb! 2.5m -> 38.5m!
+        let u = (s - 720.0) / 540.0;
+        base = 2.5 + (u * u * (3.0 - 2.0 * u)) * 36.0; // climbs 36m over 540m
+      } else if (s < 3200.0) {
+        // Kemmel straight ridge
+        let u = (s - 1260.0) / (3200.0 - 1260.0);
+        base = 38.5 + math.sin(u * 3.14159265) * 3.0;
+      } else if (s < 4600.0) {
+        // Les Combes into Bruxelles hairpin descent
+        let u = (s - 3200.0) / (4600.0 - 3200.0);
+        base = 38.5 - (u * u * (3.0 - 2.0 * u)) * 16.5;
+      } else if (s < 6200.0) {
+        // Descent into Pouhon floor
+        let u = (s - 4600.0) / (6200.0 - 4600.0);
+        base = 22.0 - (u * u * (3.0 - 2.0 * u)) * 10.0;
+      } else if (s < 8000.0) {
+        // Stavelot climb
+        let u = (s - 6200.0) / (8000.0 - 6200.0);
+        base = 12.0 + (u * u * (3.0 - 2.0 * u)) * 12.0;
+      } else {
+        // Blanchimont into Bus Stop chicane and start straight
+        let u = (s - 8000.0) / (11200.0 - 8000.0);
+        base = 24.0 - (u * u * (3.0 - 2.0 * u)) * 10.0;
+      }
+      return base;
+
     } else {
-      // Monza: Royal parkland high-speed straight undulations
-      let w1 = (6.2831853 * 8.0) / lapLen;
-      return (math.sin(s * w1) + 1.2) * 1.5;
+      // Monza: Royal parkland subtle undulation
+      let w1 = (6.2831853 * 4.0) / lapLen;
+      return 3.0 + math.sin(s * w1) * 1.5;
     }
   }
 
@@ -100,7 +170,8 @@ export class Track {
     let pScale = 1.0; if (scale != nil) pScale = scale;
     let pRot = pAngle; if (rotOffset != nil) pRot = pAngle + rotOffset;
     rawProps.push({
-      "kind": kind, "x": px, "y": py, "z": pz,
+      "kind": kind, "s": sStation, "lat": lateralOffset,
+      "x": px, "y": py, "z": pz,
       "scale": pScale, "rot": pRot,
       "r": pr, "g": pg, "b": pb,
       "var": pVar, "radius": pRad, "val": val
@@ -586,9 +657,9 @@ export class Track {
       let st50 = this.stations[bSt50];
 
       let bDist = corridor + 1.2;
-      rawProps.push({ "kind": "brakeBoard", "val": 150, "x": st150["x"] - bDist * st150["nx"], "y": st150["y"], "z": st150["z"] - bDist * st150["nz"], "scale": 1.0, "rot": st150["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
-      rawProps.push({ "kind": "brakeBoard", "val": 100, "x": st100["x"] - bDist * st100["nx"], "y": st100["y"], "z": st100["z"] - bDist * st100["nz"], "scale": 1.0, "rot": st100["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
-      rawProps.push({ "kind": "brakeBoard", "val": 50, "x": st50["x"] - bDist * st50["nx"], "y": st50["y"], "z": st50["z"] - bDist * st50["nz"], "scale": 1.0, "rot": st50["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
+      rawProps.push({ "kind": "brakeBoard", "val": 150, "s": bzS - 150.0, "lat": -bDist, "x": st150["x"] - bDist * st150["nx"], "y": st150["y"], "z": st150["z"] - bDist * st150["nz"], "scale": 1.0, "rot": st150["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
+      rawProps.push({ "kind": "brakeBoard", "val": 100, "s": bzS - 100.0, "lat": -bDist, "x": st100["x"] - bDist * st100["nx"], "y": st100["y"], "z": st100["z"] - bDist * st100["nz"], "scale": 1.0, "rot": st100["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
+      rawProps.push({ "kind": "brakeBoard", "val": 50, "s": bzS - 50.0, "lat": -bDist, "x": st50["x"] - bDist * st50["nx"], "y": st50["y"], "z": st50["z"] - bDist * st50["nz"], "scale": 1.0, "rot": st50["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
     }
 
     // -------------------------------------------------------------------------
@@ -602,17 +673,25 @@ export class Track {
       let pz = pr["z"];
       let propR = pr["radius"];
       if (propR == nil) propR = 4.0;
+      let prS = pr["s"];
+      let hasS = (prS != nil);
 
-      let safeDist = corridor + propR + 3.0;
-      let safeDistSq = safeDist * safeDist;
+      let otherSafe = halfW + curbW + propR + 1.5;
+      let otherSafeSq = otherSafe * otherSafe;
       let fits = true;
 
-      // Check distance against every 2nd station centerline across the entire circuit
+      // Check distance against other track sections (ds >= 90m) across the circuit.
+      // Props are already placed safely outside the local corridor during addSceneryProp.
       for (let sIdx = 0; sIdx < numStations; sIdx += 2) {
         let st = this.stations[sIdx];
+        if (hasS) {
+          let ds = math.abs(st["s"] - prS);
+          if (ds > lapLen * 0.5) ds = lapLen - ds;
+          if (ds < 90.0) continue;
+        }
         let dx = px - st["x"];
         let dz = pz - st["z"];
-        if (dx * dx + dz * dz < safeDistSq) {
+        if (dx * dx + dz * dz < otherSafeSq) {
           fits = false;
           break;
         }
@@ -900,28 +979,166 @@ export class Track {
       let nx1 = st1["nx"]; let nz1 = st1["nz"];
       let nx2 = st2["nx"]; let nz2 = st2["nz"];
 
-      // A. Tarmac Surface + painted edge lines + rubbered-in racing grooves.
-      //    Everything is built from adjacent lateral strips so markings never
-      //    z-fight with the road or shimmer at distance.
+      // A. Tarmac Surface
       let hw = this.roadWidth * 0.5;
-      let edgeLine = 0.34;
-      let grooveIn = 2.55;
-      let grooveOut = 3.25;
-      let stripA = [-hw, -hw + edgeLine, -grooveOut, -grooveIn, grooveIn, grooveOut, hw - edgeLine, hw];
       let rdR = roadCol[0]; let rdG = roadCol[1]; let rdB = roadCol[2];
-      let grvR = math.floor(rdR * 0.74); let grvG = math.floor(rdG * 0.74); let grvB = math.floor(rdB * 0.74);
       let whiteR = 232; let whiteG = 234; let whiteB = 240;
-      for (let b = 0; b < 7; b += 1) {
-        let aOff = stripA[b];
-        let bOff = stripA[b + 1];
-        let bR = rdR; let bG = rdG; let bB = rdB;
-        if (b == 0 or b == 6) { bR = whiteR; bG = whiteG; bB = whiteB; }
-        else if (b == 2 or b == 4) { bR = grvR; bG = grvG; bB = grvB; }
-        gui.drawQuad3D(st1["x"] + aOff * nx1, y1, st1["z"] + aOff * nz1,
-                       st1["x"] + bOff * nx1, y1, st1["z"] + bOff * nz1,
-                       st2["x"] + bOff * nx2, y2, st2["z"] + bOff * nz2,
-                       st2["x"] + aOff * nx2, y2, st2["z"] + aOff * nz2,
-                       bR, bG, bB);
+
+      // Base solid tarmac road quad
+      gui.drawQuad3D(st1["rl_x"], y1, st1["rl_z"], st1["rr_x"], y1, st1["rr_z"],
+                     st2["rr_x"], y2, st2["rr_z"], st2["rl_x"], y2, st2["rl_z"],
+                     rdR, rdG, rdB);
+
+      // White painted edge lines (track boundary limits)
+      let edgeW = 0.34;
+      gui.drawQuad3D(st1["rl_x"], y1 + 0.004, st1["rl_z"],
+                     st1["rl_x"] + edgeW * nx1, y1 + 0.004, st1["rl_z"] + edgeW * nz1,
+                     st2["rl_x"] + edgeW * nx2, y2 + 0.004, st2["rl_z"] + edgeW * nz2,
+                     st2["rl_x"], y2 + 0.004, st2["rl_z"],
+                     whiteR, whiteG, whiteB);
+      gui.drawQuad3D(st1["rr_x"] - edgeW * nx1, y1 + 0.004, st1["rr_z"] - edgeW * nz1,
+                     st1["rr_x"], y1 + 0.004, st1["rr_z"],
+                     st2["rr_x"], y2 + 0.004, st2["rr_z"],
+                     st2["rr_x"] - edgeW * nx2, y2 + 0.004, st2["rr_z"] - edgeW * nz2,
+                     whiteR, whiteG, whiteB);
+
+      // Dynamic apex-tracking rubbered racing line
+      let apexShift1 = -st1["curv"] * 360.0;
+      if (apexShift1 < -hw * 0.54) apexShift1 = -hw * 0.54;
+      if (apexShift1 > hw * 0.54) apexShift1 = hw * 0.54;
+      let apexShift2 = -st2["curv"] * 360.0;
+      if (apexShift2 < -hw * 0.54) apexShift2 = -hw * 0.54;
+      if (apexShift2 > hw * 0.54) apexShift2 = hw * 0.54;
+
+      let rLineW = 1.35;
+      let rDark = 0.70;
+      if (math.abs(st1["curv"]) > 0.007) rDark = 0.54;
+      let grvR = math.floor(rdR * rDark);
+      let grvG = math.floor(rdG * rDark);
+      let grvB = math.floor(rdB * rDark);
+
+      gui.drawQuad3D(st1["x"] + (apexShift1 - rLineW) * nx1, y1 + 0.006, st1["z"] + (apexShift1 - rLineW) * nz1,
+                     st1["x"] + (apexShift1 + rLineW) * nx1, y1 + 0.006, st1["z"] + (apexShift1 + rLineW) * nz1,
+                     st2["x"] + (apexShift2 + rLineW) * nx2, y2 + 0.006, st2["z"] + (apexShift2 + rLineW) * nz2,
+                     st2["x"] + (apexShift2 - rLineW) * nx2, y2 + 0.006, st2["z"] + (apexShift2 - rLineW) * nz2,
+                     grvR, grvG, grvB);
+
+      // Heavy braking zone tire skid marks
+      let s1 = st1["s"];
+      let inBrakeZone = false;
+      if (this.trackId == 0 and ((s1 >= 440.0 and s1 <= 540.0) or (s1 >= 5530.0 and s1 <= 5640.0) or (s1 >= 8350.0 and s1 <= 8450.0))) inBrakeZone = true;
+      else if (this.trackId == 1 and ((s1 >= 270.0 and s1 <= 360.0) or (s1 >= 1560.0 and s1 <= 1650.0) or (s1 >= 2890.0 and s1 <= 2980.0) or (s1 >= 4760.0 and s1 <= 4850.0))) inBrakeZone = true;
+      else if (this.trackId == 2 and ((s1 >= 150.0 and s1 <= 240.0) or (s1 >= 3120.0 and s1 <= 3220.0) or (s1 >= 10020.0 and s1 <= 10120.0))) inBrakeZone = true;
+      else if (this.trackId == 3 and ((s1 >= 880.0 and s1 <= 980.0) or (s1 >= 2720.0 and s1 <= 2820.0) or (s1 >= 6140.0 and s1 <= 6240.0) or (s1 >= 8180.0 and s1 <= 8280.0))) inBrakeZone = true;
+
+      if (inBrakeZone) {
+        let skidW = 0.26;
+        let wheelSpacing = 0.78;
+        let skL1 = apexShift1 - wheelSpacing;
+        let skL2 = apexShift2 - wheelSpacing;
+        gui.drawQuad3D(st1["x"] + (skL1 - skidW * 0.5) * nx1, y1 + 0.009, st1["z"] + (skL1 - skidW * 0.5) * nz1,
+                       st1["x"] + (skL1 + skidW * 0.5) * nx1, y1 + 0.009, st1["z"] + (skL1 + skidW * 0.5) * nz1,
+                       st2["x"] + (skL2 + skidW * 0.5) * nx2, y2 + 0.009, st2["z"] + (skL2 + skidW * 0.5) * nz2,
+                       st2["x"] + (skL2 - skidW * 0.5) * nx2, y2 + 0.009, st2["z"] + (skL2 - skidW * 0.5) * nz2,
+                       18, 18, 22);
+        let skR1 = apexShift1 + wheelSpacing;
+        let skR2 = apexShift2 + wheelSpacing;
+        gui.drawQuad3D(st1["x"] + (skR1 - skidW * 0.5) * nx1, y1 + 0.009, st1["z"] + (skR1 - skidW * 0.5) * nz1,
+                       st1["x"] + (skR1 + skidW * 0.5) * nx1, y1 + 0.009, st1["z"] + (skR1 + skidW * 0.5) * nz1,
+                       st2["x"] + (skR2 + skidW * 0.5) * nx2, y2 + 0.009, st2["z"] + (skR2 + skidW * 0.5) * nz2,
+                       st2["x"] + (skR2 - skidW * 0.5) * nx2, y2 + 0.009, st2["z"] + (skR2 - skidW * 0.5) * nz2,
+                       18, 18, 22);
+      }
+
+      // Authentic Formula 1 Starting Grid Slots (20 staggered grid boxes)
+      let s2 = s1 + this.segmentLength;
+      if (s1 >= lapLen - 225.0 and s1 <= lapLen - 8.0) {
+        for (let k = 1; k <= 20; k += 1) {
+          let slotS = lapLen - (16.0 + (k - 1) * 10.5);
+          if (slotS >= s1 and slotS < s2) {
+            let u = (slotS - s1) / (s2 - s1);
+            let gx = st1["x"] + u * (st2["x"] - st1["x"]);
+            let gy = y1 + u * (y2 - y1) + 0.015;
+            let gz = st1["z"] + u * (st2["z"] - st1["z"]);
+            let gnx = nx1 + u * (nx2 - nx1);
+            let gnz = nz1 + u * (nz2 - nz1);
+            let gtx = st1["tx"] + u * (st2["tx"] - st1["tx"]);
+            let gtz = st1["tz"] + u * (st2["tz"] - st1["tz"]);
+            let mag = math.sqrt(gnx * gnx + gnz * gnz);
+            if (mag > 0.001) { gnx = gnx / mag; gnz = gnz / mag; }
+            let tmag = math.sqrt(gtx * gtx + gtz * gtz);
+            if (tmag > 0.001) { gtx = gtx / tmag; gtz = gtz / tmag; }
+
+            // Staggered grid: odd slots on left (-), even slots on right (+)
+            let slotLat = hw * 0.40;
+            if (k % 2 == 1) slotLat = -hw * 0.40;
+            let cx = gx + slotLat * gnx;
+            let cz = gz + slotLat * gnz;
+
+            let bW = 2.4;
+            let bL = 4.8;
+            let halfBW = bW * 0.5;
+            let halfBL = bL * 0.5;
+
+            // 1. Bright Yellow Stop Bar at front of slot
+            let fLx = cx - halfBW * gnx + halfBL * gtx;
+            let fLz = cz - halfBW * gnz + halfBL * gtz;
+            let fRx = cx + halfBW * gnx + halfBL * gtx;
+            let fRz = cz + halfBW * gnz + halfBL * gtz;
+            let barThick = 0.28;
+            let bLx = fLx - barThick * gtx; let bLz = fLz - barThick * gtz;
+            let bRx = fRx - barThick * gtx; let bRz = fRz - barThick * gtz;
+            gui.drawQuad3D(fLx, gy, fLz, fRx, gy, fRz, bRx, gy, bRz, bLx, gy, bLz, 255, 215, 20);
+
+            // 2. White Side Lines (Left and Right brackets)
+            let rLx = cx - halfBW * gnx - halfBL * gtx;
+            let rLz = cz - halfBW * gnz - halfBL * gtz;
+            let rRx = cx + halfBW * gnx - halfBL * gtx;
+            let rRz = cz + halfBW * gnz - halfBL * gtz;
+            let lThick = 0.14;
+            gui.drawQuad3D(fLx, gy, fLz, fLx + lThick * gnx, gy, fLz + lThick * gnz,
+                           rLx + lThick * gnx, gy, rLz + lThick * gnz, rLx, gy, rLz,
+                           240, 242, 248);
+            gui.drawQuad3D(fRx - lThick * gnx, gy, fRz - lThick * gnz, fRx, gy, fRz,
+                           rRx, gy, rRz, rRx - lThick * gnx, gy, rRz - lThick * gnz,
+                           240, 242, 248);
+            // Rear line
+            gui.drawQuad3D(rLx, gy, rLz, rRx, gy, rRz,
+                           rRx + barThick * 0.6 * gtx, gy, rRz + barThick * 0.6 * gtz,
+                           rLx + barThick * 0.6 * gtx, gy, rLz + barThick * 0.6 * gtz,
+                           240, 242, 248);
+
+            // 3. Center Position Marker
+            gui.drawQuad3D(cx - 0.20 * gnx - 0.6 * gtx, gy, cz - 0.20 * gnz - 0.6 * gtz,
+                           cx + 0.20 * gnx - 0.6 * gtx, gy, cz + 0.20 * gnz - 0.6 * gtz,
+                           cx + 0.20 * gnx + 0.6 * gtx, gy, cz + 0.20 * gnz + 0.6 * gtz,
+                           cx - 0.20 * gnx + 0.6 * gtx, gy, cz - 0.20 * gnz + 0.6 * gtz,
+                           245, 245, 252);
+          }
+        }
+      }
+
+      // Pit Lane Dividing Blend Line (Pit Straight)
+      if (s1 >= lapLen - 260.0 or s1 <= 240.0) {
+        let pLineOff = hw - 0.65;
+        let pLineW = 0.22;
+        let pl_x1 = st1["x"] + pLineOff * nx1; let pl_z1 = st1["z"] + pLineOff * nz1;
+        let pr_x1 = pl_x1 + pLineW * nx1;      let pr_z1 = pl_z1 + pLineW * nz1;
+        let pl_x2 = st2["x"] + pLineOff * nx2; let pl_z2 = st2["z"] + pLineOff * nz2;
+        let pr_x2 = pl_x2 + pLineW * nx2;      let pr_z2 = pl_z2 + pLineW * nz2;
+        gui.drawQuad3D(pl_x1, y1 + 0.012, pl_z1, pr_x1, y1 + 0.012, pr_z1,
+                       pr_x2, y2 + 0.012, pr_z2, pl_x2, y2 + 0.012, pl_z2,
+                       245, 245, 252);
+
+        // Chevron hazard lines in pit blend merge zone
+        if (i % 2 == 0 and ((s1 >= lapLen - 260.0 and s1 <= lapLen - 190.0) or (s1 >= 140.0 and s1 <= 230.0))) {
+          let chX1 = pl_x1; let chZ1 = pl_z1;
+          let chX2 = pl_x1 + 1.6 * nx1 - 1.2 * st1["tx"];
+          let chZ2 = pl_z1 + 1.6 * nz1 - 1.2 * st1["tz"];
+          gui.drawQuad3D(chX1, y1 + 0.014, chZ1, chX1 + 0.18 * nx1, y1 + 0.014, chZ1 + 0.18 * nz1,
+                         chX2 + 0.18 * nx1, y1 + 0.014, chZ2 + 0.18 * nz1, chX2, y1 + 0.014, chZ2,
+                         255, 215, 25);
+        }
       }
 
       // A2. Checkered start / finish band across the road.
@@ -933,21 +1150,44 @@ export class Track {
           let bOff = aOff + tileW;
           let qR = 20; let qG = 22; let qB = 28;
           if (q % 2 == 0) { qR = 235; qG = 236; qB = 242; }
-          gui.drawQuad3D(st1["x"] + aOff * nx1, y1 + 0.012, st1["z"] + aOff * nz1,
-                         st1["x"] + bOff * nx1, y1 + 0.012, st1["z"] + bOff * nz1,
-                         st2["x"] + bOff * nx2, y2 + 0.012, st2["z"] + bOff * nz2,
-                         st2["x"] + aOff * nx2, y2 + 0.012, st2["z"] + aOff * nz2,
+          gui.drawQuad3D(st1["x"] + aOff * nx1, y1 + 0.016, st1["z"] + aOff * nz1,
+                         st1["x"] + bOff * nx1, y1 + 0.016, st1["z"] + bOff * nz1,
+                         st2["x"] + bOff * nx2, y2 + 0.016, st2["z"] + bOff * nz2,
+                         st2["x"] + aOff * nx2, y2 + 0.016, st2["z"] + aOff * nz2,
                          qR, qG, qB);
         }
       }
 
-      // D. Rumble Curbs. Vibrant alternating blocks through the corners,
-      //    calm concrete edging along the straights.
+      // D. National Formula 1 Rumble Curbs
       let isCornerCurb = (math.abs(st1["curv"]) > 0.0055 or math.abs(st2["curv"]) > 0.0055);
       let cR = 196; let cG = 198; let cB = 206;
       if (isCornerCurb) {
-        if (i % 2 == 0) { cR = curbCol[0]; cG = curbCol[1]; cB = curbCol[2]; }
-        else { cR = 238; cG = 238; cB = 244; }
+        if (this.trackId == 3) {
+          // Monza: Italian Tricolore (Green, White, Red)
+          let mMod = i % 3;
+          if (mMod == 0) { cR = 25; cG = 145; cB = 60; }
+          else if (mMod == 1) { cR = 242; cG = 244; cB = 248; }
+          else { cR = 220; cG = 32; cB = 38; }
+        } else if (this.trackId == 2) {
+          // Spa-Francorchamps: Belgian Tricolore (Black, Yellow, Red)
+          let sMod = i % 3;
+          if (sMod == 0) { cR = 25; cG = 25; cB = 28; }
+          else if (sMod == 1) { cR = 248; cG = 212; cB = 24; }
+          else { cR = 220; cG = 32; cB = 38; }
+        } else if (this.trackId == 1) {
+          // Monaco: Swimming Pool chicane aprons (Yellow & Cyan), red/white elsewhere
+          if (s1 >= 3950.0 and s1 <= 4550.0) {
+            if (i % 2 == 0) { cR = 25; cG = 140; cB = 220; }
+            else { cR = 248; cG = 212; cB = 24; }
+          } else {
+            if (i % 2 == 0) { cR = 225; cG = 35; cB = 40; }
+            else { cR = 242; cG = 244; cB = 248; }
+          }
+        } else {
+          // Suzuka: Red and White
+          if (i % 2 == 0) { cR = 225; cG = 35; cB = 40; }
+          else { cR = 242; cG = 244; cB = 248; }
+        }
       }
       gui.drawQuad3D(st1["cl_x"], y1 + 0.045, st1["cl_z"], st1["rl_x"], y1 + 0.045, st1["rl_z"],
                      st2["rl_x"], y2 + 0.045, st2["rl_z"], st2["cl_x"], y2 + 0.045, st2["cl_z"],
@@ -955,6 +1195,22 @@ export class Track {
       gui.drawQuad3D(st1["rr_x"], y1 + 0.045, st1["rr_z"], st1["cr_x"], y1 + 0.045, st1["cr_z"],
                      st2["cr_x"], y2 + 0.045, st2["cr_z"], st2["rr_x"], y2 + 0.045, st2["rr_z"],
                      cR, cG, cB);
+
+      // Suzuka Outer Astroturf Apron along corner curbs
+      if (this.trackId == 0 and isCornerCurb) {
+        let astroW = 1.35;
+        let astColR = 26; let astColG = 120; let astColB = 45;
+        gui.drawQuad3D(st1["cl_x"] - astroW * nx1, y1 + 0.040, st1["cl_z"] - astroW * nz1,
+                       st1["cl_x"], y1 + 0.040, st1["cl_z"],
+                       st2["cl_x"], y2 + 0.040, st2["cl_z"],
+                       st2["cl_x"] - astroW * nx2, y2 + 0.040, st2["cl_z"] - astroW * nz2,
+                       astColR, astColG, astColB);
+        gui.drawQuad3D(st1["cr_x"], y1 + 0.040, st1["cr_z"],
+                       st1["cr_x"] + astroW * nx1, y1 + 0.040, st1["cr_z"] + astroW * nz1,
+                       st2["cr_x"] + astroW * nx2, y2 + 0.040, st2["cr_z"] + astroW * nz2,
+                       st2["cr_x"], y2 + 0.040, st2["cr_z"],
+                       astColR, astColG, astColB);
+      }
 
       // E. Runoff: gravel on corners, green grass on open straights, blue high-friction bands at speed corners.
       let isHighCurv = (math.abs(st1["curv"]) > 0.012 and math.abs(st2["curv"]) > 0.010);
@@ -988,87 +1244,153 @@ export class Track {
       let isMonzaOverpass = (this.trackId == 3 and sMid >= 4880.0 and sMid <= 4960.0);
 
       if (isSuzukaBridge) {
-        // A. Concrete deck fascia along both edges of the elevated section.
-        let deckD = 1.55;
+        // A. Reinforced concrete deck fascia along both elevated edges
+        let deckD = 1.65;
         gui.drawQuad3D(st1["ol_x"], y1, st1["ol_z"], st1["ol_x"], y1 - deckD, st1["ol_z"],
                        st2["ol_x"], y2 - deckD, st2["ol_z"], st2["ol_x"], y2, st2["ol_z"],
-                       52, 58, 70);
+                       56, 62, 74);
         gui.drawQuad3D(st1["or_x"], y1, st1["or_z"], st2["or_x"], y2, st2["or_z"],
                        st2["or_x"], y2 - deckD, st2["or_z"], st1["or_x"], y1 - deckD, st1["or_z"],
-                       52, 58, 70);
+                       56, 62, 74);
 
-        // B. Structural underside, visible from the underpass beneath.
+        // B. Structural steel underside visible from the underpass cutting
         gui.drawQuad3D(st1["ol_x"], y1 - deckD, st1["ol_z"], st1["or_x"], y1 - deckD, st1["or_z"],
                        st2["or_x"], y2 - deckD, st2["or_z"], st2["ol_x"], y2 - deckD, st2["ol_z"],
-                       40, 45, 54);
+                       42, 46, 56);
 
-        // C. End caps so the deck reads as a solid structure at both approaches.
+        // C. Catch-fence safety mesh upright posts along the bridge
+        if (i % 2 == 0) {
+          gui.drawCylinder3D(st1["ol_x"], y1 + 2.3, st1["ol_z"], 0.08, 0.08, 2.3, 4, 185, 190, 200);
+          gui.drawCylinder3D(st1["or_x"], y1 + 2.3, st1["or_z"], 0.08, 0.08, 2.3, 4, 185, 190, 200);
+        }
+
+        // D. Solid abutment end caps at bridge approaches
         if (sMid < 7296.0 or sMid > 7638.0) {
           gui.drawQuad3D(st1["ol_x"], y1, st1["ol_z"], st1["or_x"], y1, st1["or_z"],
                          st1["or_x"], y1 - deckD, st1["or_z"], st1["ol_x"], y1 - deckD, st1["ol_z"],
-                         46, 51, 62);
+                         48, 54, 65);
         }
 
-        // D. Twin portal piers, deliberately clear of the road passing underneath.
+        // E. Twin massive portal piers straddling the lower track
         if (i == 1227 or i == 1259) {
           let pierH = y1;
-          gui.drawCube3D(st1["ol_x"], pierH * 0.5, st1["ol_z"], 3.0, pierH, 4.4, 58, 64, 76);
-          gui.drawCube3D(st1["or_x"], pierH * 0.5, st1["or_z"], 3.0, pierH, 4.4, 58, 64, 76);
-          gui.drawCube3D(st1["ol_x"], pierH - 0.25, st1["ol_z"], 3.6, 0.5, 5.0, 48, 54, 66);
-          gui.drawCube3D(st1["or_x"], pierH - 0.25, st1["or_z"], 3.6, 0.5, 5.0, 48, 54, 66);
+          gui.drawCube3D(st1["ol_x"], pierH * 0.5, st1["ol_z"], 3.2, pierH, 4.8, 62, 68, 80);
+          gui.drawCube3D(st1["or_x"], pierH * 0.5, st1["or_z"], 3.2, pierH, 4.8, 62, 68, 80);
+          gui.drawCube3D(st1["ol_x"], pierH - 0.25, st1["ol_z"], 3.8, 0.5, 5.2, 52, 58, 70);
+          gui.drawCube3D(st1["or_x"], pierH - 0.25, st1["or_z"], 3.8, 0.5, 5.2, 52, 58, 70);
         }
       } else if (isSuzukaUnderpass) {
-        // Retaining walls lining the cutting as it dives under the overpass.
+        // Cutting retaining walls diving beneath the bridge
         let retH = 2.8;
         gui.drawQuad3D(st1["ol_x"], y1, st1["ol_z"], st1["ol_x"], y1 + retH, st1["ol_z"],
                        st2["ol_x"], y2 + retH, st2["ol_z"], st2["ol_x"], y2, st2["ol_z"],
-                       50, 56, 68);
+                       52, 58, 70);
         gui.drawQuad3D(st1["or_x"], y1, st1["or_z"], st1["or_x"], y1 + retH, st1["or_z"],
                        st2["or_x"], y2 + retH, st2["or_z"], st2["or_x"], y2, st2["or_z"],
-                       50, 56, 68);
+                       52, 58, 70);
       } else if (isMonacoTunnel) {
-        // Formula 1 Monaco Tunnel: Concrete roof, curved retaining wall, seaside portico columns
-        let tunH = 4.8;
+        // Formula 1 Monaco Tunnel Realism
+        let tunH = 5.2;
+
+        // 1. Vaulted Concrete Ceiling
         gui.drawQuad3D(st1["ol_x"], y1 + tunH, st1["ol_z"], st1["or_x"], y1 + tunH, st1["or_z"],
                        st2["or_x"], y2 + tunH, st2["or_z"], st2["ol_x"], y2 + tunH, st2["ol_z"],
-                       56, 60, 68);
+                       45, 48, 56);
+
+        // 2. Continuous Overhead Warm Fluorescent Tubes (Dual Rows)
+        let tubeL_x1 = st1["x"] - hw * 0.45 * nx1; let tubeL_z1 = st1["z"] - hw * 0.45 * nz1;
+        let tubeL_x2 = st2["x"] - hw * 0.45 * nx2; let tubeL_z2 = st2["z"] - hw * 0.45 * nz2;
+        let tubeR_x1 = st1["x"] + hw * 0.45 * nx1; let tubeR_z1 = st1["z"] + hw * 0.45 * nz1;
+        let tubeR_x2 = st2["x"] + hw * 0.45 * nx2; let tubeR_z2 = st2["z"] + hw * 0.45 * nz2;
+        let tw = 0.22;
+        gui.drawQuad3D(tubeL_x1 - tw * nx1, y1 + tunH - 0.08, tubeL_z1 - tw * nz1,
+                       tubeL_x1 + tw * nx1, y1 + tunH - 0.08, tubeL_z1 + tw * nz1,
+                       tubeL_x2 + tw * nx2, y2 + tunH - 0.08, tubeL_z2 + tw * nz2,
+                       tubeL_x2 - tw * nx2, y2 + tunH - 0.08, tubeL_z2 - tw * nz2,
+                       255, 215, 90);
+        gui.drawQuad3D(tubeR_x1 - tw * nx1, y1 + tunH - 0.08, tubeR_z1 - tw * nz1,
+                       tubeR_x1 + tw * nx1, y1 + tunH - 0.08, tubeR_z1 + tw * nz1,
+                       tubeR_x2 + tw * nx2, y2 + tunH - 0.08, tubeR_z2 + tw * nz2,
+                       tubeR_x2 - tw * nx2, y2 + tunH - 0.08, tubeR_z2 - tw * nz2,
+                       255, 215, 90);
+
+        // 3. Mountain-side Wall (Left): Acoustic ceramic tile bands
+        let tileR = 195;
+        let tileG = 200;
+        let tileB = 210;
+        if (i % 2 == 0) {
+          tileR = 175;
+          tileG = 180;
+          tileB = 190;
+        }
         gui.drawQuad3D(st1["ol_x"], y1, st1["ol_z"], st1["ol_x"], y1 + tunH, st1["ol_z"],
                        st2["ol_x"], y2 + tunH, st2["ol_z"], st2["ol_x"], y2, st2["ol_z"],
-                       48, 52, 60);
-        if (i % 3 == 0) {
-          gui.drawCube3D(st1["or_x"], y1 + tunH * 0.5, st1["or_z"], 1.8, tunH, 1.8, 65, 70, 80);
+                       tileR, tileG, tileB);
+
+        // Emergency Alcoves (every 6 stations)
+        if (i % 6 == 0) {
+          gui.drawCube3D(st1["ol_x"] - 0.4 * nx1, y1 + 1.8, st1["ol_z"] - 0.4 * nz1, 0.4, 1.4, 1.2, 220, 30, 35);
+          gui.drawCube3D(st1["ol_x"] - 0.4 * nx1, y1 + 2.8, st1["ol_z"] - 0.4 * nz1, 0.3, 0.5, 0.8, 30, 195, 75);
         }
+
+        // 4. Seaside Portico Colonnade (Right): Massive concrete pillars open to harbor & yachts
         if (i % 2 == 0) {
-          gui.drawCube3D(st1["x"], y1 + tunH - 0.15, st1["z"], 0.6, 0.25, 4.0, 255, 185, 45);
+          gui.drawCube3D(st1["or_x"], y1 + tunH * 0.5, st1["or_z"], 1.6, tunH, 2.2, 72, 78, 88);
+        }
+        // Top lintel beam connecting pillars
+        gui.drawQuad3D(st1["or_x"], y1 + tunH, st1["or_z"], st1["or_x"], y1 + tunH - 0.8, st1["or_z"],
+                       st2["or_x"], y2 + tunH - 0.8, st2["or_z"], st2["or_x"], y2 + tunH, st2["or_z"],
+                       60, 65, 75);
+
+        // 5. Reflective Cat's-Eye Centerline Studs
+        gui.drawSphere3D(st1["x"], y1 + 0.05, st1["z"], 0.12, 255, 225, 110);
+
+        // 6. Tunnel Portals at Entry and Exit
+        if (sMid >= 2220.0 and sMid <= 2232.0) {
+          // Entry Portal Arch
+          gui.drawCube3D(st1["x"], y1 + tunH + 0.9, st1["z"], this.roadWidth + 7.0, 1.8, 2.2, 65, 70, 82);
+          gui.drawCube3D(st1["x"], y1 + tunH + 0.9, st1["z"] - 0.15 * st1["tz"], this.roadWidth * 0.65, 0.8, 0.2, 245, 210, 25);
+        } else if (sMid >= 2848.0 and sMid <= 2860.0) {
+          // Exit Portal Arch
+          gui.drawCube3D(st1["x"], y1 + tunH + 0.9, st1["z"], this.roadWidth + 7.0, 1.8, 2.2, 65, 70, 82);
         }
       } else {
-        // Natural sloped banks, clipped by the clearance pass so they can
-        // never spill across another part of the circuit.
+        // Natural sloped banks with two-tone mowed lawn stripes
+        let grassPattern = (math.floor(i / 4)) % 2;
+        let gR = math.floor(grassCol[0] * 1.25 + 6);
+        let gG = math.floor(grassCol[1] * 1.28 + 12);
+        let gB = math.floor(grassCol[2] * 1.22 + 5);
+        if (grassPattern == 0) {
+          gR = grassCol[0];
+          gG = grassCol[1];
+          gB = grassCol[2];
+        }
+
         if (st1["embOkL"] and st2["embOkL"]) {
           gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"],
                          st1["el_x"], -0.2, st1["el_z"],
                          st2["el_x"], -0.2, st2["el_z"],
                          st2["ol_x"], y2 - 0.02, st2["ol_z"],
-                         grassCol[0], grassCol[1], grassCol[2]);
+                         gR, gG, gB);
         } else if (y1 > 0.30 or y2 > 0.30) {
           gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"],
                          st1["ol_x"], -0.2, st1["ol_z"],
                          st2["ol_x"], -0.2, st2["ol_z"],
                          st2["ol_x"], y2 - 0.02, st2["ol_z"],
-                         grassCol[0], grassCol[1], grassCol[2]);
+                         gR, gG, gB);
         }
         if (st1["embOkR"] and st2["embOkR"]) {
           gui.drawQuad3D(st1["or_x"], y1 - 0.02, st1["or_z"],
                          st2["or_x"], y2 - 0.02, st2["or_z"],
                          st2["er_x"], -0.2, st2["er_z"],
                          st1["er_x"], -0.2, st1["er_z"],
-                         grassCol[0], grassCol[1], grassCol[2]);
+                         gR, gG, gB);
         } else if (y1 > 0.30 or y2 > 0.30) {
           gui.drawQuad3D(st1["or_x"], y1 - 0.02, st1["or_z"],
                          st1["or_x"], -0.2, st1["or_z"],
                          st2["or_x"], -0.2, st2["or_z"],
                          st2["or_x"], y2 - 0.02, st2["or_z"],
-                         grassCol[0], grassCol[1], grassCol[2]);
+                         gR, gG, gB);
         }
       }
 
@@ -1207,20 +1529,77 @@ export class Track {
 
       // G. Start / Finish Line Checkered Gantry Arch & 5 F1 Starting Lights at Station 0
       if (i == 0) {
-        let archH = 8.5;
-        gui.drawCube3D(st1["ol_x"], y1 + archH * 0.5, st1["ol_z"], 1.4, archH, 1.4, 35, 45, 65);
-        gui.drawCube3D(st1["or_x"], y1 + archH * 0.5, st1["or_z"], 1.4, archH, 1.4, 35, 45, 65);
-        gui.drawCube3D(st1["x"], y1 + archH, st1["z"], this.roadWidth + 4.0, 1.4, 1.8, 45, 55, 75);
-        gui.drawCube3D(st1["x"], y1 + archH + 1.0, st1["z"], this.roadWidth * 0.5, 0.8, 0.3, 225, 35, 45);
+        let archH = 9.0;
+        // Heavy steel portal towers
+        gui.drawCube3D(st1["ol_x"], y1 + archH * 0.5, st1["ol_z"], 1.6, archH, 1.8, 35, 45, 65);
+        gui.drawCube3D(st1["or_x"], y1 + archH * 0.5, st1["or_z"], 1.6, archH, 1.8, 35, 45, 65);
+        // Main overhead gantry beam spanning the track
+        gui.drawCube3D(st1["x"], y1 + archH, st1["z"], this.roadWidth + 4.5, 1.6, 2.0, 45, 55, 75);
+        // Circuit Name & FIA Sponsor Plaque
+        gui.drawCube3D(st1["x"], y1 + archH + 1.1, st1["z"], this.roadWidth * 0.65, 0.8, 0.35, 225, 35, 45);
+        // Central Digital Timing LED display
+        gui.drawCube3D(st1["x"], y1 + archH - 0.7, st1["z"] - 0.2 * nz1, 3.2, 0.75, 0.25, 15, 18, 25);
+        gui.drawCube3D(st1["x"], y1 + archH - 0.7, st1["z"] - 0.25 * nz1, 2.8, 0.5, 0.1, 255, 190, 40);
 
         // 5 Official Formula 1 Starting Lights
-        let lightSpacing = 2.4;
+        let lightSpacing = 2.2;
         for (let lt = -2; lt <= 2; lt += 1) {
           let lxPos = st1["x"] + lt * lightSpacing * nx1;
           let lzPos = st1["z"] + lt * lightSpacing * nz1;
-          gui.drawCube3D(lxPos, y1 + archH - 1.2, lzPos, 0.6, 1.2, 0.3, 15, 18, 25);
-          gui.drawSphere3D(lxPos, y1 + archH - 1.4, lzPos, 0.28, 255, 30, 35);
+          gui.drawCube3D(lxPos, y1 + archH - 1.5, lzPos, 0.65, 1.3, 0.35, 15, 18, 25);
+          gui.drawSphere3D(lxPos, y1 + archH - 1.7, lzPos, 0.30, 255, 30, 35);
         }
+      }
+
+      // H. Signature Formula 1 Overhead Sponsor Bridges
+      let isBridge = false;
+      let brH = 8.5;
+      let brR = 45; let brG = 55; let brB = 75;
+      let banR = 245; let banG = 210; let banB = 25;
+
+      if (this.trackId == 0 and i == 346) {
+        // Suzuka: Iconic Dunlop Bridge (after S-Curves)
+        isBridge = true;
+        brR = 245; brG = 210; brB = 25; // Dunlop Yellow
+        banR = 20; banG = 20; banB = 25; // Black sponsor strip
+      } else if (this.trackId == 2 and i == 210) {
+        // Spa: Rolex Raidillon Crest Bridge
+        isBridge = true;
+        brR = 12; brG = 75; brB = 42; // Rolex Green
+        banR = 235; banG = 195; banB = 30; // Gold Rolex Band
+      } else if (this.trackId == 2 and i == 392) {
+        // Spa: Kemmel Straight Aramco Bridge
+        isBridge = true;
+        brR = 0; brG = 165; brB = 215; // Aramco Cyan
+        banR = 245; banG = 245; banB = 250;
+      } else if (this.trackId == 3 and i == 163) {
+        // Monza: Pirelli Overhead Bridge (Rettifilo Chicane Approach)
+        isBridge = true;
+        brR = 245; brG = 210; brB = 25; // Pirelli Yellow
+        banR = 220; banG = 35; banB = 40; // Red Stripe
+      } else if (this.trackId == 3 and i == 1375) {
+        // Monza: Campari Bridge before Parabolica
+        isBridge = true;
+        brR = 215; brG = 30; brB = 40;
+        banR = 245; banG = 245; banB = 250;
+      } else if (this.trackId == 1 and i == 516) {
+        // Monaco: Emirates Quayside Bridge (after Nouvelle Chicane)
+        isBridge = true;
+        brR = 225; brG = 35; brB = 40; // Emirates Red
+        banR = 245; banG = 245; banB = 250;
+      } else if (this.trackId == 1 and i == 853) {
+        // Monaco: Rascasse VIP Hospitality Skyway Bridge
+        isBridge = true;
+        brR = 50; brG = 55; brB = 68;
+        banR = 40; banG = 180; banB = 230;
+      }
+
+      if (isBridge) {
+        gui.drawCube3D(st1["ol_x"], y1 + brH * 0.5, st1["ol_z"], 1.6, brH, 1.8, 55, 62, 75);
+        gui.drawCube3D(st1["or_x"], y1 + brH * 0.5, st1["or_z"], 1.6, brH, 1.8, 55, 62, 75);
+        gui.drawCube3D(st1["x"], y1 + brH, st1["z"], this.roadWidth + 5.0, 1.8, 2.4, brR, brG, brB);
+        gui.drawCube3D(st1["x"], y1 + brH, st1["z"] - 0.15 * st1["tz"], this.roadWidth * 0.70, 1.0, 0.25, banR, banG, banB);
+        gui.drawCube3D(st1["x"], y1 + brH + 1.2, st1["z"], this.roadWidth + 4.8, 0.4, 2.2, 180, 185, 195);
       }
     }
 
