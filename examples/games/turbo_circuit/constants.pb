@@ -19,20 +19,22 @@ export let STATE_TIMEOUT = 8;
 
 // Game Modes
 export let MODE_GRAND_PRIX = 0;
-export let MODE_OUTRUN = 1;
-export let MODE_TIME_ATTACK = 2;
+export let MODE_TIME_ATTACK = 1;
+export let MODE_OUTRUN = -1;
 
 // AI Difficulty Levels
-export let AI_DIFF_ROOKIE = 0;   // Easy (relaxed pace, gentle cornering, no nitro)
-export let AI_DIFF_AMATEUR = 1;  // Medium (balanced pace, cautious braking, moderate nitro)
-export let AI_DIFF_PRO = 2;      // Hard / Max (full throttle, late trail braking, aggressive nitro)
+export let AI_DIFF_ROOKIE = 0;   // Easy (relaxed pace, gentle cornering)
+export let AI_DIFF_AMATEUR = 1;  // Legacy alias for Medium
+export let AI_DIFF_PRO = 1;      // Medium (former top tier: 85% pace, trail-braking)
+export let AI_DIFF_CHAMPION = 2; // Hard / Legend (100% full throttle, late braking, full nitro)
 export let TOTAL_AI_DIFFS = 3;
 
 // Vehicle IDs
-export let CAR_PHANTOM = 0;   // Formula futuristic interceptor (high top speed, fast nitro)
-export let CAR_VALKYRIE = 1;  // Heavy armored SUV (massive ramming hull, bulldozer)
-export let CAR_SHINOBI = 2;   // Tuner sports drift coupe (nimble, drift nitro bonus)
-export let CAR_VANTA = 3;     // Police cruiser interceptor (balanced pursuit machine)
+export let CAR_PHANTOM = 0;   // Scuderia Ferrari SF-24
+export let CAR_VALKYRIE = 1;  // Red Bull Racing RB-20
+export let CAR_SHINOBI = 2;   // Mercedes-AMG Silver Arrow W15
+export let CAR_VANTA = 3;     // McLaren Papaya Speed MCL38
+export let CAR_BRITISH = 4;   // Aston Martin British Racing AMR24
 export let TOTAL_CARS = 4;
 
 // Official FIA Formula 1 Track IDs
@@ -50,8 +52,9 @@ export let TOTAL_TRACKS = 4;
 export fun getCarSpec(id) {
   if (id == 0) {
     return {
-      "name": "PHANTOM GT",
-      "subtitle": "Quantum Formula Prototype",
+      "name": "SCUDERIA SF-24",
+      "subtitle": "Maranello V6 Turbo-Hybrid",
+      "team": "SCUDERIA FERRARI",
       "topSpeed": 168.0,
       "boostSpeed": 232.0,
       "accel": 38.0,
@@ -61,35 +64,37 @@ export fun getCarSpec(id) {
       "nitroCapacity": 100.0,
       "nitroBurn": 26.0,
       "nitroRegen": 12.0,
-      "model": "race-future.obj",
+      "model": "car_ferrari.obj",
       "scale": 1.45,
-      "primaryColor": [0, 240, 255],     // Cyan
-      "glowColor": [255, 60, 180]         // Neon Pink
+      "primaryColor": [235, 25, 35],     // Ferrari Red
+      "glowColor": [255, 215, 20]         // Modena Yellow
     };
   }
   if (id == 1) {
     return {
-      "name": "VALKYRIE BRAWLER",
-      "subtitle": "Armored Heavy Ram-Truck",
-      "topSpeed": 148.0,
-      "boostSpeed": 206.0,
-      "accel": 32.0,
-      "handling": 36.0,
-      "driftRate": 1.6,
+      "name": "APEX BULL RB-20",
+      "subtitle": "Milton Keynes High-Downforce",
+      "team": "RED BULL RACING",
+      "topSpeed": 150.0,
+      "boostSpeed": 210.0,
+      "accel": 34.0,
+      "handling": 40.0,
+      "driftRate": 1.8,
       "maxHull": 100.0,
       "nitroCapacity": 90.0,
       "nitroBurn": 22.0,
       "nitroRegen": 14.0,
-      "model": "suv-luxury.obj",
-      "scale": 1.50,
-      "primaryColor": [255, 60, 60],     // Crimson
-      "glowColor": [255, 180, 0]          // Amber
+      "model": "car_redbull.obj",
+      "scale": 1.45,
+      "primaryColor": [18, 32, 85],      // Midnight Matte Navy
+      "glowColor": [255, 215, 30]         // Gold
     };
   }
   if (id == 2) {
     return {
-      "name": "SHINOBI DRIFT",
-      "subtitle": "Twin-Turbo Street Meister",
+      "name": "SILVER ARROW W15",
+      "subtitle": "Brackley Dual-Axis Aero",
+      "team": "MERCEDES-AMG PETRONAS",
       "topSpeed": 160.0,
       "boostSpeed": 224.0,
       "accel": 42.0,
@@ -99,28 +104,49 @@ export fun getCarSpec(id) {
       "nitroCapacity": 120.0,
       "nitroBurn": 24.0,
       "nitroRegen": 18.0,                 // Bonus nitro on drift
-      "model": "sedan-sports.obj",
+      "model": "car_mercedes.obj",
       "scale": 1.45,
-      "primaryColor": [255, 210, 30],    // Gold
-      "glowColor": [0, 220, 255]          // Ice Blue
+      "primaryColor": [215, 222, 230],   // Mercedes Silver
+      "glowColor": [0, 235, 215]          // Petronas Teal
+    };
+  }
+  if (id == 3) {
+    return {
+      "name": "PAPAYA SPEED MCL38",
+      "subtitle": "Woking High-Speed Specialist",
+      "team": "MCLAREN FORMULA 1",
+      "topSpeed": 156.0,
+      "boostSpeed": 218.0,
+      "accel": 36.0,
+      "handling": 42.0,
+      "driftRate": 2.2,
+      "maxHull": 100.0,
+      "nitroCapacity": 100.0,
+      "nitroBurn": 25.0,
+      "nitroRegen": 13.0,
+      "model": "car_mclaren.obj",
+      "scale": 1.45,
+      "primaryColor": [255, 130, 20],     // Papaya Orange
+      "glowColor": [40, 180, 255]         // Gulf Blue
     };
   }
   return {
-    "name": "VANTA INTERCEPTOR",
-    "subtitle": "Metropolitan Pursuit Spec",
+    "name": "BRITISH GP AMR24",
+    "subtitle": "Silverstone British Racing Green",
+    "team": "ASTON MARTIN ARAMCO",
     "topSpeed": 154.0,
-    "boostSpeed": 214.0,
+    "boostSpeed": 216.0,
     "accel": 35.0,
-    "handling": 40.0,
-    "driftRate": 2.2,
+    "handling": 41.0,
+    "driftRate": 2.0,
     "maxHull": 100.0,
-    "nitroCapacity": 100.0,
-    "nitroBurn": 25.0,
+    "nitroCapacity": 95.0,
+    "nitroBurn": 23.0,
     "nitroRegen": 13.0,
-    "model": "police.obj",
+    "model": "race.obj",
     "scale": 1.45,
-    "primaryColor": [40, 100, 255],     // Deep Cobalt
-    "glowColor": [255, 255, 255]        // Strobe White
+    "primaryColor": [0, 110, 68],        // British Racing Green
+    "glowColor": [180, 255, 50]          // Lime Green
   };
 }
 
@@ -136,14 +162,14 @@ export fun getTrackSpec(id) {
       "roadWidth": 28.0,
       "curbWidth": 2.4,
       "runoffWidth": 8.5,
-      "skyColor": [18, 28, 56],
-      "skyTop": [12, 18, 42],
-      "skyBottom": [48, 82, 142],
-      "fogColor": [36, 58, 98],
+      "skyColor": [36, 115, 210],
+      "skyTop": [24, 88, 180],
+      "skyBottom": [145, 192, 238],
+      "fogColor": [145, 192, 238],
       "roadColor": [42, 45, 56],
       "curbColor": [235, 40, 50],
       "gravelColor": [155, 125, 90],
-      "grassColor": [28, 62, 34],
+      "grassColor": [48, 128, 52],
       "barrierColor": [68, 75, 88],
       "barrierTopColor": [225, 40, 50],
       "railColorA": [255, 40, 60],
@@ -152,7 +178,7 @@ export fun getTrackSpec(id) {
       "shape": "SUZUKA FIGURE-8 & ESSES",
       "turns": 18,
       "elevationProfile": "S-Curves & Dunlop Rollercoaster",
-      "groundColor": [24, 52, 28]
+      "groundColor": [42, 115, 46]
     };
   }
   if (id == 1) {
@@ -165,14 +191,14 @@ export fun getTrackSpec(id) {
       "roadWidth": 24.0,
       "curbWidth": 2.0,
       "runoffWidth": 6.5,
-      "skyColor": [75, 28, 62],
-      "skyTop": [45, 18, 48],
-      "skyBottom": [235, 120, 68],
-      "fogColor": [140, 65, 85],
+      "skyColor": [28, 118, 222],
+      "skyTop": [20, 92, 195],
+      "skyBottom": [155, 208, 245],
+      "fogColor": [155, 208, 245],
       "roadColor": [48, 50, 60],
       "curbColor": [240, 45, 55],
       "gravelColor": [140, 80, 70],
-      "grassColor": [24, 50, 42],
+      "grassColor": [165, 170, 180],
       "barrierColor": [70, 76, 88],
       "barrierTopColor": [255, 215, 30],
       "railColorA": [255, 60, 80],
@@ -181,7 +207,7 @@ export fun getTrackSpec(id) {
       "shape": "MONTE CARLO HARBOR CIRCUIT",
       "turns": 19,
       "elevationProfile": "Beau Rivage Climb & Harbor Descents",
-      "groundColor": [20, 45, 35]
+      "groundColor": [150, 155, 165]
     };
   }
   if (id == 2) {
@@ -194,14 +220,14 @@ export fun getTrackSpec(id) {
       "roadWidth": 30.0,
       "curbWidth": 2.5,
       "runoffWidth": 10.0,
-      "skyColor": [16, 26, 48],
-      "skyTop": [10, 18, 38],
-      "skyBottom": [60, 95, 135],
-      "fogColor": [42, 65, 88],
+      "skyColor": [34, 102, 195],
+      "skyTop": [22, 80, 170],
+      "skyBottom": [148, 185, 225],
+      "fogColor": [148, 185, 225],
       "roadColor": [44, 46, 55],
       "curbColor": [255, 205, 25],
       "gravelColor": [135, 105, 75],
-      "grassColor": [25, 58, 30],
+      "grassColor": [42, 118, 48],
       "barrierColor": [66, 72, 85],
       "barrierTopColor": [225, 35, 45],
       "railColorA": [255, 215, 0],
@@ -210,7 +236,7 @@ export fun getTrackSpec(id) {
       "shape": "ARDENNES FOREST ROROLLERCOASTER",
       "turns": 19,
       "elevationProfile": "Eau Rouge & Raidillon 17% Climb",
-      "groundColor": [22, 50, 26]
+      "groundColor": [38, 105, 42]
     };
   }
   return {
@@ -222,14 +248,14 @@ export fun getTrackSpec(id) {
     "roadWidth": 32.0,
     "curbWidth": 2.6,
     "runoffWidth": 10.0,
-    "skyColor": [14, 24, 46],
-    "skyTop": [8, 16, 35],
-    "skyBottom": [85, 95, 140],
-    "fogColor": [48, 60, 88],
+    "skyColor": [38, 118, 215],
+    "skyTop": [25, 90, 185],
+    "skyBottom": [165, 202, 240],
+    "fogColor": [165, 202, 240],
     "roadColor": [46, 48, 58],
     "curbColor": [30, 160, 75],
     "gravelColor": [140, 115, 85],
-    "grassColor": [32, 68, 34],
+    "grassColor": [52, 126, 48],
     "barrierColor": [68, 74, 86],
     "barrierTopColor": [230, 40, 50],
     "railColorA": [30, 160, 75],
@@ -238,7 +264,7 @@ export fun getTrackSpec(id) {
     "shape": "TEMPLE OF SPEED & CHICANES",
     "turns": 11,
     "elevationProfile": "Flat-out Straights & Heavy Braking Chicanes",
-    "groundColor": [26, 58, 28]
+    "groundColor": [46, 112, 44]
   };
 }
 

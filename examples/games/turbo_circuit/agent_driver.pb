@@ -49,7 +49,7 @@ export class DriverBot {
     let desiredSteer = mu.clamp(headingError * 2.6, -1.0, 1.0);
     input["steer"] = desiredSteer;
 
-    // Corner braking & power drift logic
+    // Corner braking & trail-braking logic
     if (this.mode == "HUMAN_ARCADE" or this.mode == "PRO_RACER") {
       // Brake if approaching sharp corner at high speed
       let brake = (maxCurv > 0.018 and speed > 62.0) or (maxCurv > 0.028 and speed > 42.0);
@@ -57,14 +57,7 @@ export class DriverBot {
         input["brake"] = true;
         input["throttle"] = false;
       }
-
-      // Initiate power drift on medium and sharp corners
-      if (maxCurv > 0.014 and math.abs(desiredSteer) > 0.35 and speed > 35.0) {
-        input["drift"] = true;
-        this.driftActive = true;
-      } else {
-        this.driftActive = false;
-      }
+      this.driftActive = false;
 
       // Nitro boost on clean straights
       let isStraight = (maxCurv < 0.004 and math.abs(player.x) < 4.5);

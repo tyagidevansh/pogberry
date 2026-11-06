@@ -1,0 +1,4 @@
+# Dedicated authentic F1 material for FERRARI
+newmtl colormap
+Kd 1 1 1
+map_Kd Textures/colormap_ferrari.png

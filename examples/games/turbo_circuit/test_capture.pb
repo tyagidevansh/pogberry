@@ -62,7 +62,7 @@ for (let i = 0; i < 15; i += 1) {
   cam.end3DPass();
 
   ui.updateDimensions();
-  ui.drawTitleScreen(t, 0);
+  ui.drawTitleScreen(t, 0, 1, 0);
   gui.endDrawing();
 }
 gui.takeScreenshot("title.png");
@@ -121,20 +121,20 @@ for (let i = 0; i < 4; i += 1) {
   rivals.push(rCar);
 }
 
-// 3. Capture Track 0: Suzuka GP (Turn 11 Hairpin Approach)
+// 3. Capture Track 0: Suzuka GP (Dunlop Overhead Bridge Approach)
 let track0 = track_mod.Track(const.TRACK_SUZUKA);
 ui.setTrackId(const.TRACK_SUZUKA);
-player.setTrackPosition(track0, 4220.0, 0.0);
+player.setTrackPosition(track0, 2000.0, 0.0);
 cam.snap(player.worldX, player.worldY, player.worldZ, player.worldHeading);
 for (let i = 0; i < 20; i += 1) {
   let dt = 0.016;
   let t = 1.0 + i * dt;
-  let dist = 4220.0;
+  let dist = 2000.0;
   player.setTrackPosition(track0, dist, 0.0);
   player.speed = 88.0;
-  player.brakeWarning = 1;
+  player.brakeWarning = 0;
 
-  cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, 0.05, 0.0, true, dt);
+  cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, 0.0, 0.0, false, dt);
 
   let tSpec = const.getTrackSpec(0);
   let ground = tSpec["groundColor"];
@@ -144,14 +144,7 @@ for (let i = 0; i < 20; i += 1) {
   cam.begin3DPass();
   gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
   track0.draw(0.0, dist, t, assets, cam);
-  for (let r = 0; r < len(rivals); r += 1) {
-    rivals[r].setTrackPosition(track0, dist - 12.0 - r * 14.0, rivals[r].x);
-    rivals[r].draw(assets, t);
-  }
   player.draw(assets, t);
-  particles.emitNitroFlames(player.worldX, player.worldY, player.worldZ, player.speed, 1.4);
-  particles.update(0.016);
-  particles.draw();
   cam.end3DPass();
 
   ui.updateDimensions();
@@ -161,7 +154,7 @@ for (let i = 0; i < 20; i += 1) {
 }
 gui.takeScreenshot("track_shibuya.png");
 gui.takeScreenshot("test_assets/track_shibuya.png");
-print("Captured track_shibuya.png (Suzuka GP)");
+print("Captured track_shibuya.png (Suzuka GP Dunlop Bridge)");
 
 // 4. Capture Track 1: Monaco GP (Sainte Dévote Braking Zone)
 let track1 = track_mod.Track(const.TRACK_MONACO);
@@ -187,15 +180,13 @@ for (let i = 0; i < 20; i += 1) {
   gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
   track1.draw(0.0, dist, t, assets, cam);
   player.draw(assets, t);
-  particles.emitNitroFlames(player.worldX, player.worldY, player.worldZ, player.speed, 1.4);
   particles.update(0.016);
   particles.draw();
   cam.end3DPass();
 
   ui.updateDimensions();
-  ui.setMode(const.MODE_OUTRUN);
-  ui.setOutrunState(44.0, 1, 600.0, dist, 0);
-  ui.drawHUD(player, 1, 999, 22.0, 0.0, 1, 1, false, t, dist, track1.spec["length"], nil);
+  ui.setMode(const.MODE_GRAND_PRIX);
+  ui.drawHUD(player, 1, 3, 22.0, 0.0, 1, 1, false, t, dist, track1.spec["length"], nil);
   gui.endDrawing();
 }
 gui.takeScreenshot("track_sunset.png");
@@ -226,7 +217,6 @@ for (let i = 0; i < 20; i += 1) {
   gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
   track2.draw(0.0, dist, t, assets, cam);
   player.draw(assets, t);
-  particles.emitNitroFlames(player.worldX, player.worldY, player.worldZ, player.speed, 1.4);
   particles.update(0.016);
   particles.draw();
   cam.end3DPass();
@@ -265,7 +255,6 @@ for (let i = 0; i < 20; i += 1) {
   gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
   track3.draw(0.0, dist, t, assets, cam);
   player.draw(assets, t);
-  particles.emitNitroFlames(player.worldX, player.worldY, player.worldZ, player.speed, 1.4);
   particles.update(0.016);
   particles.draw();
   cam.end3DPass();
@@ -279,6 +268,52 @@ for (let i = 0; i < 20; i += 1) {
 gui.takeScreenshot("track_hyperion.png");
 gui.takeScreenshot("test_assets/track_hyperion.png");
 print("Captured track_hyperion.png (Monza GP)");
+
+// 7. Capture In-Car Formula 1 Cockpit POV
+cam.setPov(cam_mod.POV_COCKPIT);
+ui.setTrackId(const.TRACK_SUZUKA);
+player.setTrackPosition(track0, 520.0, 0.0);
+player.speed = 158.0;
+player.steerAngle = 0.08;
+player.nitro = 85.0;
+cam.snap(player.worldX, player.worldY, player.worldZ, player.worldHeading);
+
+for (let i = 0; i < 20; i += 1) {
+  let dt = 0.016;
+  let t = 5.0 + i * dt;
+  let dist = 520.0 + i * 2.5;
+  player.setTrackPosition(track0, dist, 0.0);
+  player.speed = 162.0;
+  player.steerAngle = 0.09;
+
+  cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, player.steerAngle, 0.0, false, dt);
+
+  let tSpec = const.getTrackSpec(0);
+  let ground = tSpec["groundColor"];
+  gui.beginDrawing();
+  drawSkyBackdrop(tSpec);
+
+  cam.begin3DPass();
+  gui.drawPlane3D(player.worldX, -0.2, player.worldZ, 4500.0, 4500.0, ground[0], ground[1], ground[2]);
+  track0.draw(0.0, dist, t, assets, cam);
+  for (let r = 0; r < len(rivals); r += 1) {
+    rivals[r].setTrackPosition(track0, dist + 24.0 + r * 14.0, rivals[r].x);
+    rivals[r].draw(assets, t);
+  }
+  // In Cockpit POV, exterior mesh is omitted to avoid helmet clipping
+  particles.update(0.016);
+  particles.draw();
+  cam.end3DPass();
+
+  ui.updateDimensions();
+  ui.setMode(const.MODE_GRAND_PRIX);
+  ui.drawCockpitView(player, t, dt);
+  ui.drawHUD(player, 1, 3, 26.4, 88.5, 2, 5, true, t, dist, track0.spec["length"], rivals);
+  gui.endDrawing();
+}
+gui.takeScreenshot("cockpit.png");
+gui.takeScreenshot("test_assets/cockpit.png");
+print("Captured cockpit.png (In-Car Cockpit POV)");
 
 assets.unloadAll();
 gui.closeWindow();

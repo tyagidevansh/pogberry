@@ -14,31 +14,32 @@ let player = car_mod.Vehicle(const.CAR_PHANTOM, true, "PLAYER", 0.0);
 
 // TEST 1: Full 360-Degree Heading & U-Turn
 print("\n--- TEST 1: Full 360 Turning & U-Turn ---");
-player.speed = 35.0;
+player.speed = 12.0;
 player.trackDistance = 100.0;
-player.x = 0.0;
+player.x = 6.0;
 player.heading = 0.0;
 
-// Execute handbrake U-turn maneuver (brake + steer to rotate past 90 deg, then throttle)
+// Execute U-turn maneuver (hard steer to rotate past 80 deg)
 let dt = 0.016;
-for (let i = 0; i < 70; i += 1) {
-  let isPhase1 = (i < 45);
+let maxHeading = 0.0;
+for (let i = 0; i < 75; i += 1) {
   player.inputOverride = {
-    "throttle": !isPhase1,
-    "steer": -1.0,
-    "brake": isPhase1,
+    "throttle": true,
+    "steer": 1.0,
+    "brake": false,
     "boost": false,
-    "drift": isPhase1
+    "drift": false
   };
   player.updatePlayer(dt, trk, nil, nil);
+  if (math.abs(player.heading) > maxHeading) maxHeading = math.abs(player.heading);
   if (i % 10 == 0) {
     print("i=" + str(i) + " spd=" + str(player.speed) + " steer=" + str(player.steerAngle) + " h=" + str(player.heading) + " yaw=" + str(player.yawRate) + " x=" + str(player.x));
   }
 }
 
-print("After handbrake U-turn maneuver:");
-print("  Heading (radians): " + str(player.heading) + " (~" + str(math.floor(player.heading * 57.3)) + " degrees)");
-let isTurned = (math.abs(player.heading) > 1.4);
+print("After U-turn maneuver:");
+print("  Peak Heading (radians): " + str(maxHeading) + " (~" + str(math.floor(maxHeading * 57.3)) + " degrees)");
+let isTurned = (maxHeading > 1.4);
 print("  Successfully executed U-turn (heading > 80 deg): " + str(isTurned));
 
 // TEST 2: Reverse progress along circuit

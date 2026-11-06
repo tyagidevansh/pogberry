@@ -25,19 +25,7 @@ export class ParticleSystem {
   }
 
   emitNitroFlames(carX, carY, carZ, carSpeed, boostLevel) {
-    // Twin exhaust flame jets behind the car
-    let colorR = 0; let colorG = 230; let colorB = 255;
-    if (boostLevel > 1.2) {
-      colorR = 255; colorG = 60; colorB = 220; // Super Overdrive: Hot Pink
-    }
-    // Left nozzle
-    this.emit(carX - 0.55, carY + 0.32, carZ + 1.85,
-              mu.randFloat(-0.4, 0.4), mu.randFloat(-0.2, 0.5), carSpeed * 0.2 + mu.randFloat(18.0, 32.0),
-              mu.randFloat(0.18, 0.32), colorR, colorG, colorB, 0.22, 0);
-    // Right nozzle
-    this.emit(carX + 0.55, carY + 0.32, carZ + 1.85,
-              mu.randFloat(-0.4, 0.4), mu.randFloat(-0.2, 0.5), carSpeed * 0.2 + mu.randFloat(18.0, 32.0),
-              mu.randFloat(0.18, 0.32), colorR, colorG, colorB, 0.22, 0);
+    // Battery deployment uses F1 hybrid power with zero trailing exhaust flame boxes
   }
 
   emitDriftSmoke(carX, carY, carZ, driftSign) {

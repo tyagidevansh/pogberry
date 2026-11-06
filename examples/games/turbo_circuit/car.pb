@@ -19,6 +19,7 @@ export class Vehicle {
 
     // Track Coordinates (for lap progression, radar minimap, and tests)
     this.trackDistance = 0.0;
+    this.raceDistance = 0.0;
     this.x = 0.0; // Signed lateral offset across track centerline in meters
     this.y = 0.0;
     this.z = startZ;
@@ -114,16 +115,19 @@ export class Vehicle {
     if (this.spinTimer > 0.0) {
       this.spinTimer = this.spinTimer - dt;
       this.speed = mu.approach(this.speed, 25.0, dt * 50.0);
-      this.driftAngle = this.driftAngle + 680.0 * dt;
-      let trkHead = const.getTrackHeading(track.trackId, this.trackDistance);
-      this.worldHeading = trkHead + this.driftAngle * 0.0174533;
+      this.driftAngle = 0.0;
+      this.worldHeading = this.worldHeading + 11.868 * dt;
       let fwdX = math.sin(this.worldHeading);
       let fwdZ = math.cos(this.worldHeading);
       this.worldX = this.worldX + fwdX * this.speed * dt;
       this.worldZ = this.worldZ + fwdZ * this.speed * dt;
-      if (particles != nil) particles.emitDriftSmoke(this.worldX, this.worldY, this.worldZ, 1.0);
+      if (particles != nil) particles.emitDust(this.worldX, this.worldY, this.worldZ);
       if (this.hitFlash > 0.0) this.hitFlash = this.hitFlash - dt;
-      if (this.spinTimer <= 0.0) this.driftAngle = 0.0;
+      if (this.spinTimer <= 0.0) {
+        this.driftAngle = 0.0;
+        let trkHead = const.getTrackHeading(track.trackId, this.trackDistance);
+        this.worldHeading = trkHead;
+      }
       return;
     }
 
@@ -159,36 +163,9 @@ export class Vehicle {
     let boostInput = boostKey and this.nitro > 4.0 and (throttleInput or this.speed > 25.0);
     this.isBraking = brakeInput;
 
-    // Handbrake drift activation
-    if (shiftKey and math.abs(steerInput) > 0.15 and this.speed > 20.0) {
-      this.isDrifting = true;
-    }
-
-    if (this.isDrifting) {
-      let targetDriftAngle = steerInput * 20.0;
-      this.driftAngle = mu.approach(this.driftAngle, targetDriftAngle, dt * 45.0);
-      this.driftPoints = this.driftPoints + math.floor(dt * 150.0);
-      this.nitro = mu.clamp(this.nitro + this.spec["nitroRegen"] * 2.2 * dt, 0.0, this.maxNitro);
-
-      let driftSign = 1.0;
-      if (steerInput < 0.0) driftSign = -1.0;
-      if (particles != nil) particles.emitDriftSmoke(this.worldX, this.worldY, this.worldZ, driftSign);
-      if (rand(8) == 0 and assets != nil) assets.playSfx(assets.sndSkid);
-
-      if (math.abs(steerInput) < 0.10 or this.speed < 16.0) {
-        if (this.driftPoints > 60) {
-          this.speed = mu.clamp(this.speed + 7.5, 0.0, this.boostSpeed);
-          if (assets != nil) assets.playSfx(assets.sndNitro);
-          if (particles != nil) particles.emitNitroFlames(this.worldX, this.worldY, this.worldZ, this.speed, 1.25);
-        }
-        this.driftPoints = 0;
-        this.isDrifting = false;
-        this.driftAngle = mu.approach(this.driftAngle, 0.0, dt * 60.0);
-      }
-    } else {
-      this.driftPoints = 0;
-      this.driftAngle = mu.approach(this.driftAngle, 0.0, dt * 60.0);
-    }
+    this.isDrifting = false;
+    this.driftAngle = 0.0;
+    this.driftPoints = 0;
 
     // 2. Throttle, Brakes, Reverse & Nitro Overdrive
     if (this.isOffTrack) {
@@ -204,9 +181,6 @@ export class Vehicle {
       this.speed = mu.approach(this.speed, boostTop, dt * (this.accel * 1.5));
       this.nitro = mu.clamp(this.nitro - this.spec["nitroBurn"] * dt, 0.0, this.maxNitro);
 
-      let boostTier = 1.0;
-      if (this.speed > 85.0) boostTier = 1.5;
-      if (particles != nil) particles.emitNitroFlames(this.worldX, this.worldY, this.worldZ, this.speed, boostTier);
       if (rand(12) == 0 and assets != nil) assets.playSfx(assets.sndNitro);
     } else if (throttleInput) {
       this.isBoosting = false;
@@ -224,7 +198,7 @@ export class Vehicle {
         this.isReversing = false;
       }
       this.nitro = mu.clamp(this.nitro + this.spec["nitroRegen"] * 0.3 * dt, 0.0, this.maxNitro);
-    } else if (brakeInput and !this.isDrifting) {
+    } else if (brakeInput) {
       this.isBoosting = false;
       if (this.speed > 2.0) {
         // Active trail-braking deceleration
@@ -233,14 +207,6 @@ export class Vehicle {
       } else {
         this.isReversing = true;
         this.speed = mu.approach(this.speed, -20.0, dt * 16.0);
-      }
-    } else if (this.isDrifting) {
-      this.isBoosting = false;
-      if (brakeInput) {
-        this.speed = mu.approach(this.speed, 14.0, dt * 32.0);
-      } else {
-        let slideTarget = cruiseTop * 0.72;
-        this.speed = mu.approach(this.speed, slideTarget, dt * 15.0);
       }
     } else {
       this.isBoosting = false;
@@ -262,7 +228,6 @@ export class Vehicle {
     if (speedRatio > 1.0) speedRatio = 1.0;
 
     let maxWheelLock = 0.40 - speedRatio * 0.12;
-    if (this.isDrifting) maxWheelLock = 0.48;
     let targetWheel = this.steer * maxWheelLock;
     this.steerAngle = mu.approach(this.steerAngle, targetWheel, dt * 44.0);
 
@@ -276,11 +241,6 @@ export class Vehicle {
     }
 
     let turnAgility = (this.handling * 0.90) * speedFactor;
-    if (this.isDrifting) {
-      let driftMult = 1.45;
-      if (this.spec["driftRate"] != nil) driftMult = 1.30 + this.spec["driftRate"] * 0.15;
-      turnAgility = turnAgility * driftMult;
-    }
     if (this.isOffTrack) turnAgility = turnAgility * 0.55;
 
     let yawTorque = this.steerAngle * turnAgility - this.yawRate * 11.5;
@@ -298,8 +258,8 @@ export class Vehicle {
     while (this.worldHeading < -PI) this.worldHeading = this.worldHeading + TWO_PI;
 
     // 4. Newtonian Motion in 3D World Space
-    let driftRad = this.driftAngle * 0.0174533 * 0.35;
-    let effectiveHeading = this.worldHeading + driftRad;
+    this.driftAngle = 0.0;
+    let effectiveHeading = this.worldHeading;
 
     let fwdX = math.sin(effectiveHeading);
     let fwdZ = math.cos(effectiveHeading);
@@ -308,9 +268,6 @@ export class Vehicle {
 
     // Tire lateral grip damping
     let targetLatVel = 0.0;
-    if (this.isDrifting) {
-      targetLatVel = this.speed * math.sin(this.steerAngle) * 0.65;
-    }
     let latGripRate = 18.0;
     if (this.isBraking) latGripRate = 26.0;
     this.lateralVelocity = mu.approach(this.lateralVelocity, targetLatVel, dt * latGripRate);
@@ -335,12 +292,20 @@ export class Vehicle {
       while (relH < -PI) relH = relH + TWO_PI;
       this.heading = relH;
 
-      // Closed-circuit lap counting
+      // Closed-circuit lap & monotonic race distance tracking
       let lapLen = track.spec["length"];
-      if (this.trackDistance > lapLen * 0.5) this.hasCrossedMidpoint = true;
-      if (this.hasCrossedMidpoint and this.trackDistance < lapLen * 0.15) {
-        this.completedLaps = this.completedLaps + 1;
-        this.hasCrossedMidpoint = false;
+      if (this.raceDistance == 0.0 and this.completedLaps == 0 and prevDist > 0.0 and prevDist < lapLen * 0.5) {
+        this.raceDistance = prevDist;
+      }
+      let ds = this.trackDistance - prevDist;
+      while (ds > lapLen * 0.5) ds = ds - lapLen;
+      while (ds < -lapLen * 0.5) ds = ds + lapLen;
+      this.raceDistance = this.raceDistance + ds;
+
+      if (this.raceDistance >= 0.0) {
+        this.completedLaps = math.floor(this.raceDistance / lapLen);
+      } else {
+        this.completedLaps = 0;
       }
 
       // Look ahead 50m for upcoming sharp corners (Braking Zones)
@@ -433,7 +398,10 @@ export class Vehicle {
   updateAi(dDist, playerSpeed, dt, track) {
     if (track == nil) return;
 
-    // Pure Newtonian AI: Compute authentic steering, throttle, braking, drift & nitro inputs
+    // Lookahead corner curvature for trail braking & apex entry
+    let upcomingCurv = const.getTrackCurvature(track.trackId, this.trackDistance + 46.0);
+    let absCurv = math.abs(upcomingCurv);
+
     let lookDist = 22.0 + (math.abs(this.speed) / 70.0) * 16.0;
     let targetS = this.trackDistance + lookDist;
 
@@ -444,8 +412,21 @@ export class Vehicle {
     let tNx = -tTan[1] / tMag;
     let tNz = tTan[0] / tMag;
 
-    let targetX = tPt[0] + tNx * this.aiLane;
-    let targetZ = tPt[1] + tNz * this.aiLane;
+    // AI Difficulty Configuration:
+    // 0 = ROOKIE (Easy): cruise ~78%, early braking, gentle steering, no battery deploy
+    // 1 = PRO RACER (Medium): competitive pace ~105%, late braking, battery deploy
+    // 2 = WORLD CHAMPION (Hard): relentless pace ~120%, apex clipping, aggressive battery deploy, zero handicap
+    let diff = this.aiDifficulty;
+    if (diff == nil) diff = 1;
+
+    let targetLane = this.aiLane;
+    if (diff >= 1) {
+      let apexOffset = mu.clamp(-upcomingCurv * 260.0, -5.0, 5.0);
+      targetLane = targetLane + apexOffset;
+    }
+
+    let targetX = tPt[0] + tNx * targetLane;
+    let targetZ = tPt[1] + tNz * targetLane;
 
     let toTgtX = targetX - this.worldX;
     let toTgtZ = targetZ - this.worldZ;
@@ -453,64 +434,77 @@ export class Vehicle {
     let headingErr = desiredHeading - this.worldHeading;
     while (headingErr > 3.14159) headingErr = headingErr - 6.28318;
     while (headingErr < -3.14159) headingErr = headingErr + 6.28318;
-    // AI Difficulty Configuration:
-    // 0 = ROOKIE (Easy): cruise ~58%, early braking, gentle steering, no nitro
-    // 1 = AMATEUR (Medium): cruise ~70%, cautious braking, natural lines, catch-up handicap
-    // 2 = EXPERT / PRO (Challenging): cruise ~84%, late apex braking, tactical nitro
-    let diff = this.aiDifficulty;
-    if (diff == nil) diff = 1;
 
-    let cruiseRatio = 0.84;
-    let brakeCurvLow = 0.014;
-    let brakeSpdLow = 62.0;
-    let brakeCurvHigh = 0.020;
-    let brakeSpdHigh = 46.0;
-    let steerGain = 2.1;
+    let cruiseRatio = 1.20;
+    let brakeCurvLow = 0.026;
+    let brakeSpdLow = 112.0;
+    let brakeCurvHigh = 0.035;
+    let brakeSpdHigh = 94.0;
+    let steerGain = 3.6;
+    let liftCurv = 0.022;
+    let liftRatio = 0.94;
+    let minNitroReq = 4.0;
+    let maxCurvForNitro = 0.018;
     let allowNitro = true;
-    let allowDrift = true;
 
     if (diff == 0) {
-      cruiseRatio = 0.58;
-      brakeCurvLow = 0.009;
-      brakeSpdLow = 38.0;
-      brakeCurvHigh = 0.014;
-      brakeSpdHigh = 28.0;
-      steerGain = 1.35;
-      allowNitro = false;
-      allowDrift = false;
-    } else if (diff == 1) {
-      cruiseRatio = 0.70;
+      cruiseRatio = 0.78;
       brakeCurvLow = 0.012;
-      brakeSpdLow = 48.0;
-      brakeCurvHigh = 0.017;
-      brakeSpdHigh = 36.0;
-      steerGain = 1.70;
+      brakeSpdLow = 52.0;
+      brakeCurvHigh = 0.018;
+      brakeSpdHigh = 40.0;
+      steerGain = 1.8;
+      liftCurv = 0.011;
+      liftRatio = 0.82;
+      minNitroReq = 30.0;
+      maxCurvForNitro = 0.005;
       allowNitro = false;
-      allowDrift = false;
+    } else if (diff == 1) {
+      cruiseRatio = 1.05;
+      brakeCurvLow = 0.019;
+      brakeSpdLow = 88.0;
+      brakeCurvHigh = 0.027;
+      brakeSpdHigh = 72.0;
+      steerGain = 2.7;
+      liftCurv = 0.017;
+      liftRatio = 0.90;
+      minNitroReq = 12.0;
+      maxCurvForNitro = 0.012;
+      allowNitro = true;
     }
 
     let steerInput = mu.clamp(headingErr * steerGain, -1.0, 1.0);
 
-    // Lookahead corner curvature for trail braking & apex entry
-    let upcomingCurv = const.getTrackCurvature(track.trackId, this.trackDistance + 46.0);
-    let absCurv = math.abs(upcomingCurv);
     let throttleInput = true;
     let brakeInput = false;
     let boostInput = false;
-    let driftInput = false;
 
     // Dynamic Rubberbanding / Lead Handicap:
-    // When rival leads the player (dDist > 0), dial back cruise speed so the player can catch up
     let targetCruise = this.maxSpeed * cruiseRatio;
     if (dDist > 8.0) {
-      let leadDist = dDist - 8.0;
-      let leadFactor = mu.clamp(leadDist / 75.0, 0.0, 1.0);
-      targetCruise = targetCruise * (1.0 - leadFactor * 0.25);
-      allowNitro = false; // Never use nitro while leading
-    } else if (dDist < -20.0 and diff == 2) {
-      targetCruise = targetCruise * 1.05;
+      if (diff == 0) {
+        let leadDist = dDist - 8.0;
+        let leadFactor = mu.clamp(leadDist / 60.0, 0.0, 1.0);
+        targetCruise = targetCruise * (1.0 - leadFactor * 0.30);
+        allowNitro = false;
+      } else if (diff == 1) {
+        let leadDist = dDist - 8.0;
+        let leadFactor = mu.clamp(leadDist / 100.0, 0.0, 1.0);
+        targetCruise = targetCruise * (1.0 - leadFactor * 0.06);
+        allowNitro = true;
+      } else {
+        // World Champion AI never slows down when leading
+        allowNitro = true;
+      }
+    } else if (dDist < -8.0) {
+      if (diff == 2) {
+        // World Champion aggressively slipstreams and hunts the player
+        targetCruise = targetCruise * 1.22;
+      } else if (diff == 1) {
+        targetCruise = targetCruise * 1.08;
+      }
     }
-    if (targetCruise < 38.0) targetCruise = 38.0; // Floor keeps race flowing and laps passing
+    if (targetCruise < 44.0) targetCruise = 44.0; // Floor keeps race flowing and laps passing
 
     // Throttle cap
     if (this.speed > targetCruise) {
@@ -521,18 +515,13 @@ export class Vehicle {
     if ((absCurv > brakeCurvLow and this.speed > brakeSpdLow) or (absCurv > brakeCurvHigh and this.speed > brakeSpdHigh)) {
       brakeInput = true;
       throttleInput = false;
-    } else if (absCurv > 0.012 and this.speed > targetCruise * 0.78) {
+    } else if (absCurv > liftCurv and this.speed > targetCruise * liftRatio) {
       // Natural cornering lift-off
       throttleInput = false;
     }
 
-    // Power drift initiation on sharp turns (Pro only)
-    if (allowDrift and absCurv > 0.016 and math.abs(steerInput) > 0.40 and this.speed > 38.0) {
-      driftInput = true;
-    }
-
-    // Nitro overdrive on clean straightaways
-    if (allowNitro and absCurv < 0.005 and math.abs(this.x) < 4.0 and this.speed > 50.0 and this.nitro > 30.0) {
+    // Battery deploy overdrive on clean straightaways
+    if (allowNitro and absCurv < maxCurvForNitro and math.abs(this.x) < 7.0 and this.speed > 45.0 and this.nitro > minNitroReq) {
       boostInput = true;
     }
 
@@ -542,39 +531,18 @@ export class Vehicle {
       "throttle": throttleInput,
       "brake": brakeInput,
       "boost": boostInput,
-      "drift": driftInput
+      "drift": false
     };
     this.updatePlayer(dt, track, nil, nil);
   }
 
   draw(assets, t) {
-    let yawRad = this.worldHeading + this.driftAngle * 0.0174533;
-    let rotY = yawRad * 57.29578 + 180.0;
+    let yawRad = this.worldHeading;
+    let rotY = yawRad * 57.29578;
     let r = 255; let g = 255; let b = 255;
 
     // Authentic Rotated Aerodynamic Ground Contact Shadow
     this.drawShadow(this.scale, yawRad);
-
-    // Nitro boost underglow (oriented with vehicle yaw)
-    if (this.isBoosting) {
-      let glow = this.spec["glowColor"];
-      if (glow != nil) {
-        let fwdX = math.sin(yawRad); let fwdZ = math.cos(yawRad);
-        let rgtX = -math.cos(yawRad); let rgtZ = math.sin(yawRad);
-        let yG = this.worldY - 0.09;
-        let gw = 0.85 * this.scale; let gl = 1.35 * this.scale;
-        let gr = math.floor(glow[0] * 0.35);
-        let gg = math.floor(glow[1] * 0.35);
-        let gb = math.floor(glow[2] * 0.35);
-        gui.drawQuad3D(
-          this.worldX - rgtX * gw - fwdX * gl, yG, this.worldZ - rgtZ * gw - fwdZ * gl,
-          this.worldX + rgtX * gw - fwdX * gl, yG, this.worldZ + rgtZ * gw - fwdZ * gl,
-          this.worldX + rgtX * gw + fwdX * gl, yG, this.worldZ + rgtZ * gw + fwdZ * gl,
-          this.worldX - rgtX * gw + fwdX * gl, yG, this.worldZ - rgtZ * gw + fwdZ * gl,
-          gr, gg, gb
-        );
-      }
-    }
 
     // 3D Vehicle Model
     assets.playCarModel(this.carId, this.worldX, this.worldY, this.worldZ, rotY, this.scale, r, g, b);
@@ -760,6 +728,9 @@ export fun resolveCarCollisions(cars, track, lapLen, particles, assets, cam, dt)
               while (clampedDist < 0.0) clampedDist = clampedDist + lapLen;
               while (clampedDist >= lapLen) clampedDist = clampedDist - lapLen;
               carA.trackDistance = clampedDist;
+              if (carA.raceDistance > carB.raceDistance - L_col) {
+                carA.raceDistance = carB.raceDistance - L_col;
+              }
               carA.setTrackPosition(track, carA.trackDistance, carA.x);
 
               if (carA.speed > carB.speed) {
@@ -774,6 +745,9 @@ export fun resolveCarCollisions(cars, track, lapLen, particles, assets, cam, dt)
               while (clampedDist < 0.0) clampedDist = clampedDist + lapLen;
               while (clampedDist >= lapLen) clampedDist = clampedDist - lapLen;
               carB.trackDistance = clampedDist;
+              if (carB.raceDistance > carA.raceDistance - L_col) {
+                carB.raceDistance = carA.raceDistance - L_col;
+              }
               carB.setTrackPosition(track, carB.trackDistance, carB.x);
 
               if (carB.speed > carA.speed) {

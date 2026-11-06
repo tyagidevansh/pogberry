@@ -64,7 +64,7 @@ print("ChaseCamera lookahead updated cleanly");
 // Test UI screen rendering calls
 gui.beginDrawing();
 ui.updateDimensions();
-ui.drawTitleScreen(0.5, 0);
+ui.drawTitleScreen(0.5, 0, 1, 0);
 let cSpec = const.getCarSpec(0);
 ui.drawGarageScreen(0, cSpec, 0.5);
 let tSpec = const.getTrackSpec(0);
@@ -77,20 +77,21 @@ ui.setBanner("OBJECTIVE: PODIUM FINISH", "TOP 3", 3.0, 255, 220, 40);
 ui.updateBanners(0.016);
 ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 88.5, 1, 5, true, 0.5, 200.0, 5807.0, [rival]);
 
-// Test Outrun HUD & Timeout
-ui.setMode(const.MODE_OUTRUN);
-ui.setTrackId(const.TRACK_MONACO);
-ui.setOutrunState(38.5, 2, 600.0, 450.0, 3);
-ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 54.2, 1, 5, false, 0.5, 450.0, 3337.0, nil);
-ui.drawTimeoutScreen(0.5);
-
 // Test Time Attack HUD
 ui.setMode(const.MODE_TIME_ATTACK);
 ui.setTrackId(const.TRACK_SPA);
 ui.setTimeAttackDelta(-0.45);
 ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 2, 3, 21.0, 102.5, 1, 1, false, 0.5, 800.0, 7004.0, nil);
+ui.drawTimeoutScreen(0.5);
 
-ui.drawPauseMenu(0, "CLOSE CHASE", "AMATEUR (MEDIUM)");
+// Test Cockpit In-Car View Overlay
+let testCockpitCar = car_mod.Vehicle(0, true, "TEST_COCKPIT", 0.0);
+testCockpitCar.speed = 175.0;
+testCockpitCar.steerAngle = 0.12;
+ui.drawCockpitView(testCockpitCar, 0.5, 0.016);
+ui.drawHUD(testCockpitCar, 1, 3, 15.0, 0.0, 1, 5, true, 0.5, 500.0, 5807.0, [rival]);
+
+ui.drawPauseMenu(0, "COCKPIT (IN-CAR)", "AMATEUR (MEDIUM)");
 ui.drawResultsScreen(1, 5, 41.2, 42.5, true, 0.5);
 ui.drawCrashedScreen(0.5);
 

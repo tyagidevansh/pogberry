@@ -1,5 +1,6 @@
 // TURBO CIRCUIT: OVERDRIVE — Asset Manager
 use "pb_gui" as gui;
+use "constants" as const;
 
 export class AssetManager {
   init(baseDir) {
@@ -8,6 +9,10 @@ export class AssetManager {
     this.audioDir = baseDir + "/assets/audio";
 
     // 3D Model Handles
+    this.modelFerrari = 0;
+    this.modelRedBull = 0;
+    this.modelMercedes = 0;
+    this.modelMcLaren = 0;
     this.modelPhantom = 0;
     this.modelValkyrie = 0;
     this.modelShinobi = 0;
@@ -74,6 +79,10 @@ export class AssetManager {
     gui.initAudio();
 
     // Load 3D Models
+    this.modelFerrari = gui.loadModel(this.modelsDir + "/car_ferrari.obj");
+    this.modelRedBull = gui.loadModel(this.modelsDir + "/car_redbull.obj");
+    this.modelMercedes = gui.loadModel(this.modelsDir + "/car_mercedes.obj");
+    this.modelMcLaren = gui.loadModel(this.modelsDir + "/car_mclaren.obj");
     this.modelPhantom = gui.loadModel(this.modelsDir + "/race-future.obj");
     this.modelValkyrie = gui.loadModel(this.modelsDir + "/suv-luxury.obj");
     this.modelShinobi = gui.loadModel(this.modelsDir + "/sedan-sports.obj");
@@ -158,16 +167,15 @@ export class AssetManager {
   }
 
   playCarModel(carId, x, y, z, rotY, scale, r, g, b) {
-    let m = this.modelPhantom;
-    if (carId == 1) m = this.modelValkyrie;
-    else if (carId == 2) m = this.modelShinobi;
-    else if (carId == 3) m = this.modelVanta;
+    let m = this.modelFerrari;
+    if (carId == 0) m = this.modelFerrari;
+    else if (carId == 1) m = this.modelRedBull;
+    else if (carId == 2) m = this.modelMercedes;
+    else m = this.modelMcLaren;
 
     if (m > 0) {
-      // Draw 3D model rotated around Y axis
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
     } else {
-      // Fallback primitive
       gui.drawCube3D(x, y + 0.5, z, 1.8, 0.6, 3.2, r, g, b);
     }
   }
@@ -402,6 +410,10 @@ export class AssetManager {
 
   unloadAll() {
     // Unload Models
+    if (this.modelFerrari > 0) gui.unloadModel(this.modelFerrari);
+    if (this.modelRedBull > 0) gui.unloadModel(this.modelRedBull);
+    if (this.modelMercedes > 0) gui.unloadModel(this.modelMercedes);
+    if (this.modelMcLaren > 0) gui.unloadModel(this.modelMcLaren);
     if (this.modelPhantom > 0) gui.unloadModel(this.modelPhantom);
     if (this.modelValkyrie > 0) gui.unloadModel(this.modelValkyrie);
     if (this.modelShinobi > 0) gui.unloadModel(this.modelShinobi);

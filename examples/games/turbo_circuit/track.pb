@@ -40,6 +40,7 @@ export class Track {
     // Build true 3D world geometry stations and scenery props
     this.stations = [];
     this.props = [];
+    this.initCloudDome();
     this.buildWorldTrack();
   }
 
@@ -75,25 +76,40 @@ export class Track {
       return base;
 
     } else if (this.trackId == 1) {
-      // Monaco: Harbor sea-level (2.0m), Beau Rivage steep climb up to Casino Square (34m),
-      // plunging descent through Fairmont hairpin to Portier, flat through tunnel and quayside.
-      let base = 2.0;
-      if (s >= 460.0 and s <= 2150.0) {
-        if (s < 1250.0) {
-          // Beau Rivage uphill climb (s=460 to 1250): climb 2.0m -> 34.0m
-          let u = (s - 460.0) / (1250.0 - 460.0);
-          let smoothU = u * u * (3.0 - 2.0 * u);
-          base = 2.0 + smoothU * 32.0;
-        } else if (s <= 1450.0) {
-          // Casino Square crest (s=1250 to 1450): plateau at 34.0m
-          let u = (s - 1250.0) / 200.0;
-          base = 34.0 - math.sin(u * 3.14159265 * 0.5) * 1.5;
-        } else {
-          // Mirabeau & Fairmont descent (s=1450 to 2150): plunge 32.5m -> 2.0m
-          let u = (s - 1450.0) / (2150.0 - 1450.0);
-          let smoothU = u * u * (3.0 - 2.0 * u);
-          base = 32.5 - smoothU * 30.5;
-        }
+      // Monaco: Natural city street gradient
+      // Start/harbor straight at y = 0.5. Gentle climb up Beau Rivage to Casino Square peaking at y = 7.5 (a smooth 7m rise).
+      // Gentle slope down through Mirabeau & Fairmont hairpin to Portier at y = 1.5, then flat y = 0.8 through the tunnel and harbor quayside.
+      let base = 0.5;
+      if (s >= 460.0 and s < 1250.0) {
+        // Beau Rivage uphill climb (s=460 to 1250): climb 0.5m -> 7.5m
+        let u = (s - 460.0) / (1250.0 - 460.0);
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        base = 0.5 + smoothU * 7.0;
+      } else if (s >= 1250.0 and s < 1450.0) {
+        // Casino Square crest (s=1250 to 1450): plateau peaking at 7.5m
+        let u = (s - 1250.0) / 200.0;
+        base = 7.5 - math.sin(u * 3.14159265 * 0.5) * 0.3;
+      } else if (s >= 1450.0 and s < 2150.0) {
+        // Mirabeau & Fairmont descent (s=1450 to 2150): slope down from 7.2m -> 1.5m
+        let u = (s - 1450.0) / (2150.0 - 1450.0);
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        base = 7.2 - smoothU * 5.7;
+      } else if (s >= 2150.0 and s < 2350.0) {
+        // Tunnel approach: gentle descent 1.5m -> 0.8m
+        let u = (s - 2150.0) / 200.0;
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        base = 1.5 - smoothU * 0.7;
+      } else if (s >= 2350.0 and s < 5100.0) {
+        // Flat through the tunnel and harbor quayside at y = 0.8m
+        base = 0.8;
+      } else if (s >= 5100.0 and s < 5500.0) {
+        // Harbor quayside blend to start straight: 0.8m -> 0.5m
+        let u = (s - 5100.0) / 400.0;
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        base = 0.8 - smoothU * 0.3;
+      } else {
+        // Start straight: flat y = 0.5m
+        base = 0.5;
       }
       return base;
 
@@ -172,6 +188,8 @@ export class Track {
     rawProps.push({
       "kind": kind, "s": sStation, "lat": lateralOffset,
       "x": px, "y": py, "z": pz,
+      "nx": st["nx"], "nz": st["nz"],
+      "tx": st["tx"], "tz": st["tz"],
       "scale": pScale, "rot": pRot,
       "r": pr, "g": pg, "b": pb,
       "var": pVar, "radius": pRad, "val": val
@@ -229,6 +247,7 @@ export class Track {
         "rr_x": rr_x, "rr_z": rr_z,
         "cl_x": cl_x, "cl_z": cl_z,
         "cr_x": cr_x, "cr_z": cr_z,
+        "curbL": curbW, "curbR": curbW,
         "ol_x": ol_x, "ol_z": ol_z,
         "or_x": or_x, "or_z": or_z,
         "outL": corridor, "outR": corridor,
@@ -250,6 +269,29 @@ export class Track {
       let absCurv = math.abs(curv);
       let curveRadius = 99999.0;
       if (absCurv > 0.0001) curveRadius = 1.0 / absCurv;
+
+      let curbL = this.curbWidth;
+      let curbR = this.curbWidth;
+
+      // When curvature is high (|curv| > 0.0001), compute inner radius R = 1.0 / |curv|.
+      // If R - halfW < curbWidth, clamp the inner curb width to math.max(0.3, (R - halfW) * 0.5)
+      // so inner kerb vertices never cross the center of curvature or invert.
+      if (absCurv > 0.0001) {
+        let R = 1.0 / absCurv;
+        if (curv < 0.0) {
+          if (R - halfW < curbR) {
+            let innerLim = (R - halfW) * 0.5;
+            if (innerLim < 0.3) innerLim = 0.3;
+            if (innerLim < curbR) curbR = innerLim;
+          }
+        } else {
+          if (R - halfW < curbL) {
+            let innerLim = (R - halfW) * 0.5;
+            if (innerLim < 0.3) innerLim = 0.3;
+            if (innerLim < curbL) curbL = innerLim;
+          }
+        }
+      }
 
       let outL = corridor;
       let outR = corridor;
@@ -293,7 +335,13 @@ export class Track {
         }
       }
 
+      // In the clearance pass with nearby track sections (gapL, gapR),
+      // clamp curbL and curbR so kerbs never overlap adjacent tarmac or nearby roads.
       if (gapL < 900.0) {
+        let clearCurbL = gapL - halfW - 0.6;
+        if (clearCurbL < 0.0) clearCurbL = 0.0;
+        if (curbL > clearCurbL) curbL = clearCurbL;
+
         let maxHalf = gapL * 0.49 - 0.3;
         let clear = gapL - roadEdge - 1.5;
         if (maxHalf < clear) clear = maxHalf;
@@ -301,6 +349,10 @@ export class Track {
         if (clear < outL) outL = clear;
       }
       if (gapR < 900.0) {
+        let clearCurbR = gapR - halfW - 0.6;
+        if (clearCurbR < 0.0) clearCurbR = 0.0;
+        if (curbR > clearCurbR) curbR = clearCurbR;
+
         let maxHalf = gapR * 0.49 - 0.3;
         let clear = gapR - roadEdge - 1.5;
         if (maxHalf < clear) clear = maxHalf;
@@ -319,8 +371,12 @@ export class Track {
       }
 
       // Verge / barrier never intrudes into racing surface or kerbs
-      if (outL < roadEdge + 0.5) outL = roadEdge + 0.5;
-      if (outR < roadEdge + 0.5) outR = roadEdge + 0.5;
+      let minOutL = halfW + curbL + 0.4;
+      let minOutR = halfW + curbR + 0.4;
+      if (outL < minOutL) outL = minOutL;
+      if (outR < minOutR) outR = minOutR;
+      if (embL < outL + 1.2) embL = outL + 1.2;
+      if (embR < outR + 1.2) embR = outR + 1.2;
 
       // On start/finish straight, right barrier aligns with solid Pit Wall
       let isPitStraight = (i < 58 or i > numStations - 38);
@@ -368,14 +424,20 @@ export class Track {
         if (curv > 0.007) hasWallR = true;
       }
 
+      st["curbL"] = curbL;
+      st["curbR"] = curbR;
+      st["cl_x"] = st["x"] - (halfW + curbL) * st["nx"];
+      st["cl_z"] = st["z"] - (halfW + curbL) * st["nz"];
+      st["cr_x"] = st["x"] + (halfW + curbR) * st["nx"];
+      st["cr_z"] = st["z"] + (halfW + curbR) * st["nz"];
       st["outL"] = outL;
       st["outR"] = outR;
       st["embL"] = embL;
       st["embR"] = embR;
       st["hasWallL"] = hasWallL;
       st["hasWallR"] = hasWallR;
-      st["runL"] = (outL >= roadEdge + 0.3);
-      st["runR"] = (outR >= roadEdge + 0.3);
+      st["runL"] = (outL >= halfW + curbL + 0.2);
+      st["runR"] = (outR >= halfW + curbR + 0.2);
       st["embOkL"] = (embL >= outL + 0.9);
       st["embOkR"] = (embR >= outR + 0.9);
 
@@ -453,7 +515,7 @@ export class Track {
       for (let s = -360.0; s <= 420.0; s += 20.0) {
         let teamCol = teamLiveries[liveryIdx % 10];
         liveryIdx += 1;
-        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.0, 11.5, 90.0, teamCol[0], teamCol[1], teamCol[2], 0, 7.5, nil);
+        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.0, 11.5, 90.0, 255, 255, 255, 0, 7.5, nil);
         this.addSceneryProp(rawProps, "paddockHauler", s, halfW + 18.0, 1.4, 90.0, teamCol[0], teamCol[1], teamCol[2], 0, 5.0, nil);
       }
       this.addSceneryProp(rawProps, "pitsOffice", 180.0, halfW + 10.0, 11.5, 90.0, 140, 150, 165, 0, 8.5, nil);
@@ -502,45 +564,90 @@ export class Track {
       // -----------------------------------------------------------------------
       // CIRCUIT DE MONACO (Monaco Grand Prix / Monte Carlo)
       // -----------------------------------------------------------------------
-      // Mediterranean Palm Trees throughout
-      for (let s = 0.0; s < lapLen; s += 38.0) {
+      // Mediterranean Palm Trees along sidewalks throughout the circuit
+      for (let s = 0.0; s < lapLen; s += 36.0) {
         this.addSceneryProp(rawProps, "tree", s, -corridor - 5.5, 8.5, 0.0, 255, 255, 255, 1, 3.0, nil);
       }
 
-      // 1. Pit straight / Quayside Paddock (s = 5300 to 5800 & 0 to 260)
+      // 1. Sainte-Devote Church nestled in Gaumates ravine (Turn 1, s = 400 to 520)
+      this.addSceneryProp(rawProps, "grandstandCovered", 420.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 6.0, nil);
+      this.addSceneryProp(rawProps, "sainteDevote", 460.0, -corridor - 18.0, 1.0, -90.0, 220, 210, 195, 0, 6.0, nil);
+
+      // 2. Beau Rivage uphill avenue: continuous 5 to 10 story pastel apartment buildings
+      for (let s = 560.0; s <= 1200.0; s += 45.0) {
+        let bVar = (math.floor(s / 45.0)) % 5;
+        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, bVar, 6.0, nil);
+        this.addSceneryProp(rawProps, "monacoBuilding", s, corridor + 20.0, 1.0, 90.0, 255, 255, 255, (bVar + 2) % 5, 6.0, nil);
+      }
+
+      // 3. Monte Carlo Casino & Hotel de Paris at Casino Square (s = 1300 to 1480)
+      this.addSceneryProp(rawProps, "grandstandCovered", 1320.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 6.0, nil);
+      this.addSceneryProp(rawProps, "monacoCasino", 1370.0, -corridor - 26.0, 1.0, -90.0, 236, 230, 218, 0, 7.0, nil);
+      this.addSceneryProp(rawProps, "hotelDeParis", 1390.0, corridor + 26.0, 1.0, 90.0, 245, 240, 228, 0, 7.0, nil);
+
+      // 4. Mirabeau descent: Monegasque pastel apartment streetscape
+      for (let s = 1480.0; s <= 1720.0; s += 48.0) {
+        let bVar = (math.floor(s / 48.0)) % 5;
+        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, bVar, 6.0, nil);
+        this.addSceneryProp(rawProps, "monacoBuilding", s, corridor + 20.0, 1.0, 90.0, 255, 255, 255, (bVar + 1) % 5, 6.0, nil);
+      }
+
+      // 5. The Fairmont Hotel wrapping around Turn 6 Lowes Hairpin (s = 1750 to 2020)
+      this.addSceneryProp(rawProps, "grandstandCovered", 1760.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 6.0, nil);
+      this.addSceneryProp(rawProps, "fairmontHotel", 1880.0, -corridor - 22.0, 1.0, -90.0, 232, 228, 220, 0, 7.0, nil);
+
+      // 6. Portier & Tunnel approach buildings
+      this.addSceneryProp(rawProps, "monacoBuilding", 2060.0, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, 0, 6.0, nil);
+      this.addSceneryProp(rawProps, "monacoBuilding", 2130.0, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, 2, 6.0, nil);
+
+      // 7. Port Hercule Quayside: Moored luxury superyachts along Quai des Etats-Unis & Grandstands K & N
+      this.addSceneryProp(rawProps, "grandstandCovered", 3120.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 6.0, nil);
+      this.addSceneryProp(rawProps, "grandstandCovered", 3460.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 6.0, nil);
+      for (let s = 2950.0; s <= 3710.0; s += 32.0) {
+        let yVar = (math.floor(s / 32.0)) % 3;
+        this.addSceneryProp(rawProps, "superyacht", s, corridor + 18.0, 1.0, 0.0, 255, 255, 255, yVar, 5.0, nil);
+      }
+
+      // 8. Rainier III Nautical Stadium (The Swimming Pool, s = 4050 to 4550)
+      this.addSceneryProp(rawProps, "grandstandCovered", 4120.0, -corridor - 16.0, 11.0, -90.0, 255, 255, 255, 0, 6.0, nil);
+      this.addSceneryProp(rawProps, "swimmingPool", 4260.0, corridor + 22.0, 1.0, 90.0, 28, 185, 225, 0, 7.0, nil);
+      this.addSceneryProp(rawProps, "grandstandCovered", 4420.0, -corridor - 16.0, 11.0, -90.0, 255, 255, 255, 0, 6.0, nil);
+      for (let s = 4080.0; s <= 4520.0; s += 44.0) {
+        let yVar = (math.floor(s / 44.0)) % 3;
+        this.addSceneryProp(rawProps, "superyacht", s, corridor + 42.0, 1.0, 0.0, 255, 255, 255, yVar, 5.0, nil);
+      }
+
+      // 9. La Rascasse Bar with outdoor terrace & red umbrellas (s = 4800 to 5100)
+      this.addSceneryProp(rawProps, "rascasseBar", 4940.0, corridor + 14.0, 1.0, 90.0, 215, 120, 95, 0, 6.0, nil);
+      this.addSceneryProp(rawProps, "superyacht", 4860.0, corridor + 28.0, 1.0, 0.0, 255, 255, 255, 1, 5.0, nil);
+      this.addSceneryProp(rawProps, "superyacht", 5080.0, corridor + 28.0, 1.0, 0.0, 255, 255, 255, 0, 5.0, nil);
+
+      // 10. Boulevard Albert 1er high-rise streetscape (pit straight, s = 5250 to 5800 & 0 to 380)
+      for (let s = 5250.0; s <= 5780.0; s += 52.0) {
+        let bVar = (math.floor(s / 52.0)) % 5;
+        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 22.0, 1.0, -90.0, 255, 255, 255, bVar, 6.0, nil);
+      }
+      for (let s = 20.0; s <= 380.0; s += 52.0) {
+        let bVar = (math.floor(s / 52.0) + 2) % 5;
+        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 22.0, 1.0, -90.0, 255, 255, 255, bVar, 6.0, nil);
+      }
+
+      // Pit Garages and Pit Office on Driver's Right
       for (let s = -220.0; s <= 240.0; s += 22.0) {
-        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.0, 10.5, 90.0, 120, 130, 145, 0, 6.5, nil);
+        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.0, 10.5, 90.0, 120, 130, 145, 0, 6.0, nil);
       }
-      this.addSceneryProp(rawProps, "pitsOffice", 120.0, halfW + 10.0, 10.5, 90.0, 140, 150, 165, 0, 7.5, nil);
+      this.addSceneryProp(rawProps, "pitsOffice", 120.0, halfW + 10.0, 10.5, 90.0, 140, 150, 165, 0, 6.0, nil);
 
-      // 2. Sainte-Dévote (Turn 1): Grandstand A and city buildings
-      this.addSceneryProp(rawProps, "grandstandCovered", 420.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.5, nil);
-      this.addSceneryProp(rawProps, "building", 480.0, -corridor - 22.0, 1.0, -90.0, 255, 255, 255, 0, 8.0, nil);
-
-      // 3. Beau Rivage uphill avenue: Monegasque apartment buildings and hotels
-      for (let s = 650.0; s <= 1150.0; s += 70.0) {
-        let bVar = (math.floor(s / 70.0)) % 4;
-        this.addSceneryProp(rawProps, "building", s, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, bVar, 9.0, nil);
+      // Moored luxury superyachts in the marina basin along Blvd Albert 1er
+      for (let s = 5400.0; s <= 5760.0; s += 45.0) {
+        let yVar = (math.floor(s / 45.0)) % 3;
+        this.addSceneryProp(rawProps, "superyacht", s, corridor + 34.0, 1.0, 0.0, 255, 255, 255, yVar, 5.0, nil);
       }
 
-      // 4. Place du Casino & Casino Square: Grandstand B and Riviera Villas
-      this.addSceneryProp(rawProps, "grandstandCovered", 1380.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.5, nil);
-      this.addSceneryProp(rawProps, "rivieraVilla", 1480.0, -corridor - 22.0, 1.0, -90.0, 255, 255, 255, 0, 9.0, nil);
-
-      // 5. Mirabeau & Fairmont / Grand Hotel Hairpin: Grandstand C and hotel
-      this.addSceneryProp(rawProps, "grandstandCovered", 1750.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.5, nil);
-      this.addSceneryProp(rawProps, "building", 1920.0, -corridor - 22.0, 1.2, -90.0, 255, 255, 255, 2, 9.0, nil);
-
-      // 6. Nouvelle Chicane & Port Hercule Quayside: Moored superyachts and Grandstands K & N
-      this.addSceneryProp(rawProps, "grandstandCovered", 3150.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.5, nil);
-      this.addSceneryProp(rawProps, "grandstandCovered", 3450.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.5, nil);
-      for (let s = 2980.0; s <= 3700.0; s += 45.0) {
-        this.addSceneryProp(rawProps, "yacht", s, corridor + 16.0, 1.0, 0.0, 255, 255, 255, 0, 6.5, nil);
-      }
-
-      // 7. Tabac & Swimming Pool (Louis Chiron): Grandstand L and T
-      this.addSceneryProp(rawProps, "grandstandCovered", 4050.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.5, nil);
-      this.addSceneryProp(rawProps, "grandstandCovered", 4420.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.5, nil);
+      // 11. Limestone Alpine Maritime Cliffs rising behind Monte Carlo
+      this.addSceneryProp(rawProps, "limestoneCliff", 420.0, -corridor - 48.0, 1.0, -90.0, 185, 180, 172, 0, 8.0, nil);
+      this.addSceneryProp(rawProps, "limestoneCliff", 850.0, -corridor - 52.0, 1.2, -90.0, 185, 180, 172, 0, 8.0, nil);
+      this.addSceneryProp(rawProps, "limestoneCliff", 1260.0, -corridor - 55.0, 1.3, -90.0, 185, 180, 172, 0, 8.0, nil);
 
     } else if (this.trackId == 2) {
       // -----------------------------------------------------------------------
@@ -605,10 +712,13 @@ export class Track {
         if (isAwning) gKind = "grandstandAwning";
         this.addSceneryProp(rawProps, gKind, s, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
       }
-      // Monza Pit Building with Ferrari Scarlet team colors
+      // Monza Pit Building with authentic Formula 1 constructor team colors
+      let liveryIdx = 0;
       for (let s = -350.0; s <= 450.0; s += 20.0) {
-        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.5, 11.5, 90.0, 165, 38, 45, 0, 7.5, nil);
-        this.addSceneryProp(rawProps, "paddockHauler", s, halfW + 18.0, 1.4, 90.0, 165, 38, 45, 0, 5.0, nil);
+        let teamCol = teamLiveries[liveryIdx % 10];
+        liveryIdx += 1;
+        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.5, 11.5, 90.0, 255, 255, 255, 0, 7.5, nil);
+        this.addSceneryProp(rawProps, "paddockHauler", s, halfW + 18.0, 1.4, 90.0, teamCol[0], teamCol[1], teamCol[2], 0, 5.0, nil);
       }
       this.addSceneryProp(rawProps, "pitsOffice", 180.0, halfW + 10.0, 11.5, 90.0, 140, 150, 165, 0, 8.5, nil);
 
@@ -657,9 +767,9 @@ export class Track {
       let st50 = this.stations[bSt50];
 
       let bDist = corridor + 1.2;
-      rawProps.push({ "kind": "brakeBoard", "val": 150, "s": bzS - 150.0, "lat": -bDist, "x": st150["x"] - bDist * st150["nx"], "y": st150["y"], "z": st150["z"] - bDist * st150["nz"], "scale": 1.0, "rot": st150["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
-      rawProps.push({ "kind": "brakeBoard", "val": 100, "s": bzS - 100.0, "lat": -bDist, "x": st100["x"] - bDist * st100["nx"], "y": st100["y"], "z": st100["z"] - bDist * st100["nz"], "scale": 1.0, "rot": st100["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
-      rawProps.push({ "kind": "brakeBoard", "val": 50, "s": bzS - 50.0, "lat": -bDist, "x": st50["x"] - bDist * st50["nx"], "y": st50["y"], "z": st50["z"] - bDist * st50["nz"], "scale": 1.0, "rot": st50["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
+      rawProps.push({ "kind": "brakeBoard", "val": 150, "s": bzS - 150.0, "lat": -bDist, "x": st150["x"] - bDist * st150["nx"], "y": st150["y"], "z": st150["z"] - bDist * st150["nz"], "nx": st150["nx"], "nz": st150["nz"], "tx": st150["tx"], "tz": st150["tz"], "scale": 1.0, "rot": st150["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
+      rawProps.push({ "kind": "brakeBoard", "val": 100, "s": bzS - 100.0, "lat": -bDist, "x": st100["x"] - bDist * st100["nx"], "y": st100["y"], "z": st100["z"] - bDist * st100["nz"], "nx": st100["nx"], "nz": st100["nz"], "tx": st100["tx"], "tz": st100["tz"], "scale": 1.0, "rot": st100["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
+      rawProps.push({ "kind": "brakeBoard", "val": 50, "s": bzS - 50.0, "lat": -bDist, "x": st50["x"] - bDist * st50["nx"], "y": st50["y"], "z": st50["z"] - bDist * st50["nz"], "nx": st50["nx"], "nz": st50["nz"], "tx": st50["tx"], "tz": st50["tz"], "scale": 1.0, "rot": st50["heading"] * (180.0 / 3.14159265), "radius": 1.5 });
     }
 
     // -------------------------------------------------------------------------
@@ -789,11 +899,7 @@ export class Track {
   isInTunnel(dist) {
     let lapLen = this.spec["length"];
     let prog = dist - math.floor(dist / lapLen) * lapLen;
-    if (this.trackId == 0 and prog > 2420.0 and prog < 2580.0) return true;
-    if (this.trackId == 0 and prog > 2420.0 and prog < 2580.0) return true;
     if (this.trackId == 1 and prog > 2200.0 and prog < 2880.0) return true;
-    if (this.trackId == 2 and prog > 4100.0 and prog < 4450.0) return true;
-    if (this.trackId == 3 and prog > 2550.0 and prog < 2750.0) return true;
     return false;
   }
 
@@ -835,66 +941,219 @@ export class Track {
   }
 
   // ---------------------------------------------------------------------------
+  // ORIENTED 3D BOX / BEAM RENDERER
+  // ---------------------------------------------------------------------------
+  drawOrientedBox(cx, cy, cz, spanW, beamH, beamD, nx, nz, tx, tz, r, g, b) {
+    let halfW = spanW * 0.5;
+    let halfD = beamD * 0.5;
+    let yB = cy - beamH * 0.5;
+    let yT = cy + beamH * 0.5;
+
+    // 4 base corners in XZ plane
+    let fl_x = cx - halfW * nx - halfD * tx;
+    let fl_z = cz - halfW * nz - halfD * tz;
+    let fr_x = cx + halfW * nx - halfD * tx;
+    let fr_z = cz + halfW * nz - halfD * tz;
+    let br_x = cx + halfW * nx + halfD * tx;
+    let br_z = cz + halfW * nz + halfD * tz;
+    let bl_x = cx - halfW * nx + halfD * tx;
+    let bl_z = cz - halfW * nz + halfD * tz;
+
+    // Front face (incoming traffic side)
+    gui.drawQuad3D(fl_x, yB, fl_z, fr_x, yB, fr_z, fr_x, yT, fr_z, fl_x, yT, fl_z, r, g, b);
+    // Back face (downstream traffic side)
+    gui.drawQuad3D(br_x, yB, br_z, bl_x, yB, bl_z, bl_x, yT, bl_z, br_x, yT, br_z, r, g, b);
+    // Top face
+    gui.drawQuad3D(fl_x, yT, fl_z, fr_x, yT, fr_z, br_x, yT, br_z, bl_x, yT, bl_z, r, g, b);
+    // Bottom face
+    gui.drawQuad3D(fl_x, yB, fl_z, bl_x, yB, bl_z, br_x, yB, br_z, fr_x, yB, fr_z, r, g, b);
+    // Left face
+    gui.drawQuad3D(bl_x, yB, bl_z, fl_x, yB, fl_z, fl_x, yT, fl_z, bl_x, yT, bl_z, r, g, b);
+    // Right face
+    gui.drawQuad3D(fr_x, yB, fr_z, br_x, yB, br_z, br_x, yT, br_z, fr_x, yT, fr_z, r, g, b);
+  }
+
+  // ---------------------------------------------------------------------------
   // 3D DISTANT HORIZON MOUNTAINS & ENVIRONMENT BACKDROP
   // ---------------------------------------------------------------------------
-  drawDistantBackdrop(cX, cZ) {
-    if (this.trackId == 0) {
-      // SUZUKA GP: Majestic Mie Highlands Mountain Massifs & Suzuka Horizon
-      let numMtn = 16;
-      let mtnRadius = 1450.0;
-      for (let m = 0; m < numMtn; m += 1) {
-        let angle = (m / numMtn) * 6.2831853;
-        let mx = cX + math.sin(angle) * mtnRadius;
-        let mz = cZ + math.cos(angle) * mtnRadius;
-        let mH = 140.0 + ((m * 37) % 65);
-        let mW = 280.0 + ((m * 23) % 90);
-        let mR = 24 + (m % 3) * 4;
-        let mG = 40 + (m % 3) * 6;
-        let mB = 68 + (m % 3) * 10;
-        gui.drawCylinder3D(mx, mH * 0.5 - 2.0, mz, 1.0, mW * 0.5, mH, 5, mR, mG, mB);
-      }
-    } else if (this.trackId == 1) {
-      // MONACO GP: French Riviera Mediterranean Sea & Alpine Coastal Cliffs
-      gui.drawPlane3D(cX + 240.0, -1.8, cZ + 400.0, 1600.0, 1200.0, 22, 70, 125);
-      let numMtn = 12;
-      for (let m = 0; m < numMtn; m += 1) {
-        let angle = 2.4 + (m / numMtn) * 2.8;
-        let mx = cX + math.sin(angle) * 980.0;
-        let mz = cZ + math.cos(angle) * 980.0;
-        let mH = 160.0 + ((m * 29) % 70);
-        let mW = 240.0 + ((m * 19) % 80);
-        gui.drawCylinder3D(mx, mH * 0.5 - 2.0, mz, 2.0, mW * 0.5, mH, 5, 85, 45, 62);
-      }
-    } else if (this.trackId == 2) {
-      // SPA GP: Dense Ardennes Pine Forest Hills & Rolling Valley Massifs
-      let numMtn = 18;
-      let mtnRadius = 1550.0;
-      for (let m = 0; m < numMtn; m += 1) {
-        let angle = (m / numMtn) * 6.2831853;
-        let mx = cX + math.sin(angle) * mtnRadius;
-        let mz = cZ + math.cos(angle) * mtnRadius;
-        let mH = 150.0 + ((m * 31) % 60);
-        let mW = 290.0 + ((m * 17) % 80);
-        let mR = 18 + (m % 3) * 4;
-        let mG = 42 + (m % 3) * 6;
-        let mB = 34 + (m % 3) * 8;
-        gui.drawCylinder3D(mx, mH * 0.5 - 2.0, mz, 1.0, mW * 0.5, mH, 5, mR, mG, mB);
-      }
+  drawMountainPeak(x1, z1, xC, zC, x2, z2, apexX, apexY, apexZ, r1, g1, b1, r2, g2, b2, snow) {
+    if (snow) {
+      let sFrac = 0.30;
+      let sY = apexY * (1.0 - sFrac);
+      let sx1 = apexX + (x1 - apexX) * sFrac;
+      let sz1 = apexZ + (z1 - apexZ) * sFrac;
+      let sx2 = apexX + (x2 - apexX) * sFrac;
+      let sz2 = apexZ + (z2 - apexZ) * sFrac;
+      let sxC = apexX + (xC - apexX) * sFrac;
+      let szC = apexZ + (zC - apexZ) * sFrac;
+
+      // Grey mountain rock base as quad trapezoids from y = -12.0 up to sY + 2.5 (overlap eliminates seams)
+      let overY = sY + 2.5;
+      let ox1 = apexX + (x1 - apexX) * (sFrac * 0.94);
+      let oz1 = apexZ + (z1 - apexZ) * (sFrac * 0.94);
+      let ox2 = apexX + (x2 - apexX) * (sFrac * 0.94);
+      let oz2 = apexZ + (z2 - apexZ) * (sFrac * 0.94);
+      let oxC = apexX + (xC - apexX) * (sFrac * 0.94);
+      let ozC = apexZ + (zC - apexZ) * (sFrac * 0.94);
+      gui.drawQuad3D(x1, -12.0, z1, ox1, overY, oz1, oxC, overY, ozC, xC, -12.0, zC, r1, g1, b1);
+      gui.drawQuad3D(xC, -12.0, zC, oxC, overY, ozC, ox2, overY, oz2, x2, -12.0, z2, r2, g2, b2);
+
+      // Solid snow cap triangles covering peak from sY up to apexY
+      gui.drawTriangle3D(sx1, sY, sz1, apexX, apexY, apexZ, sxC, sY, szC, 242, 246, 252);
+      gui.drawTriangle3D(sxC, sY, szC, apexX, apexY, apexZ, sx2, sY, sz2, 218, 224, 236);
     } else {
-      // MONZA GP: Royal Monza Parkland & Distant Italian Alpine Peaks
-      let numMtn = 14;
-      let mtnRadius = 1600.0;
-      for (let m = 0; m < numMtn; m += 1) {
-        let angle = (m / numMtn) * 6.2831853;
-        let mx = cX + math.sin(angle) * mtnRadius;
-        let mz = cZ + math.cos(angle) * mtnRadius;
-        let mH = 165.0 + ((m * 41) % 80);
-        let mW = 320.0 + ((m * 27) % 90);
-        let mR = 30 + (m % 3) * 5;
-        let mG = 42 + (m % 3) * 6;
-        let mB = 72 + (m % 3) * 10;
-        gui.drawCylinder3D(mx, mH * 0.5 - 2.0, mz, 1.0, mW * 0.5, mH, 5, mR, mG, mB);
+      gui.drawTriangle3D(x1, -12.0, z1, apexX, apexY, apexZ, xC, -12.0, zC, r1, g1, b1);
+      gui.drawTriangle3D(xC, -12.0, zC, apexX, apexY, apexZ, x2, -12.0, z2, r2, g2, b2);
+    }
+  }
+
+  drawMountainRidge(cX, cZ, radius, numPeaks, startAng, totalAng, baseH, varH, r1, g1, b1, r2, g2, b2, snow) {
+    let angStep = totalAng / numPeaks;
+    let wAng = angStep * 1.35;
+    for (let m = 0; m < numPeaks; m += 1) {
+      let ang = startAng + m * angStep;
+      let pH = baseH + ((m * 37 + 13) % varH);
+      let aX = cX + math.sin(ang) * radius;
+      let aZ = cZ + math.cos(ang) * radius;
+      let x1 = cX + math.sin(ang - wAng * 0.5) * radius;
+      let z1 = cZ + math.cos(ang - wAng * 0.5) * radius;
+      let x2 = cX + math.sin(ang + wAng * 0.5) * radius;
+      let z2 = cZ + math.cos(ang + wAng * 0.5) * radius;
+      let xC = cX + math.sin(ang) * radius;
+      let zC = cZ + math.cos(ang) * radius;
+      this.drawMountainPeak(x1, z1, xC, zC, x2, z2, aX, pH, aZ, r1, g1, b1, r2, g2, b2, snow);
+    }
+  }
+
+  initCloudDome() {
+    this.cloudBanks = [];
+    let count = 28;
+    for (let i = 0; i < count; i += 1) {
+      let ang = i * 2.39996323 + 0.35;
+      let rFrac = (i + 0.5) / count;
+      let radius = 600.0 + rFrac * 1100.0;
+      let initX = math.cos(ang) * radius;
+      let initZ = math.sin(ang) * radius;
+      let alt = 240.0 + ((i * 37 + 19) % 120);
+      let len = 80.0 + ((i * 47 + 13) % 140);
+      let wid = 50.0 + ((i * 31 + 23) % 90);
+      let hgt = 18.0 + ((i * 17 + 7) % 17);
+      let swapAxes = (i % 2 == 1);
+
+      this.cloudBanks.push({
+        "initX": initX,
+        "initZ": initZ,
+        "alt": alt,
+        "len": len,
+        "wid": wid,
+        "hgt": hgt,
+        "swapAxes": swapAxes
+      });
+    }
+  }
+
+  drawCelestialDome(cX, cZ, t) {
+    if (t == nil) t = 0.0;
+
+    // 1. 3D Celestial Sun
+    let sunAzimuth = 0.82;
+    let sunElev = 0.48;
+    let sunDist = 1850.0;
+    let sunWorldX = cX + sunDist * math.cos(sunElev) * math.sin(sunAzimuth);
+    let sunWorldY = 18.0 + sunDist * math.sin(sunElev);
+    let sunWorldZ = cZ + sunDist * math.cos(sunElev) * math.cos(sunAzimuth);
+
+    // Radiant sun spheres
+    gui.drawSphere3D(sunWorldX, sunWorldY, sunWorldZ, 120.0, 255, 240, 190);
+    gui.drawSphere3D(sunWorldX, sunWorldY, sunWorldZ, 80.0, 255, 248, 210);
+    gui.drawSphere3D(sunWorldX, sunWorldY, sunWorldZ, 48.0, 255, 255, 245);
+
+    // 2. 3D Volumetric Cloud Banks
+    if (this.cloudBanks == nil) this.initCloudDome();
+
+    let wrapRadius = 1800.0;
+    let wrapDiameter = 3600.0;
+    let driftX = t * 4.5;
+    let driftZ = t * 2.0;
+
+    for (let c = 0; c < len(this.cloudBanks); c += 1) {
+      let cb = this.cloudBanks[c];
+      let rawX = cb["initX"] + driftX - cX;
+      let rawZ = cb["initZ"] + driftZ - cZ;
+
+      let wrapX = rawX - math.floor((rawX + wrapRadius) / wrapDiameter) * wrapDiameter;
+      let wrapZ = rawZ - math.floor((rawZ + wrapRadius) / wrapDiameter) * wrapDiameter;
+
+      let clX = cX + wrapX;
+      let clY = cb["alt"];
+      let clZ = cZ + wrapZ;
+
+      let cLen = cb["len"];
+      let cWid = cb["wid"];
+      let cHgt = cb["hgt"];
+      let dimX = cWid;
+      let dimZ = cLen;
+      if (cb["swapAxes"]) {
+        dimX = cLen;
+        dimZ = cWid;
       }
+
+      // Flat shaded base quad or box
+      gui.drawCube3D(clX, clY + cHgt * 0.18, clZ, dimX, cHgt * 0.36, dimZ, 200, 208, 222);
+
+      // Puffy sunlit mid quads or boxes
+      gui.drawCube3D(clX, clY + cHgt * 0.52, clZ, dimX * 0.82, cHgt * 0.44, dimZ * 0.82, 248, 250, 255);
+      gui.drawCube3D(clX + dimX * 0.20, clY + cHgt * 0.46, clZ + dimZ * 0.12, dimX * 0.55, cHgt * 0.38, dimZ * 0.55, 248, 250, 255);
+      gui.drawCube3D(clX - dimX * 0.22, clY + cHgt * 0.44, clZ - dimZ * 0.14, dimX * 0.52, cHgt * 0.36, dimZ * 0.52, 248, 250, 255);
+
+      // Upper crest quad or box
+      gui.drawCube3D(clX + dimX * 0.04, clY + cHgt * 0.78, clZ + dimZ * 0.04, dimX * 0.50, cHgt * 0.34, dimZ * 0.50, 248, 250, 255);
+    }
+  }
+
+  drawDistantBackdrop(cX, cZ, t) {
+    if (t == nil) t = 0.0;
+    this.drawCelestialDome(cX, cZ, t);
+
+    if (this.trackId == 0) {
+      // SUZUKA GP: Layered Mie mountain silhouettes with depth shading
+      // Far Layer: Mount Gozaisho and Suzuka mountain massifs
+      this.drawMountainRidge(cX, cZ, 1650.0, 16, 0.0, 6.2831853, 180.0, 70, 36, 52, 78, 22, 34, 56, false);
+      // Mid Layer: Highland forested ridges
+      this.drawMountainRidge(cX, cZ, 1180.0, 16, 0.20, 6.2831853, 115.0, 55, 28, 58, 50, 18, 42, 36, false);
+      // Near Layer: Undulating Japanese highland foothills
+      this.drawMountainRidge(cX, cZ, 760.0, 14, 0.44, 6.2831853, 55.0, 40, 32, 74, 42, 20, 52, 28, false);
+
+    } else if (this.trackId == 1) {
+      // MONACO GP: Mediterranean Sea horizon, towering limestone cliffs, terraced mountain slopes
+      // 1. Seaward Mediterranean Sea horizon
+      gui.drawPlane3D(cX + 380.0, -1.0, cZ + 380.0, 2400.0, 2000.0, 18, 88, 158);
+      gui.drawPlane3D(cX + 200.0, -0.6, cZ + 200.0, 1400.0, 1200.0, 20, 95, 168);
+
+      // 2. Far Alpine limestone massifs (North/West landward)
+      this.drawMountainRidge(cX, cZ, 1550.0, 12, 2.3, 3.6, 220.0, 75, 175, 172, 180, 128, 125, 135, false);
+
+      // 3. Mid Layer: Tete de Chien and Mont Agel towering limestone cliffs
+      this.drawMountainRidge(cX, cZ, 1050.0, 10, 2.4, 3.4, 175.0, 65, 198, 192, 180, 138, 134, 126, false);
+
+      // 4. Near Layer: Terraced Maritime coastal slopes
+      this.drawMountainRidge(cX, cZ, 680.0, 9, 2.5, 3.2, 75.0, 45, 78, 98, 64, 52, 70, 44, false);
+
+    } else if (this.trackId == 2) {
+      // SPA GP: Rolling Ardennes valley pine forest ridges
+      // Far Layer: Distant Ardennes blue-green ridge
+      this.drawMountainRidge(cX, cZ, 1650.0, 18, 0.0, 6.2831853, 160.0, 60, 24, 46, 60, 16, 32, 44, false);
+      // Mid Layer: Rolling coniferous valley pine ridge
+      this.drawMountainRidge(cX, cZ, 1200.0, 18, 0.18, 6.2831853, 110.0, 50, 22, 56, 36, 14, 40, 26, false);
+      // Near Layer: Valley slope pine crowns
+      this.drawMountainRidge(cX, cZ, 780.0, 16, 0.35, 6.2831853, 50.0, 40, 30, 76, 42, 18, 54, 30, false);
+
+    } else {
+      // MONZA GP: Alpine peaks on the distant northern horizon and royal parkland tree canopies
+      // Distant snow-capped Italian Alps on northern horizon
+      this.drawMountainRidge(cX, cZ, 1750.0, 10, 2.1, 2.2, 220.0, 80, 138, 148, 170, 92, 102, 126, true);
+      // Royal parkland continuous oak tree canopies
+      this.drawMountainRidge(cX, cZ, 720.0, 20, 0.0, 6.2831853, 38.0, 28, 38, 76, 42, 24, 52, 28, false);
     }
   }
 
@@ -927,7 +1186,21 @@ export class Track {
     }
 
     // 0. Distant 3D Mountains & Horizon Backdrop
-    this.drawDistantBackdrop(cX, cZ);
+    this.drawDistantBackdrop(cX, cZ, t);
+
+    // 0a. Port Hercule Harbor Water Basin (Monaco GP)
+    if (this.trackId == 1) {
+      // Vast Mediterranean harbor water surface covering the basin enclosed by the track
+      gui.drawPlane3D(-40.0, 0.05, -70.0, 520.0, 420.0, 18, 98, 160);
+      gui.drawPlane3D(260.0, 0.0, 260.0, 1400.0, 1400.0, 16, 88, 150);
+
+      // Central floating marina pontoon in Port Hercule
+      gui.drawCube3D(-70.0, 0.45, -70.0, 4.2, 0.7, 130.0, 175, 140, 105);
+      gui.drawCube3D(-70.0, 0.25, -70.0, 4.8, 0.5, 132.0, 55, 60, 70);
+      for (let pz = -125.0; pz <= -15.0; pz += 15.0) {
+        gui.drawCylinder3D(-70.0, 1.1, pz, 0.06, 0.06, 0.6, 4, 220, 225, 235);
+      }
+    }
 
     // 0b. Circuit Landmarks (e.g. Giant Suzuka Ferris Wheel)
     if (this.trackId == 0) {
@@ -978,6 +1251,8 @@ export class Track {
       let y2 = st2["y"];
       let nx1 = st1["nx"]; let nz1 = st1["nz"];
       let nx2 = st2["nx"]; let nz2 = st2["nz"];
+      let tx1 = st1["tx"]; let tz1 = st1["tz"];
+      let tx2 = st2["tx"]; let tz2 = st2["tz"];
 
       // A. Tarmac Surface
       let hw = this.roadWidth * 0.5;
@@ -988,6 +1263,23 @@ export class Track {
       gui.drawQuad3D(st1["rl_x"], y1, st1["rl_z"], st1["rr_x"], y1, st1["rr_z"],
                      st2["rr_x"], y2, st2["rr_z"], st2["rl_x"], y2, st2["rl_z"],
                      rdR, rdG, rdB);
+
+      // Underside soffit and fascia for elevated track sections (eliminates empty space below slopes)
+      if (y1 > 0.05 or y2 > 0.05) {
+        let deckD = 0.35;
+        // Underside soffit
+        gui.drawQuad3D(st1["rl_x"], y1 - deckD, st1["rl_z"], st1["rr_x"], y1 - deckD, st1["rr_z"],
+                       st2["rr_x"], y2 - deckD, st2["rr_z"], st2["rl_x"], y2 - deckD, st2["rl_z"],
+                       36, 38, 44);
+        // Left edge fascia
+        gui.drawQuad3D(st1["rl_x"], y1, st1["rl_z"], st1["rl_x"], y1 - deckD, st1["rl_z"],
+                       st2["rl_x"], y2 - deckD, st2["rl_z"], st2["rl_x"], y2, st2["rl_z"],
+                       45, 48, 56);
+        // Right edge fascia
+        gui.drawQuad3D(st1["rr_x"], y1, st1["rr_z"], st2["rr_x"], y2, st2["rr_z"],
+                       st2["rr_x"], y2 - deckD, st2["rr_z"], st1["rr_x"], y1 - deckD, st1["rr_z"],
+                       45, 48, 56);
+      }
 
       // White painted edge lines (track boundary limits)
       let edgeW = 0.34;
@@ -1145,6 +1437,7 @@ export class Track {
       if (i == 0) {
         let tiles = 16;
         let tileW = (hw * 2.0) / tiles;
+        let finishLen = 1.4;
         for (let q = 0; q < tiles; q += 1) {
           let aOff = -hw + q * tileW;
           let bOff = aOff + tileW;
@@ -1152,16 +1445,16 @@ export class Track {
           if (q % 2 == 0) { qR = 235; qG = 236; qB = 242; }
           gui.drawQuad3D(st1["x"] + aOff * nx1, y1 + 0.016, st1["z"] + aOff * nz1,
                          st1["x"] + bOff * nx1, y1 + 0.016, st1["z"] + bOff * nz1,
-                         st2["x"] + bOff * nx2, y2 + 0.016, st2["z"] + bOff * nz2,
-                         st2["x"] + aOff * nx2, y2 + 0.016, st2["z"] + aOff * nz2,
+                         st1["x"] + bOff * nx1 + finishLen * tx1, y1 + 0.016, st1["z"] + bOff * nz1 + finishLen * tz1,
+                         st1["x"] + aOff * nx1 + finishLen * tx1, y1 + 0.016, st1["z"] + aOff * nz1 + finishLen * tz1,
                          qR, qG, qB);
         }
       }
 
       // D. National Formula 1 Rumble Curbs
-      let isCornerCurb = (math.abs(st1["curv"]) > 0.0055 or math.abs(st2["curv"]) > 0.0055);
-      let cR = 196; let cG = 198; let cB = 206;
+      let isCornerCurb = (math.abs(st1["curv"]) > 0.0035 or math.abs(st2["curv"]) > 0.0035);
       if (isCornerCurb) {
+        let cR = 196; let cG = 198; let cB = 206;
         if (this.trackId == 3) {
           // Monza: Italian Tricolore (Green, White, Red)
           let mMod = i % 3;
@@ -1188,60 +1481,96 @@ export class Track {
           if (i % 2 == 0) { cR = 225; cG = 35; cB = 40; }
           else { cR = 242; cG = 244; cB = 248; }
         }
-      }
-      gui.drawQuad3D(st1["cl_x"], y1 + 0.045, st1["cl_z"], st1["rl_x"], y1 + 0.045, st1["rl_z"],
-                     st2["rl_x"], y2 + 0.045, st2["rl_z"], st2["cl_x"], y2 + 0.045, st2["cl_z"],
-                     cR, cG, cB);
-      gui.drawQuad3D(st1["rr_x"], y1 + 0.045, st1["rr_z"], st1["cr_x"], y1 + 0.045, st1["cr_z"],
-                     st2["cr_x"], y2 + 0.045, st2["cr_z"], st2["rr_x"], y2 + 0.045, st2["rr_z"],
-                     cR, cG, cB);
 
-      // Suzuka Outer Astroturf Apron along corner curbs
-      if (this.trackId == 0 and isCornerCurb) {
-        let astroW = 1.35;
-        let astColR = 26; let astColG = 120; let astColB = 45;
-        gui.drawQuad3D(st1["cl_x"] - astroW * nx1, y1 + 0.040, st1["cl_z"] - astroW * nz1,
-                       st1["cl_x"], y1 + 0.040, st1["cl_z"],
-                       st2["cl_x"], y2 + 0.040, st2["cl_z"],
-                       st2["cl_x"] - astroW * nx2, y2 + 0.040, st2["cl_z"] - astroW * nz2,
-                       astColR, astColG, astColB);
-        gui.drawQuad3D(st1["cr_x"], y1 + 0.040, st1["cr_z"],
-                       st1["cr_x"] + astroW * nx1, y1 + 0.040, st1["cr_z"] + astroW * nz1,
-                       st2["cr_x"] + astroW * nx2, y2 + 0.040, st2["cr_z"] + astroW * nz2,
-                       st2["cr_x"], y2 + 0.040, st2["cr_z"],
-                       astColR, astColG, astColB);
-      }
-
-      // E. Runoff: gravel on corners, green grass on open straights, blue high-friction bands at speed corners.
-      let isHighCurv = (math.abs(st1["curv"]) > 0.012 and math.abs(st2["curv"]) > 0.010);
-      let runR = gravelCol[0]; let runG = gravelCol[1]; let runB = gravelCol[2];
-      if (isHighCurv and i % 2 == 1) { runR = 28; runG = 88; runB = 205; }
-
-      if (st1["runL"] and st2["runL"]) {
-        let leftColR = runR; let leftColG = runG; let leftColB = runB;
-        if (!st1["hasWallL"] and !st2["hasWallL"] and math.abs(st1["curv"]) < 0.007) {
-          leftColR = grassCol[0]; leftColG = grassCol[1]; leftColB = grassCol[2];
+        if (st1["curbL"] > 0.2 and st2["curbL"] > 0.2) {
+          gui.drawQuad3D(st1["cl_x"], y1 + 0.045, st1["cl_z"], st1["rl_x"], y1 + 0.045, st1["rl_z"],
+                         st2["rl_x"], y2 + 0.045, st2["rl_z"], st2["cl_x"], y2 + 0.045, st2["cl_z"],
+                         cR, cG, cB);
+          if (this.trackId == 0) {
+            let astroW = 1.35;
+            gui.drawQuad3D(st1["cl_x"] - astroW * nx1, y1 + 0.040, st1["cl_z"] - astroW * nz1,
+                           st1["cl_x"], y1 + 0.040, st1["cl_z"],
+                           st2["cl_x"], y2 + 0.040, st2["cl_z"],
+                           st2["cl_x"] - astroW * nx2, y2 + 0.040, st2["cl_z"] - astroW * nz2,
+                           26, 120, 45);
+          }
         }
-        gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"], st1["cl_x"], y1 - 0.02, st1["cl_z"],
-                       st2["cl_x"], y2 - 0.02, st2["cl_z"], st2["ol_x"], y2 - 0.02, st2["ol_z"],
-                       leftColR, leftColG, leftColB);
-      }
-      if (st1["runR"] and st2["runR"]) {
-        let rightColR = runR; let rightColG = runG; let rightColB = runB;
-        if (!st1["hasWallR"] and !st2["hasWallR"] and math.abs(st1["curv"]) < 0.007) {
-          rightColR = grassCol[0]; rightColG = grassCol[1]; rightColB = grassCol[2];
+
+        if (st1["curbR"] > 0.2 and st2["curbR"] > 0.2) {
+          gui.drawQuad3D(st1["rr_x"], y1 + 0.045, st1["rr_z"], st1["cr_x"], y1 + 0.045, st1["cr_z"],
+                         st2["cr_x"], y2 + 0.045, st2["cr_z"], st2["rr_x"], y2 + 0.045, st2["rr_z"],
+                         cR, cG, cB);
+          if (this.trackId == 0) {
+            let astroW = 1.35;
+            gui.drawQuad3D(st1["cr_x"], y1 + 0.040, st1["cr_z"],
+                           st1["cr_x"] + astroW * nx1, y1 + 0.040, st1["cr_z"] + astroW * nz1,
+                           st2["cr_x"] + astroW * nx2, y2 + 0.040, st2["cr_z"] + astroW * nz2,
+                           st2["cr_x"], y2 + 0.040, st2["cr_z"],
+                           26, 120, 45);
+          }
         }
-        gui.drawQuad3D(st1["cr_x"], y1 - 0.02, st1["cr_z"], st1["or_x"], y1 - 0.02, st1["or_z"],
-                       st2["or_x"], y2 - 0.02, st2["or_z"], st2["cr_x"], y2 - 0.02, st2["cr_z"],
-                       rightColR, rightColG, rightColB);
       }
 
-      // E2. Grass Embankments / Suzuka Overpass / Monaco Tunnel / Monza Overpass
+      // E. Runoff / Pedestrian Sidewalks
+      if (this.trackId == 1) {
+        // MONACO GP: Light-grey urban concrete pedestrian sidewalks on both sides
+        let swR = 165; let swG = 170; let swB = 180;
+        let cL1_x = st1["cl_x"]; let cL1_z = st1["cl_z"];
+        let cL2_x = st2["cl_x"]; let cL2_z = st2["cl_z"];
+        if (st1["curbL"] <= 0.2) { cL1_x = st1["rl_x"]; cL1_z = st1["rl_z"]; }
+        if (st2["curbL"] <= 0.2) { cL2_x = st2["rl_x"]; cL2_z = st2["rl_z"]; }
+        gui.drawQuad3D(st1["ol_x"], y1 - 0.01, st1["ol_z"], cL1_x, y1 - 0.01, cL1_z,
+                       cL2_x, y2 - 0.01, cL2_z, st2["ol_x"], y2 - 0.01, st2["ol_z"],
+                       swR, swG, swB);
+
+        let cR1_x = st1["cr_x"]; let cR1_z = st1["cr_z"];
+        let cR2_x = st2["cr_x"]; let cR2_z = st2["cr_z"];
+        if (st1["curbR"] <= 0.2) { cR1_x = st1["rr_x"]; cR1_z = st1["rr_z"]; }
+        if (st2["curbR"] <= 0.2) { cR2_x = st2["rr_x"]; cR2_z = st2["rr_z"]; }
+        gui.drawQuad3D(cR1_x, y1 - 0.01, cR1_z, st1["or_x"], y1 - 0.01, st1["or_z"],
+                       st2["or_x"], y2 - 0.01, st2["or_z"], cR2_x, y2 - 0.01, cR2_z,
+                       swR, swG, swB);
+      } else {
+        // Road Circuits: gravel on corners, green grass on open straights, blue high-friction bands
+        let isHighCurv = (math.abs(st1["curv"]) > 0.012 and math.abs(st2["curv"]) > 0.010);
+        let runR = gravelCol[0]; let runG = gravelCol[1]; let runB = gravelCol[2];
+        if (isHighCurv and i % 2 == 1) { runR = 28; runG = 88; runB = 205; }
+
+        let cL1_x = st1["cl_x"]; let cL1_z = st1["cl_z"];
+        let cL2_x = st2["cl_x"]; let cL2_z = st2["cl_z"];
+        if (st1["curbL"] <= 0.2) { cL1_x = st1["rl_x"]; cL1_z = st1["rl_z"]; }
+        if (st2["curbL"] <= 0.2) { cL2_x = st2["rl_x"]; cL2_z = st2["rl_z"]; }
+
+        let cR1_x = st1["cr_x"]; let cR1_z = st1["cr_z"];
+        let cR2_x = st2["cr_x"]; let cR2_z = st2["cr_z"];
+        if (st1["curbR"] <= 0.2) { cR1_x = st1["rr_x"]; cR1_z = st1["rr_z"]; }
+        if (st2["curbR"] <= 0.2) { cR2_x = st2["rr_x"]; cR2_z = st2["rr_z"]; }
+
+        if (st1["runL"] and st2["runL"]) {
+          let leftColR = runR; let leftColG = runG; let leftColB = runB;
+          if (!st1["hasWallL"] and !st2["hasWallL"] and math.abs(st1["curv"]) < 0.007) {
+            leftColR = grassCol[0]; leftColG = grassCol[1]; leftColB = grassCol[2];
+          }
+          gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"], cL1_x, y1 - 0.02, cL1_z,
+                         cL2_x, y2 - 0.02, cL2_z, st2["ol_x"], y2 - 0.02, st2["ol_z"],
+                         leftColR, leftColG, leftColB);
+        }
+        if (st1["runR"] and st2["runR"]) {
+          let rightColR = runR; let rightColG = runG; let rightColB = runB;
+          if (!st1["hasWallR"] and !st2["hasWallR"] and math.abs(st1["curv"]) < 0.007) {
+            rightColR = grassCol[0]; rightColG = grassCol[1]; rightColB = grassCol[2];
+          }
+          gui.drawQuad3D(cR1_x, y1 - 0.02, cR1_z, st1["or_x"], y1 - 0.02, st1["or_z"],
+                         st2["or_x"], y2 - 0.02, st2["or_z"], cR2_x, y2 - 0.02, cR2_z,
+                         rightColR, rightColG, rightColB);
+        }
+      }
+
+      // E2. Grass Embankments / Suzuka Overpass / Monaco Tunnel
       let sMid = st1["s"];
       let isSuzukaBridge = (this.trackId == 0 and sMid >= 7290.0 and sMid <= 7644.0);
       let isSuzukaUnderpass = (this.trackId == 0 and sMid >= 3640.0 and sMid <= 3780.0);
       let isMonacoTunnel = (this.trackId == 1 and sMid >= 2220.0 and sMid <= 2860.0);
-      let isMonzaOverpass = (this.trackId == 3 and sMid >= 4880.0 and sMid <= 4960.0);
 
       if (isSuzukaBridge) {
         // A. Reinforced concrete deck fascia along both elevated edges
@@ -1348,70 +1677,162 @@ export class Track {
         // 6. Tunnel Portals at Entry and Exit
         if (sMid >= 2220.0 and sMid <= 2232.0) {
           // Entry Portal Arch
-          gui.drawCube3D(st1["x"], y1 + tunH + 0.9, st1["z"], this.roadWidth + 7.0, 1.8, 2.2, 65, 70, 82);
-          gui.drawCube3D(st1["x"], y1 + tunH + 0.9, st1["z"] - 0.15 * st1["tz"], this.roadWidth * 0.65, 0.8, 0.2, 245, 210, 25);
+          this.drawOrientedBox(st1["x"], y1 + tunH + 0.9, st1["z"], this.roadWidth + 7.0, 1.8, 2.2, nx1, nz1, tx1, tz1, 65, 70, 82);
+          this.drawOrientedBox(st1["x"] - 1.15 * tx1, y1 + tunH + 0.9, st1["z"] - 1.15 * tz1, this.roadWidth * 0.65, 0.8, 0.2, nx1, nz1, tx1, tz1, 245, 210, 25);
         } else if (sMid >= 2848.0 and sMid <= 2860.0) {
           // Exit Portal Arch
-          gui.drawCube3D(st1["x"], y1 + tunH + 0.9, st1["z"], this.roadWidth + 7.0, 1.8, 2.2, 65, 70, 82);
+          this.drawOrientedBox(st1["x"], y1 + tunH + 0.9, st1["z"], this.roadWidth + 7.0, 1.8, 2.2, nx1, nz1, tx1, tz1, 65, 70, 82);
+        }
+
+        // Retaining walls down to ground plane y = -0.2
+        if (y1 > 0.0 or y2 > 0.0) {
+          gui.drawQuad3D(st1["ol_x"], y1, st1["ol_z"],
+                         st1["ol_x"] - 0.4 * nx1, -0.2, st1["ol_z"] - 0.4 * nz1,
+                         st2["ol_x"] - 0.4 * nx2, -0.2, st2["ol_z"] - 0.4 * nz2,
+                         st2["ol_x"], y2, st2["ol_z"],
+                         140, 135, 130);
+          gui.drawQuad3D(st1["or_x"], y1, st1["or_z"],
+                         st2["or_x"], y2, st2["or_z"],
+                         st2["or_x"] + 0.4 * nx2, -0.2, st2["or_z"] + 0.4 * nz2,
+                         st1["or_x"] + 0.4 * nx1, -0.2, st1["or_z"] + 0.4 * nz1,
+                         140, 135, 130);
         }
       } else {
-        // Natural sloped banks with two-tone mowed lawn stripes
-        let grassPattern = (math.floor(i / 4)) % 2;
-        let gR = math.floor(grassCol[0] * 1.25 + 6);
-        let gG = math.floor(grassCol[1] * 1.28 + 12);
-        let gB = math.floor(grassCol[2] * 1.22 + 5);
-        if (grassPattern == 0) {
-          gR = grassCol[0];
-          gG = grassCol[1];
-          gB = grassCol[2];
-        }
+        if (this.trackId == 1) {
+          // MONACO GP: Pure city street circuit
+          // Urban pedestrian sidewalks continue outward at y1 - 0.01 and y2 - 0.01.
+          let swR = 165; let swG = 170; let swB = 180;
+          if (st1["embOkL"] and st2["embOkL"]) {
+            gui.drawQuad3D(st1["ol_x"], y1 - 0.01, st1["ol_z"],
+                           st1["el_x"], y1 - 0.01, st1["el_z"],
+                           st2["el_x"], y2 - 0.01, st2["el_z"],
+                           st2["ol_x"], y2 - 0.01, st2["ol_z"],
+                           swR, swG, swB);
+          }
+          if (st1["embOkR"] and st2["embOkR"]) {
+            gui.drawQuad3D(st1["or_x"], y1 - 0.01, st1["or_z"],
+                           st2["or_x"], y2 - 0.01, st2["or_z"],
+                           st2["er_x"], y2 - 0.01, st2["er_z"],
+                           st1["er_x"], y1 - 0.01, st1["er_z"],
+                           swR, swG, swB);
+          }
 
-        if (st1["embOkL"] and st2["embOkL"]) {
-          gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"],
-                         st1["el_x"], -0.2, st1["el_z"],
-                         st2["el_x"], -0.2, st2["el_z"],
-                         st2["ol_x"], y2 - 0.02, st2["ol_z"],
-                         gR, gG, gB);
-        } else if (y1 > 0.30 or y2 > 0.30) {
-          gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"],
-                         st1["ol_x"], -0.2, st1["ol_z"],
-                         st2["ol_x"], -0.2, st2["ol_z"],
-                         st2["ol_x"], y2 - 0.02, st2["ol_z"],
-                         gR, gG, gB);
-        }
-        if (st1["embOkR"] and st2["embOkR"]) {
-          gui.drawQuad3D(st1["or_x"], y1 - 0.02, st1["or_z"],
-                         st2["or_x"], y2 - 0.02, st2["or_z"],
-                         st2["er_x"], -0.2, st2["er_z"],
-                         st1["er_x"], -0.2, st1["er_z"],
-                         gR, gG, gB);
-        } else if (y1 > 0.30 or y2 > 0.30) {
-          gui.drawQuad3D(st1["or_x"], y1 - 0.02, st1["or_z"],
-                         st1["or_x"], -0.2, st1["or_z"],
-                         st2["or_x"], -0.2, st2["or_z"],
-                         st2["or_x"], y2 - 0.02, st2["or_z"],
-                         gR, gG, gB);
-        }
-      }
+          // Left side: Solid stone retaining wall dropping from sidewalk down to ground level (y = -0.2)
+          let wallL1_x = st1["el_x"]; let wallL1_z = st1["el_z"];
+          if (!st1["embOkL"]) { wallL1_x = st1["ol_x"]; wallL1_z = st1["ol_z"]; }
+          let wallL2_x = st2["el_x"]; let wallL2_z = st2["el_z"];
+          if (!st2["embOkL"]) { wallL2_x = st2["ol_x"]; wallL2_z = st2["ol_z"]; }
 
-      // Monza 1955 Banked Oval Overpass spanning across Serraglio straight
-      if (isMonzaOverpass) {
-        let ovalH = 7.5;
-        let ovalW = 34.0;
-        let ovalThick = 2.2;
-        gui.drawQuad3D(st1["x"] - ovalW * 0.5 * nx1, y1 + ovalH + 2.5, st1["z"] - ovalW * 0.5 * nz1,
-                       st1["x"] + ovalW * 0.5 * nx1, y1 + ovalH - 1.0, st1["z"] + ovalW * 0.5 * nz1,
-                       st2["x"] + ovalW * 0.5 * nx2, y2 + ovalH - 1.0, st2["z"] + ovalW * 0.5 * nz2,
-                       st2["x"] - ovalW * 0.5 * nx2, y2 + ovalH + 2.5, st2["z"] - ovalW * 0.5 * nz2,
-                       85, 88, 95);
-        gui.drawQuad3D(st1["x"] - ovalW * 0.5 * nx1, y1 + ovalH + 2.5, st1["z"] - ovalW * 0.5 * nz1,
-                       st1["x"] - ovalW * 0.5 * nx1, y1 + ovalH + 2.5 - ovalThick, st1["z"] - ovalW * 0.5 * nz1,
-                       st2["x"] - ovalW * 0.5 * nx2, y2 + ovalH + 2.5 - ovalThick, st2["z"] - ovalW * 0.5 * nz2,
-                       st2["x"] - ovalW * 0.5 * nx2, y2 + ovalH + 2.5, st2["z"] - ovalW * 0.5 * nz2,
-                       70, 72, 78);
-        if (sMid >= 4910.0 and sMid <= 4930.0) {
-          gui.drawCube3D(st1["ol_x"] - 2.5 * nx1, y1 + ovalH * 0.5, st1["ol_z"] - 2.5 * nz1, 3.5, ovalH, 5.0, 75, 78, 86);
-          gui.drawCube3D(st1["or_x"] + 2.5 * nx1, y1 + ovalH * 0.5, st1["or_z"] + 2.5 * nz1, 3.5, ovalH, 5.0, 75, 78, 86);
+          gui.drawQuad3D(wallL1_x, y1 - 0.01, wallL1_z,
+                         wallL1_x - 0.4 * nx1, -0.2, wallL1_z - 0.4 * nz1,
+                         wallL2_x - 0.4 * nx2, -0.2, wallL2_z - 0.4 * nz2,
+                         wallL2_x, y2 - 0.01, wallL2_z,
+                         140, 135, 130);
+
+          // On harbor side, render stone harbor quays and Mediterranean Sea water
+          let isHarborQuayR = ((sMid >= 2860.0 and sMid <= 3750.0) or
+                               (sMid >= 3950.0 and sMid <= 4580.0) or
+                               (sMid >= 4800.0 and sMid <= 5100.0) or
+                               (sMid >= 5300.0 or sMid <= 350.0));
+          if (isHarborQuayR) {
+            // Stone harbor quay deck extending past sidewalk
+            let quayW = 8.0;
+            let qx1 = st1["er_x"]; let qz1 = st1["er_z"];
+            let qx2 = st2["er_x"]; let qz2 = st2["er_z"];
+            let ex1 = qx1 + quayW * nx1; let ez1 = qz1 + quayW * nz1;
+            let ex2 = qx2 + quayW * nx2; let ez2 = qz2 + quayW * nz2;
+            gui.drawQuad3D(qx1, y1 - 0.04, qz1, qx2, y2 - 0.04, qz2,
+                           ex2, y2 - 0.04, ez2, ex1, y1 - 0.04, ez1,
+                           135, 140, 150);
+            // Stone quay seawall face dropping into sea
+            gui.drawQuad3D(ex1, y1 - 0.04, ez1, ex2, y2 - 0.04, ez2,
+                           ex2, 0.05, ez2, ex1, 0.05, ez1,
+                           105, 110, 120);
+            // Mediterranean sea water surface
+            let seaW = 35.0;
+            let sx1 = ex1 + seaW * nx1; let sz1 = ez1 + seaW * nz1;
+            let sx2 = ex2 + seaW * nx2; let sz2 = ez2 + seaW * nz2;
+            gui.drawQuad3D(ex1, 0.05, ez1, ex2, 0.05, ez2,
+                           sx2, 0.05, sz2, sx1, 0.05, sz1,
+                           18, 98, 160);
+          } else {
+            // Right side: Solid stone retaining wall dropping down to y = -0.2
+            let wallR1_x = st1["er_x"]; let wallR1_z = st1["er_z"];
+            if (!st1["embOkR"]) { wallR1_x = st1["or_x"]; wallR1_z = st1["or_z"]; }
+            let wallR2_x = st2["er_x"]; let wallR2_z = st2["er_z"];
+            if (!st2["embOkR"]) { wallR2_x = st2["or_x"]; wallR2_z = st2["or_z"]; }
+
+            gui.drawQuad3D(wallR1_x, y1 - 0.01, wallR1_z,
+                           wallR2_x, y2 - 0.01, wallR2_z,
+                           wallR2_x + 0.4 * nx2, -0.2, wallR2_z + 0.4 * nz2,
+                           wallR1_x + 0.4 * nx1, -0.2, wallR1_z + 0.4 * nz1,
+                           140, 135, 130);
+          }
+        } else {
+          // Road circuits: Suzuka, Spa, Monza
+          let grassPattern = (math.floor(i / 4)) % 2;
+          let gR = math.floor(grassCol[0] * 1.25 + 6);
+          let gG = math.floor(grassCol[1] * 1.28 + 12);
+          let gB = math.floor(grassCol[2] * 1.22 + 5);
+          if (grassPattern == 0) {
+            gR = grassCol[0];
+            gG = grassCol[1];
+            gB = grassCol[2];
+          }
+
+          if (st1["embOkL"] and st2["embOkL"]) {
+            gui.drawQuad3D(st1["ol_x"], y1 - 0.02, st1["ol_z"],
+                           st1["el_x"], y1 - 0.02, st1["el_z"],
+                           st2["el_x"], y2 - 0.02, st2["el_z"],
+                           st2["ol_x"], y2 - 0.02, st2["ol_z"],
+                           gR, gG, gB);
+          }
+          if (st1["embOkR"] and st2["embOkR"]) {
+            gui.drawQuad3D(st1["or_x"], y1 - 0.02, st1["or_z"],
+                           st2["or_x"], y2 - 0.02, st2["or_z"],
+                           st2["er_x"], y2 - 0.02, st2["er_z"],
+                           st1["er_x"], y1 - 0.02, st1["er_z"],
+                           gR, gG, gB);
+          }
+
+          // Solid ground embankments connecting outer edges down to ground plane y = -0.2
+          if (!isSuzukaBridge and (y1 > 0.0 or y2 > 0.0)) {
+            let slopeW = 8.0;
+            let embR = math.floor(grassCol[0] * 0.72);
+            let embG = math.floor(grassCol[1] * 0.72);
+            let embB = math.floor(grassCol[2] * 0.72);
+            if (grassPattern == 0) {
+              embR = math.floor(grassCol[0] * 0.65);
+              embG = math.floor(grassCol[1] * 0.65);
+              embB = math.floor(grassCol[2] * 0.65);
+            }
+
+            let exL1 = st1["el_x"]; let ezL1 = st1["el_z"];
+            if (!st1["embOkL"]) { exL1 = st1["ol_x"]; ezL1 = st1["ol_z"]; }
+            let exL2 = st2["el_x"]; let ezL2 = st2["el_z"];
+            if (!st2["embOkL"]) { exL2 = st2["ol_x"]; ezL2 = st2["ol_z"]; }
+            let fxL1 = exL1 - slopeW * nx1; let fzL1 = ezL1 - slopeW * nz1;
+            let fxL2 = exL2 - slopeW * nx2; let fzL2 = ezL2 - slopeW * nz2;
+
+            gui.drawQuad3D(exL1, y1 - 0.02, ezL1,
+                           fxL1, -0.2, fzL1,
+                           fxL2, -0.2, fzL2,
+                           exL2, y2 - 0.02, ezL2,
+                           embR, embG, embB);
+
+            let exR1 = st1["er_x"]; let ezR1 = st1["er_z"];
+            if (!st1["embOkR"]) { exR1 = st1["or_x"]; ezR1 = st1["or_z"]; }
+            let exR2 = st2["er_x"]; let ezR2 = st2["er_z"];
+            if (!st2["embOkR"]) { exR2 = st2["or_x"]; ezR2 = st2["or_z"]; }
+            let fxR1 = exR1 + slopeW * nx1; let fzR1 = ezR1 + slopeW * nz1;
+            let fxR2 = exR2 + slopeW * nx2; let fzR2 = ezR2 + slopeW * nz2;
+
+            gui.drawQuad3D(exR1, y1 - 0.02, ezR1,
+                           exR2, y2 - 0.02, ezR2,
+                           fxR2, -0.2, fzR2,
+                           fxR1, -0.2, fzR1,
+                           embR, embG, embB);
+          }
         }
       }
 
@@ -1514,40 +1935,43 @@ export class Track {
                        55, 62, 75);
         gui.drawQuad3D(st1["rr_x"], y1 + pwH, st1["rr_z"], st1["rr_x"] + 0.45 * pNx1, y1 + pwH, st1["rr_z"] + 0.45 * pNz1,
                        st2["rr_x"] + 0.45 * pNx2, y2 + pwH, st2["rr_z"] + 0.45 * pNz2, st2["rr_x"], y2 + pwH, st2["rr_z"],
-                       225, 40, 50);
+                       85, 92, 105);
 
         // Team Pit Perch / Telemetry Timing Stand every 6 segments
         if (i % 6 == 0 and i > 5 and i < numStations - 10) {
           let standX = st1["rr_x"] + 1.8 * pNx1;
           let standZ = st1["rr_z"] + 1.8 * pNz1;
-          gui.drawCube3D(standX, y1 + 1.3, standZ, 2.2, 1.8, 3.2, 45, 52, 65);
-          gui.drawCube3D(standX, y1 + 2.3, standZ, 2.4, 0.25, 3.4, 180, 40, 48);
+          this.drawOrientedBox(standX, y1 + 1.3, standZ, 2.2, 1.8, 3.2, pNx1, pNz1, tx1, tz1, 45, 52, 65);
+          this.drawOrientedBox(standX, y1 + 2.3, standZ, 2.4, 0.25, 3.4, pNx1, pNz1, tx1, tz1, 180, 40, 48);
           // Glowing Telemetry Screens
-          gui.drawCube3D(standX - 0.8 * pNx1, y1 + 1.5, standZ - 0.8 * pNz1, 0.2, 0.6, 2.4, 0, 230, 255);
+          this.drawOrientedBox(standX - 0.8 * pNx1, y1 + 1.5, standZ - 0.8 * pNz1, 0.2, 0.6, 2.4, pNx1, pNz1, tx1, tz1, 0, 230, 255);
         }
       }
 
       // G. Start / Finish Line Checkered Gantry Arch & 5 F1 Starting Lights at Station 0
       if (i == 0) {
         let archH = 9.0;
-        // Heavy steel portal towers
-        gui.drawCube3D(st1["ol_x"], y1 + archH * 0.5, st1["ol_z"], 1.6, archH, 1.8, 35, 45, 65);
-        gui.drawCube3D(st1["or_x"], y1 + archH * 0.5, st1["or_z"], 1.6, archH, 1.8, 35, 45, 65);
-        // Main overhead gantry beam spanning the track
-        gui.drawCube3D(st1["x"], y1 + archH, st1["z"], this.roadWidth + 4.5, 1.6, 2.0, 45, 55, 75);
-        // Circuit Name & FIA Sponsor Plaque
-        gui.drawCube3D(st1["x"], y1 + archH + 1.1, st1["z"], this.roadWidth * 0.65, 0.8, 0.35, 225, 35, 45);
+        let halfSpan = (this.roadWidth + 5.5) * 0.5;
+        let towL_x = st1["x"] - halfSpan * nx1; let towL_z = st1["z"] - halfSpan * nz1;
+        let towR_x = st1["x"] + halfSpan * nx1; let towR_z = st1["z"] + halfSpan * nz1;
+        // Heavy steel portal towers oriented perpendicular to track
+        this.drawOrientedBox(towL_x, y1 + archH * 0.5, towL_z, 1.6, archH, 1.8, nx1, nz1, tx1, tz1, 35, 45, 65);
+        this.drawOrientedBox(towR_x, y1 + archH * 0.5, towR_z, 1.6, archH, 1.8, nx1, nz1, tx1, tz1, 35, 45, 65);
+        // Main overhead gantry beam spanning the track perpendicular to road
+        this.drawOrientedBox(st1["x"], y1 + archH, st1["z"], halfSpan * 2.0 + 1.6, 1.6, 2.0, nx1, nz1, tx1, tz1, 45, 55, 75);
+        // Circuit Name & FIA Sponsor Plaque on incoming side
+        this.drawOrientedBox(st1["x"] - 1.05 * tx1, y1 + archH + 1.1, st1["z"] - 1.05 * tz1, this.roadWidth * 0.65, 0.8, 0.35, nx1, nz1, tx1, tz1, 225, 35, 45);
         // Central Digital Timing LED display
-        gui.drawCube3D(st1["x"], y1 + archH - 0.7, st1["z"] - 0.2 * nz1, 3.2, 0.75, 0.25, 15, 18, 25);
-        gui.drawCube3D(st1["x"], y1 + archH - 0.7, st1["z"] - 0.25 * nz1, 2.8, 0.5, 0.1, 255, 190, 40);
+        this.drawOrientedBox(st1["x"] - 1.10 * tx1, y1 + archH - 0.7, st1["z"] - 1.10 * tz1, 3.2, 0.75, 0.25, nx1, nz1, tx1, tz1, 15, 18, 25);
+        this.drawOrientedBox(st1["x"] - 1.20 * tx1, y1 + archH - 0.7, st1["z"] - 1.20 * tz1, 2.8, 0.5, 0.10, nx1, nz1, tx1, tz1, 255, 190, 40);
 
         // 5 Official Formula 1 Starting Lights
         let lightSpacing = 2.2;
         for (let lt = -2; lt <= 2; lt += 1) {
           let lxPos = st1["x"] + lt * lightSpacing * nx1;
           let lzPos = st1["z"] + lt * lightSpacing * nz1;
-          gui.drawCube3D(lxPos, y1 + archH - 1.5, lzPos, 0.65, 1.3, 0.35, 15, 18, 25);
-          gui.drawSphere3D(lxPos, y1 + archH - 1.7, lzPos, 0.30, 255, 30, 35);
+          this.drawOrientedBox(lxPos, y1 + archH - 1.5, lzPos, 0.65, 1.3, 0.35, nx1, nz1, tx1, tz1, 15, 18, 25);
+          gui.drawSphere3D(lxPos - 0.22 * tx1, y1 + archH - 1.7, lzPos - 0.22 * tz1, 0.30, 255, 30, 35);
         }
       }
 
@@ -1595,11 +2019,24 @@ export class Track {
       }
 
       if (isBridge) {
-        gui.drawCube3D(st1["ol_x"], y1 + brH * 0.5, st1["ol_z"], 1.6, brH, 1.8, 55, 62, 75);
-        gui.drawCube3D(st1["or_x"], y1 + brH * 0.5, st1["or_z"], 1.6, brH, 1.8, 55, 62, 75);
-        gui.drawCube3D(st1["x"], y1 + brH, st1["z"], this.roadWidth + 5.0, 1.8, 2.4, brR, brG, brB);
-        gui.drawCube3D(st1["x"], y1 + brH, st1["z"] - 0.15 * st1["tz"], this.roadWidth * 0.70, 1.0, 0.25, banR, banG, banB);
-        gui.drawCube3D(st1["x"], y1 + brH + 1.2, st1["z"], this.roadWidth + 4.8, 0.4, 2.2, 180, 185, 195);
+        // Symmetrical portal towers anchored relative to track centerline
+        let halfSpan = (this.roadWidth + 6.0) * 0.5;
+        let towL_x = st1["x"] - halfSpan * nx1;
+        let towL_z = st1["z"] - halfSpan * nz1;
+        let towR_x = st1["x"] + halfSpan * nx1;
+        let towR_z = st1["z"] + halfSpan * nz1;
+        let totalSpan = halfSpan * 2.0 + 1.6;
+
+        // Portal towers oriented with track
+        this.drawOrientedBox(towL_x, y1 + brH * 0.5, towL_z, 1.6, brH, 1.8, nx1, nz1, tx1, tz1, 55, 62, 75);
+        this.drawOrientedBox(towR_x, y1 + brH * 0.5, towR_z, 1.6, brH, 1.8, nx1, nz1, tx1, tz1, 55, 62, 75);
+
+        // Main overhead box beam perpendicular to road spanning tower to tower
+        this.drawOrientedBox(st1["x"], y1 + brH, st1["z"], totalSpan, 1.8, 2.4, nx1, nz1, tx1, tz1, brR, brG, brB);
+        // Sponsor banner on incoming side
+        this.drawOrientedBox(st1["x"] - 1.25 * tx1, y1 + brH, st1["z"] - 1.25 * tz1, this.roadWidth * 0.85, 1.1, 0.25, nx1, nz1, tx1, tz1, banR, banG, banB);
+        // Roof top cap
+        this.drawOrientedBox(st1["x"], y1 + brH + 1.2, st1["z"], totalSpan - 0.2, 0.4, 2.2, nx1, nz1, tx1, tz1, 180, 185, 195);
       }
     }
 
@@ -1642,29 +2079,193 @@ export class Track {
           // 3D Distance Countdown Marker Board (150m, 100m, 50m)
           let bx = p["x"]; let by = p["y"]; let bz = p["z"];
           let val = p["val"];
+          let pNx = p["nx"]; let pNz = p["nz"];
+          let pTx = p["tx"]; let pTz = p["tz"];
+          if (pNx == nil) { pNx = 0.0; pNz = 1.0; pTx = 1.0; pTz = 0.0; }
+
           // Stanchion Mast
           gui.drawCylinder3D(bx, by + 1.1, bz, 0.08, 0.08, 2.2, 4, 30, 35, 45);
-          // White Board Face
-          gui.drawCube3D(bx, by + 2.0, bz, 1.4, 1.8, 0.15, 245, 245, 250);
-          // Bold Red Distance Stripes (3 for 150, 2 for 100, 1 for 50)
+          // White Board Face oriented to incoming driver
+          this.drawOrientedBox(bx, by + 2.0, bz, 1.4, 1.8, 0.15, pNx, pNz, pTx, pTz, 245, 245, 250);
+          // Bold Red Distance Stripes on incoming face (3 for 150, 2 for 100, 1 for 50)
+          let sOff = -0.09;
           if (val == 150) {
-            gui.drawCube3D(bx, by + 2.4, bz + 0.08, 1.0, 0.22, 0.05, 225, 30, 35);
-            gui.drawCube3D(bx, by + 2.0, bz + 0.08, 1.0, 0.22, 0.05, 225, 30, 35);
-            gui.drawCube3D(bx, by + 1.6, bz + 0.08, 1.0, 0.22, 0.05, 225, 30, 35);
+            this.drawOrientedBox(bx + sOff * pTx, by + 2.4, bz + sOff * pTz, 1.0, 0.22, 0.05, pNx, pNz, pTx, pTz, 225, 30, 35);
+            this.drawOrientedBox(bx + sOff * pTx, by + 2.0, bz + sOff * pTz, 1.0, 0.22, 0.05, pNx, pNz, pTx, pTz, 225, 30, 35);
+            this.drawOrientedBox(bx + sOff * pTx, by + 1.6, bz + sOff * pTz, 1.0, 0.22, 0.05, pNx, pNz, pTx, pTz, 225, 30, 35);
           } else if (val == 100) {
-            gui.drawCube3D(bx, by + 2.2, bz + 0.08, 1.0, 0.26, 0.05, 225, 30, 35);
-            gui.drawCube3D(bx, by + 1.7, bz + 0.08, 1.0, 0.26, 0.05, 225, 30, 35);
+            this.drawOrientedBox(bx + sOff * pTx, by + 2.2, bz + sOff * pTz, 1.0, 0.26, 0.05, pNx, pNz, pTx, pTz, 225, 30, 35);
+            this.drawOrientedBox(bx + sOff * pTx, by + 1.7, bz + sOff * pTz, 1.0, 0.26, 0.05, pNx, pNz, pTx, pTz, 225, 30, 35);
           } else {
-            gui.drawCube3D(bx, by + 2.0, bz + 0.08, 1.0, 0.45, 0.05, 225, 30, 35);
+            this.drawOrientedBox(bx + sOff * pTx, by + 2.0, bz + sOff * pTz, 1.0, 0.45, 0.05, pNx, pNz, pTx, pTz, 225, 30, 35);
           }
-        } else if (kind == "yacht") {
-          // Luxury Superyacht in Port Hercule
+        } else if (kind == "yacht" or kind == "superyacht") {
+          // Luxury Superyachts in Port Hercule
           let yx = p["x"]; let yy = p["y"]; let yz = p["z"];
-          gui.drawCube3D(yx, yy - 0.6, yz, 4.2, 1.6, 12.0, 225, 230, 240); // Hull
-          gui.drawCube3D(yx, yy + 0.4, yz - 1.0, 3.2, 1.2, 6.5, 245, 245, 252); // Main Cabin
-          gui.drawCube3D(yx, yy + 1.2, yz - 1.5, 2.4, 0.9, 4.0, 215, 225, 235); // Flying Bridge
-          gui.drawCylinder3D(yx, yy + 4.5, yz + 1.5, 0.12, 0.15, 8.5, 4, 190, 175, 150); // Mast
-          gui.drawCube3D(yx, yy + 4.5, yz + 2.8, 0.08, 6.0, 3.2, 250, 248, 242); // Sail
+          let yVar = p["var"];
+          if (yVar == nil) yVar = 0;
+
+          if (yVar == 1) {
+            // Sailing yacht with tall masts and rigging
+            gui.drawCube3D(yx, yy + 0.3, yz, 4.2, 2.0, 22.0, 25, 35, 58); // Navy hull
+            gui.drawCube3D(yx, yy + 1.35, yz, 4.0, 0.1, 21.0, 180, 145, 105); // Teak deck
+            gui.drawCube3D(yx, yy + 2.0, yz - 1.0, 2.6, 1.0, 8.0, 245, 245, 250); // Deckhouse
+            // Tall main mast (22m tall) & cross-trees
+            gui.drawCylinder3D(yx, yy + 11.5, yz + 2.0, 0.12, 0.20, 21.0, 4, 210, 205, 195);
+            gui.drawCube3D(yx, yy + 14.0, yz + 2.0, 2.8, 0.12, 0.15, 215, 215, 225); // Cross-tree spreaders
+            // Mizzen mast (14m tall)
+            gui.drawCylinder3D(yx, yy + 7.5, yz - 6.0, 0.10, 0.16, 13.0, 4, 210, 205, 195);
+            // Furled white sail canvas along booms
+            gui.drawCube3D(yx, yy + 3.2, yz + 4.5, 0.35, 0.6, 6.0, 248, 246, 240);
+            gui.drawCube3D(yx, yy + 2.8, yz - 8.0, 0.30, 0.5, 4.5, 248, 246, 240);
+          } else if (yVar == 2) {
+            // Flagship Mega Yacht (4-deck vessel)
+            gui.drawCube3D(yx, yy + 0.8, yz, 7.5, 3.0, 32.0, 35, 42, 55); // Hull
+            gui.drawCube3D(yx, yy + 2.35, yz, 7.2, 0.1, 31.0, 180, 145, 105); // Teak deck
+            gui.drawCube3D(yx, yy + 3.4, yz - 2.0, 6.2, 2.0, 22.0, 245, 248, 252); // Main superstructure
+            gui.drawCube3D(yx, yy + 3.4, yz - 1.0, 6.3, 1.3, 18.0, 20, 26, 38); // Dark tinted windows
+            gui.drawCube3D(yx, yy + 5.2, yz - 4.0, 5.0, 1.6, 14.0, 245, 248, 252); // Bridge deck
+            gui.drawCube3D(yx, yy + 5.2, yz - 3.5, 5.1, 1.0, 11.0, 20, 26, 38); // Bridge windows
+            gui.drawCube3D(yx, yy + 6.6, yz - 5.0, 4.0, 1.2, 8.0, 245, 248, 252); // Top sun deck
+            // Quad satellite communication radomes
+            gui.drawSphere3D(yx - 1.2, yy + 7.6, yz - 5.0, 0.55, 255, 255, 255);
+            gui.drawSphere3D(yx + 1.2, yy + 7.6, yz - 5.0, 0.55, 255, 255, 255);
+            gui.drawSphere3D(yx, yy + 8.2, yz - 6.5, 0.60, 255, 255, 255);
+          } else {
+            // 3-Deck Luxury Motor Yacht (White hull, tinted windows, flying bridge, radar domes)
+            gui.drawCube3D(yx, yy + 0.4, yz, 5.5, 2.2, 24.0, 242, 245, 252); // White hull
+            gui.drawCube3D(yx, yy - 0.4, yz, 5.0, 1.2, 22.0, 28, 45, 75); // Dark hull bottom
+            gui.drawCube3D(yx, yy + 1.55, yz, 5.3, 0.1, 23.0, 180, 145, 105); // Teak deck
+            // Main salon with wraparound tinted windows
+            gui.drawCube3D(yx, yy + 2.5, yz - 2.0, 4.4, 1.8, 14.0, 245, 248, 252);
+            gui.drawCube3D(yx, yy + 2.5, yz - 1.5, 4.5, 1.2, 12.0, 22, 28, 42); // Tinted glass
+            // Upper bridge deck
+            gui.drawCube3D(yx, yy + 4.0, yz - 3.0, 3.6, 1.4, 9.0, 245, 248, 252);
+            gui.drawCube3D(yx, yy + 4.0, yz - 2.5, 3.7, 0.9, 7.0, 22, 28, 42); // Tinted glass
+            // Flying bridge / sun deck with Bimini top
+            gui.drawCube3D(yx, yy + 5.2, yz - 4.0, 3.0, 1.0, 5.5, 240, 242, 248);
+            // Radar mast and twin satellite communication domes
+            gui.drawCylinder3D(yx, yy + 6.2, yz - 4.5, 0.08, 0.08, 1.6, 4, 210, 215, 225);
+            gui.drawSphere3D(yx - 0.7, yy + 6.6, yz - 4.5, 0.45, 252, 252, 255);
+            gui.drawSphere3D(yx + 0.7, yy + 6.6, yz - 4.5, 0.45, 252, 252, 255);
+            // Stern swim platform
+            gui.drawCube3D(yx, yy + 0.4, yz + 12.6, 4.5, 0.3, 1.8, 180, 145, 105);
+          }
+        } else if (kind == "monacoCasino") {
+          // The Grand Casino de Monte Carlo (Beaux-Arts facade, dual domed corner towers, marble portico, red carpet, palm plaza)
+          let cx = p["x"]; let cy = p["y"]; let cz = p["z"];
+          let pNx = p["nx"]; let pNz = p["nz"];
+          let pTx = p["tx"]; let pTz = p["tz"];
+          if (pNx == nil) { pNx = 1.0; pNz = 0.0; pTx = 0.0; pTz = 1.0; }
+
+          // Beaux-Arts limestone palace facade
+          this.drawOrientedBox(cx, cy + 9.0, cz, 22.0, 18.0, 46.0, pNx, pNz, pTx, pTz, 236, 230, 218);
+          // Pediment and central entrance arch
+          this.drawOrientedBox(cx, cy + 19.5, cz, 22.4, 3.0, 18.0, pNx, pNz, pTx, pTz, 242, 238, 226);
+          this.drawOrientedBox(cx, cy + 21.5, cz, 22.5, 1.8, 12.0, pNx, pNz, pTx, pTz, 230, 225, 212);
+          // Dual corner domed towers
+          let tw1_x = cx - 19.0 * pTx; let tw1_z = cz - 19.0 * pTz;
+          let tw2_x = cx + 19.0 * pTx; let tw2_z = cz + 19.0 * pTz;
+          this.drawOrientedBox(tw1_x, cy + 20.0, tw1_z, 8.0, 4.0, 8.0, pNx, pNz, pTx, pTz, 225, 220, 210);
+          this.drawOrientedBox(tw2_x, cy + 20.0, tw2_z, 8.0, 4.0, 8.0, pNx, pNz, pTx, pTz, 225, 220, 210);
+          gui.drawSphere3D(tw1_x, cy + 23.5, tw1_z, 4.2, 62, 148, 118);
+          gui.drawSphere3D(tw2_x, cy + 23.5, tw2_z, 4.2, 62, 148, 118);
+          // Grand marble entrance portico
+          this.drawOrientedBox(cx, cy + 5.0, cz, 26.0, 10.0, 20.0, pNx, pNz, pTx, pTz, 248, 246, 242);
+        } else if (kind == "hotelDeParis") {
+          // Hotel de Paris Monte-Carlo (Belle Epoque palace facade, French balconies, Mansard roof)
+          let hx = p["x"]; let hy = p["y"]; let hz = p["z"];
+          let pNx = p["nx"]; let pNz = p["nz"];
+          let pTx = p["tx"]; let pTz = p["tz"];
+          if (pNx == nil) { pNx = 1.0; pNz = 0.0; pTx = 0.0; pTz = 1.0; }
+
+          this.drawOrientedBox(hx, hy + 11.0, hz, 24.0, 22.0, 42.0, pNx, pNz, pTx, pTz, 245, 240, 228);
+          // Mansard roof
+          this.drawOrientedBox(hx, hy + 23.5, hz, 22.0, 3.5, 40.0, pNx, pNz, pTx, pTz, 75, 82, 95);
+          // Continuous French balconies
+          for (let fl = 1; fl <= 4; fl += 1) {
+            let flY = hy + 6.0 + (fl - 1) * 4.5;
+            this.drawOrientedBox(hx, flY, hz, 25.0, 0.9, 38.0, pNx, pNz, pTx, pTz, 235, 230, 218);
+          }
+        } else if (kind == "fairmontHotel") {
+          // The Fairmont Hotel (6-story modern luxury hotel wrapping around Turn 6 Lowes Hairpin)
+          let fx = p["x"]; let fy = p["y"]; let fz = p["z"];
+          let pNx = p["nx"]; let pNz = p["nz"];
+          let pTx = p["tx"]; let pTz = p["tz"];
+          if (pNx == nil) { pNx = 1.0; pNz = 0.0; pTx = 0.0; pTz = 1.0; }
+
+          this.drawOrientedBox(fx, fy + 12.0, fz, 28.0, 24.0, 44.0, pNx, pNz, pTx, pTz, 232, 228, 220);
+          // Tiered spectator balconies on 6 levels
+          for (let bl = 1; bl <= 6; bl += 1) {
+            let bY = fy + bl * 4.0;
+            this.drawOrientedBox(fx, bY, fz, 29.5, 1.0, 42.0, pNx, pNz, pTx, pTz, 245, 242, 238);
+          }
+        } else if (kind == "sainteDevote") {
+          // Sainte-Devote Church (Turn 1 Gaumates ravine stone chapel with bell tower)
+          let sx = p["x"]; let sy = p["y"]; let sz = p["z"];
+          let pNx = p["nx"]; let pNz = p["nz"];
+          let pTx = p["tx"]; let pTz = p["tz"];
+          if (pNx == nil) { pNx = 1.0; pNz = 0.0; pTx = 0.0; pTz = 1.0; }
+
+          this.drawOrientedBox(sx, sy + 5.0, sz, 14.0, 10.0, 20.0, pNx, pNz, pTx, pTz, 220, 210, 192);
+          this.drawOrientedBox(sx, sy + 10.8, sz, 15.0, 2.0, 20.8, pNx, pNz, pTx, pTz, 185, 78, 48);
+          let twX = sx - 6.0 * pTx; let twZ = sz - 6.0 * pTz;
+          this.drawOrientedBox(twX, sy + 9.5, twZ, 4.5, 19.0, 4.5, pNx, pNz, pTx, pTz, 215, 205, 188);
+          gui.drawSphere3D(twX, sy + 20.5, twZ, 1.5, 185, 78, 48);
+        } else if (kind == "swimmingPool") {
+          // Rainier III Nautical Stadium (Olympic Swimming Pool with turquoise water and diving tower)
+          let px = p["x"]; let py = p["y"]; let pz = p["z"];
+          gui.drawCube3D(px, py + 0.4, pz, 30.0, 0.8, 56.0, 242, 244, 248);
+          gui.drawCube3D(px, py + 0.5, pz, 22.0, 0.6, 48.0, 28, 185, 225);
+          gui.drawCube3D(px - 11.0, py + 6.0, pz - 16.0, 2.2, 12.0, 3.2, 245, 248, 252);
+        } else if (kind == "rascasseBar") {
+          // La Rascasse Bar & Restaurant (outdoor terrace, red umbrellas, harbor railings)
+          let rx = p["x"]; let ry = p["y"]; let rz = p["z"];
+          let pNx = p["nx"]; let pNz = p["nz"];
+          let pTx = p["tx"]; let pTz = p["tz"];
+          if (pNx == nil) { pNx = 1.0; pNz = 0.0; pTx = 0.0; pTz = 1.0; }
+
+          this.drawOrientedBox(rx, ry + 4.5, rz, 16.0, 9.0, 18.0, pNx, pNz, pTx, pTz, 215, 120, 95);
+          this.drawOrientedBox(rx, ry + 4.5, rz, 18.0, 0.5, 17.5, pNx, pNz, pTx, pTz, 235, 230, 220);
+        } else if (kind == "monacoBuilding") {
+          // Monegasque High-Rise Apartment Buildings aligned with street curvature
+          let mx = p["x"]; let my = p["y"]; let mz = p["z"];
+          let mVar = p["var"];
+          if (mVar == nil) mVar = 0;
+          let pNx = p["nx"]; let pNz = p["nz"];
+          let pTx = p["tx"]; let pTz = p["tz"];
+          if (pNx == nil) { pNx = 1.0; pNz = 0.0; pTx = 0.0; pTz = 1.0; }
+
+          let bH = 22.0 + (mVar % 4) * 5.5; // 5 to 10 stories
+          let bW = 16.0; // depth perpendicular to street
+          let bD = 24.0; // length along street tangent
+          let bR = 208; let bG = 108; let bB = 76; // Terracotta
+          if (mVar == 1) { bR = 242; bG = 235; bB = 220; } // Warm cream
+          else if (mVar == 2) { bR = 236; bG = 164; bB = 134; } // Peach
+          else if (mVar == 3) { bR = 232; bG = 196; bB = 126; } // Mediterranean yellow
+          else if (mVar == 4) { bR = 224; bG = 168; bB = 168; } // Rose
+
+          // Main apartment block oriented with street tangent
+          this.drawOrientedBox(mx, my + bH * 0.5, mz, bW, bH, bD, pNx, pNz, pTx, pTz, bR, bG, bB);
+          // Ground floor entrance lobby
+          this.drawOrientedBox(mx, my + 2.0, mz, bW + 0.3, 3.8, bD + 0.3, pNx, pNz, pTx, pTz, 45, 52, 65);
+          // Floor balconies and dark window bands
+          let numFl = math.floor((bH - 5.0) / 3.8);
+          for (let fl = 1; fl <= numFl; fl += 1) {
+            let flY = my + 3.8 + fl * 3.8;
+            this.drawOrientedBox(mx, flY, mz, bW + 0.8, 0.5, bD - 1.5, pNx, pNz, pTx, pTz, 245, 245, 250);
+            this.drawOrientedBox(mx, flY + 0.6, mz, bW + 0.9, 0.7, bD - 1.8, pNx, pNz, pTx, pTz, 60, 65, 75);
+          }
+          // Penthouse roof structure
+          this.drawOrientedBox(mx, my + bH + 1.5, mz, bW - 3.0, 3.0, bD - 4.0, pNx, pNz, pTx, pTz, 240, 238, 232);
+        } else if (kind == "limestoneCliff") {
+          // Towering Alpine Maritime Limestone Cliffs (Tete de Chien / Mont Agel)
+          let lx = p["x"]; let ly = p["y"]; let lz = p["z"];
+          let clH = 160.0;
+          gui.drawCube3D(lx, ly + clH * 0.5, lz, 48.0, clH, 48.0, 185, 180, 172);
+          gui.drawCube3D(lx + 12.0, ly + clH * 0.6, lz - 8.0, 36.0, clH * 0.8, 36.0, 165, 160, 152);
+          gui.drawCube3D(lx - 10.0, ly + clH * 0.4, lz + 10.0, 32.0, clH * 0.6, 32.0, 145, 140, 134);
+          gui.drawCylinder3D(lx, ly + clH + 10.0, lz, 4.0, 22.0, 20.0, 5, 195, 190, 182);
         } else if (kind == "rivieraVilla") {
           let vx = p["x"]; let vy = p["y"]; let vz = p["z"];
           // Elegant Mediterranean Villa (cream stone facade, terracotta pitched roof, sun awnings)

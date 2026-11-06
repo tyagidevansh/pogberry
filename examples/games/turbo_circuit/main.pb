@@ -31,12 +31,12 @@ let state = const.STATE_TITLE;
 let gameMode = const.MODE_GRAND_PRIX;
 let selectedCar = const.CAR_PHANTOM;
 let selectedTrack = const.TRACK_SHIBUYA;
-let aiDifficulty = const.AI_DIFF_AMATEUR; // 0=Rookie, 1=Amateur, 2=Expert (Max Hard)
+let aiDifficulty = const.AI_DIFF_PRO; // 0=Rookie (Easy), 1=Pro Racer (Medium), 2=Champion (Hard)
 
 fun getAiDifficultyName(diff) {
   if (diff == const.AI_DIFF_ROOKIE) return "ROOKIE (EASY)";
-  if (diff == const.AI_DIFF_AMATEUR) return "AMATEUR (MEDIUM)";
-  return "EXPERT (MAX HARD)";
+  if (diff == const.AI_DIFF_PRO) return "PRO RACER (MEDIUM)";
+  return "WORLD CHAMPION (HARD)";
 }
 
 let track = track_mod.Track(selectedTrack);
@@ -44,11 +44,8 @@ let player = car_mod.Vehicle(selectedCar, true, "PLAYER", 0.0);
 
 // AI Competitors for Grand Prix
 let rivals = [];
-let rivalNames = ["NEXUS", "CYBER-09", "RAZOR", "VORTEX", "APEX"];
-let rivalCars = [const.CAR_SHINOBI, const.CAR_VALKYRIE, const.CAR_VANTA, const.CAR_PHANTOM, const.CAR_SHINOBI];
-
-// Traffic Cars for Outrun Mode
-let trafficCars = [];
+let rivalNames = ["SCUDERIA", "BULL GP", "SILVER ARROW", "PAPAYA GP", "BRITISH GP"];
+let rivalCars = [const.CAR_PHANTOM, const.CAR_VALKYRIE, const.CAR_SHINOBI, const.CAR_VANTA, const.CAR_BRITISH];
 
 // Timers & Metrics
 let countdownTimer = 3.8;
@@ -63,12 +60,6 @@ let pauseSelection = 0;
 let racePosition = 4;
 let prevPosition = 4;
 let playerMidpointCrossed = false;
-
-// Outrun Mode Variables
-let outrunTimer = 45.0;
-let outrunStage = 1;
-let nextGateDist = 600.0;
-let totalNearMisses = 0;
 let nitroFxIntensity = 0.0;
 
 fun startRace() {
@@ -88,14 +79,17 @@ fun startRace() {
   let hw = track.roadWidth * 0.5;
   let pDist = lapLen - 47.5; // Grid Slot 4 (P4)
   let pLane = hw * 0.40;
+  let pRaceDist = -47.5;
   if (gameMode == const.MODE_TIME_ATTACK) {
     pDist = lapLen - 16.0; // Pole position
     pLane = -hw * 0.40;
+    pRaceDist = -16.0;
   }
 
   player = car_mod.Vehicle(selectedCar, true, "PLAYER", 0.0);
   player.speed = 0.0;
   player.trackDistance = pDist;
+  player.raceDistance = pRaceDist;
   player.x = pLane;
   player.setTrackPosition(track, pDist, pLane);
 
@@ -104,23 +98,23 @@ fun startRace() {
 
   // Mode Specific Setups
   rivals = [];
-  trafficCars = [];
 
   if (gameMode == const.MODE_GRAND_PRIX) {
     racePosition = 4;
     prevPosition = 4;
     // 20 Authentic Formula 1 Grid Slots: P1, P2, P3, Player(P4), P5, P6
     let slotConfigs = [
-      [lapLen - 16.0, -hw * 0.40], // P1: Slot 1
-      [lapLen - 26.5, hw * 0.40],  // P2: Slot 2
-      [lapLen - 37.0, -hw * 0.40], // P3: Slot 3
-      [lapLen - 58.0, -hw * 0.40], // P5: Slot 5
-      [lapLen - 68.5, hw * 0.40]   // P6: Slot 6
+      [-16.0, -hw * 0.40], // P1: Slot 1
+      [-26.5, hw * 0.40],  // P2: Slot 2
+      [-37.0, -hw * 0.40], // P3: Slot 3
+      [-58.0, -hw * 0.40], // P5: Slot 5
+      [-68.5, hw * 0.40]   // P6: Slot 6
     ];
 
     for (let i = 0; i < 5; i += 1) {
       let cfg = slotConfigs[i];
-      let gridDist = cfg[0];
+      let slotOffset = cfg[0];
+      let gridDist = lapLen + slotOffset;
       let gridLane = cfg[1];
       let rCar = car_mod.Vehicle(rivalCars[i], false, rivalNames[i], 0.0);
       // Strictly match acceleration, top speed, and performance specs to player for fair Grand Prix physics
@@ -134,6 +128,7 @@ fun startRace() {
       rCar.nitro = player.nitro;
       rCar.aiDifficulty = aiDifficulty;
       rCar.trackDistance = gridDist;
+      rCar.raceDistance = slotOffset;
       rCar.aiLane = gridLane;
       rCar.x = gridLane;
       rCar.speed = 0.0;
@@ -141,21 +136,6 @@ fun startRace() {
       rivals.push(rCar);
     }
     ui.setBanner("OBJECTIVE: PODIUM FINISH (TOP 3)", "RACE 5 RIVALS // " + str(totalLaps) + " LAPS", 4.5, 255, 220, 40);
-  } else if (gameMode == const.MODE_OUTRUN) {
-    totalLaps = 999;
-    outrunTimer = 45.0;
-    outrunStage = 1;
-    nextGateDist = 600.0;
-    totalNearMisses = 0;
-    racePosition = 1;
-    prevPosition = 1;
-    // Spawn highway traffic
-    for (let i = 0; i < 10; i += 1) {
-      let tf = car_mod.TrafficCar(-40.0 - i * 30.0);
-      trafficCars.push(tf);
-    }
-    ui.setOutrunState(outrunTimer, outrunStage, nextGateDist, 0.0, 0);
-    ui.setBanner("OBJECTIVE: BEAT THE CLOCK", "REACH CHECKPOINTS FOR +20s // WEAVE TRAFFIC", 4.5, 255, 80, 180);
   } else {
     // TIME ATTACK
     totalLaps = 3;
@@ -216,14 +196,70 @@ while (!gui.windowShouldClose()) {
     cam.updateCinematicTrack(track, t);
     track.update(24.0, dt);
 
+    let mouseX = gui.getMouseX();
+    let mouseY = gui.getMouseY();
+    let mouseClick = gui.isMouseButtonPressed("LEFT");
+
+    // Mouse selection on Start Screen:
+    if (mouseClick) {
+      // 1. Mode cards (x: 80 to 790)
+      if (mouseX >= 80 and mouseX <= 790 and mouseY >= 178 and mouseY < 254) {
+        gameMode = 0;
+        assets.playSfx(assets.sndSelect);
+      } else if (mouseX >= 80 and mouseX <= 790 and mouseY >= 264 and mouseY < 340) {
+        gameMode = 1;
+        assets.playSfx(assets.sndSelect);
+      }
+      // 2. AI Difficulty pills (y: 382 to 428)
+      else if (mouseY >= 382 and mouseY <= 428) {
+        for (let d = 0; d < 3; d += 1) {
+          let pX = 80 + d * 242;
+          if (mouseX >= pX and mouseX <= pX + 226) {
+            aiDifficulty = d;
+            assets.playSfx(assets.sndSelect);
+          }
+        }
+      }
+      // 3. Camera Perspective (POV) pills (y: 464 to 510)
+      else if (mouseY >= 464 and mouseY <= 510) {
+        for (let p = 0; p < 5; p += 1) {
+          let pX = 80 + p * 143;
+          if (mouseX >= pX and mouseX <= pX + 136) {
+            cam.setPov(p);
+            assets.playSfx(assets.sndSelect);
+          }
+        }
+      }
+      // 4. Clickable Launch Button (x: 80 to 790, y: 525 to 583)
+      else if (mouseX >= 80 and mouseX <= 790 and mouseY >= 525 and mouseY <= 583) {
+        assets.playSfx(assets.sndConfirm);
+        state = const.STATE_GARAGE;
+      }
+    }
+
+    // Keyboard navigation:
     if (gui.isKeyPressed("KEY_W") or gui.isKeyPressed("KEY_UP")) {
       gameMode = gameMode - 1;
-      if (gameMode < 0) gameMode = 2;
+      if (gameMode < 0) gameMode = 1;
       assets.playSfx(assets.sndSelect);
     }
     if (gui.isKeyPressed("KEY_S") or gui.isKeyPressed("KEY_DOWN")) {
       gameMode = gameMode + 1;
-      if (gameMode > 2) gameMode = 0;
+      if (gameMode > 1) gameMode = 0;
+      assets.playSfx(assets.sndSelect);
+    }
+    // AI Difficulty keys
+    if (gui.isKeyPressed("KEY_A") or gui.isKeyPressed("KEY_LEFT")) {
+      aiDifficulty = (aiDifficulty + const.TOTAL_AI_DIFFS - 1) % const.TOTAL_AI_DIFFS;
+      assets.playSfx(assets.sndSelect);
+    }
+    if (gui.isKeyPressed("KEY_D") or gui.isKeyPressed("KEY_RIGHT")) {
+      aiDifficulty = (aiDifficulty + 1) % const.TOTAL_AI_DIFFS;
+      assets.playSfx(assets.sndSelect);
+    }
+    // Camera POV key
+    if (gui.isKeyPressed("KEY_C") or gui.isKeyPressed("KEY_V")) {
+      cam.cyclePov();
       assets.playSfx(assets.sndSelect);
     }
     if (gui.isKeyPressed("KEY_ENTER") or gui.isKeyPressed("KEY_SPACE")) {
@@ -233,6 +269,26 @@ while (!gui.windowShouldClose()) {
   }
   else if (state == const.STATE_GARAGE) {
     cam.updateTurntable(0.0, 0.4, 0.0, 7.5, 3.2, dt);
+
+    let mouseX = gui.getMouseX();
+    let mouseY = gui.getMouseY();
+    let mouseClick = gui.isMouseButtonPressed("LEFT");
+
+    if (mouseClick) {
+      // Car Cards along bottom: cardX = 65 + i * 290, cardY = 510, cardW = 270, cardH = 140
+      for (let i = 0; i < const.TOTAL_CARS; i += 1) {
+        let cardX = 65 + i * 290;
+        if (mouseX >= cardX and mouseX <= cardX + 270 and mouseY >= 510 and mouseY <= 650) {
+          if (selectedCar == i) {
+            assets.playSfx(assets.sndConfirm);
+            state = const.STATE_TRACK_SELECT;
+          } else {
+            selectedCar = i;
+            assets.playSfx(assets.sndSelect);
+          }
+        }
+      }
+    }
 
     if (gui.isKeyPressed("KEY_A") or gui.isKeyPressed("KEY_LEFT")) {
       selectedCar = selectedCar - 1;
@@ -254,6 +310,31 @@ while (!gui.windowShouldClose()) {
   }
   else if (state == const.STATE_TRACK_SELECT) {
     cam.updateCinematicTrack(track, t);
+
+    let mouseX = gui.getMouseX();
+    let mouseY = gui.getMouseY();
+    let mouseClick = gui.isMouseButtonPressed("LEFT");
+
+    if (mouseClick) {
+      // Track cards: tX = 80, tY = 145 + i * 122, W = 810, H = 106
+      for (let i = 0; i < const.TOTAL_TRACKS; i += 1) {
+        let tY = 145 + i * 122;
+        if (mouseX >= 80 and mouseX <= 890 and mouseY >= tY and mouseY <= tY + 106) {
+          if (selectedTrack == i) {
+            startRace();
+          } else {
+            selectedTrack = i;
+            track = track_mod.Track(selectedTrack);
+            ui.setTrackId(selectedTrack);
+            assets.playSfx(assets.sndSelect);
+          }
+        }
+      }
+      // Click preview card (x: 920 to 1210, y: 145 to 617) to launch
+      if (mouseX >= 920 and mouseX <= 1210 and mouseY >= 145 and mouseY <= 617) {
+        startRace();
+      }
+    }
 
     if (gui.isKeyPressed("KEY_W") or gui.isKeyPressed("KEY_UP")) {
       selectedTrack = selectedTrack - 1;
@@ -290,7 +371,7 @@ while (!gui.windowShouldClose()) {
     let lookCurve = track.getCurveOffset(-lookDist, distance);
     let lookHill = track.getYOffset(-lookDist, distance);
     cam.setLookAhead(lookCurve, lookHill);
-    cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, player.steerAngle, player.driftAngle, false, dt);
+    cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, player.steerAngle, 0.0, false, dt);
 
     let oldSec = math.ceil(countdownTimer);
     countdownTimer = countdownTimer - dt;
@@ -373,34 +454,12 @@ while (!gui.windowShouldClose()) {
     let lookHill = track.getYOffset(-lookAheadDist, distance);
     if (math.cos(player.heading) < 0.0) lookCurve = -lookCurve;
     cam.setLookAhead(lookCurve, lookHill);
-    cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, player.steerAngle, player.driftAngle, player.isBoosting, dt);
+    cam.updateFollow(player.worldX, player.worldY, player.worldZ, player.speed, player.worldHeading, player.steerAngle, 0.0, player.isBoosting, dt);
 
     let tSpec = const.getTrackSpec(selectedTrack);
     let lapDist = tSpec["length"];
 
-    // 2. Outrun Mode: Checkpoint Countdown & Stage Transitions
-    if (gameMode == const.MODE_OUTRUN) {
-      outrunTimer = outrunTimer - dt;
-
-      // Pass Checkpoint Gate
-      if (distance >= nextGateDist) {
-        outrunTimer = outrunTimer + 20.0;
-        nextGateDist = nextGateDist + 600.0;
-        outrunStage = outrunStage + 1;
-        ui.setBanner("CHECKPOINT! +20 SECONDS", "STAGE " + str(outrunStage) + ": SPEEDWAY WEAVE", 3.0, 0, 255, 230);
-        assets.playSfx(assets.sndCheckpoint);
-        cam.addShake(0.3);
-      }
-
-      if (outrunTimer <= 0.0) {
-        state = const.STATE_TIMEOUT;
-        assets.playSfx(assets.sndCrash);
-      }
-
-      ui.setOutrunState(outrunTimer, outrunStage, nextGateDist, distance, totalNearMisses);
-    }
-
-    // 3. Time Attack Mode: Delta Split Tracking
+    // 2. Time Attack Mode: Delta Split Tracking
     if (gameMode == const.MODE_TIME_ATTACK and bestLapTime > 0.0) {
       let lapProg = (distance - math.floor(distance / lapDist) * lapDist) / lapDist;
       let expectedPace = bestLapTime * lapProg;
@@ -408,16 +467,15 @@ while (!gui.windowShouldClose()) {
       ui.setTimeAttackDelta(delta);
     }
 
-    // 4. Lap & Stopwatch Tracking on Closed Circuit
+    // 3. Lap & Stopwatch Tracking on Closed Circuit
     currentLapTime = currentLapTime + dt;
 
-    if (player.trackDistance > lapDist * 0.5) {
-      playerMidpointCrossed = true;
+    let targetLap = 0;
+    if (player.raceDistance >= 0.0) {
+      targetLap = math.floor(player.raceDistance / lapDist);
     }
-    if (playerMidpointCrossed and player.trackDistance < lapDist * 0.15) {
+    if (targetLap > (currentLap - 1)) {
       // Completed Lap!
-      playerMidpointCrossed = false;
-      player.completedLaps = player.completedLaps + 1;
       if (bestLapTime == 0.0 or currentLapTime < bestLapTime) {
         bestLapTime = currentLapTime;
       }
@@ -425,22 +483,20 @@ while (!gui.windowShouldClose()) {
         isNewRecord = true;
       }
       currentLapTime = 0.0;
-      currentLap = currentLap + 1;
+      currentLap = targetLap + 1;
       assets.playSfx(assets.sndCheckpoint);
 
-      if (gameMode != const.MODE_OUTRUN) {
-        if (currentLap > totalLaps) {
-          state = const.STATE_FINISH;
-          assets.playSfx(assets.sndWin);
-        } else if (currentLap == totalLaps) {
-          ui.setBanner("FINAL LAP!", "FULL OVERDRIVE // SPRINT TO THE LINE", 3.0, 255, 220, 40);
-        } else {
-          ui.setBanner("LAP " + str(currentLap) + " / " + str(totalLaps), "PREV LAP: " + str(bestLapTime) + "s", 2.5, 0, 240, 255);
-        }
+      if (currentLap > totalLaps) {
+        state = const.STATE_FINISH;
+        assets.playSfx(assets.sndWin);
+      } else if (currentLap == totalLaps) {
+        ui.setBanner("FINAL LAP!", "FULL OVERDRIVE // SPRINT TO THE LINE", 3.0, 255, 220, 40);
+      } else {
+        ui.setBanner("LAP " + str(currentLap) + " / " + str(totalLaps), "PREV LAP: " + str(bestLapTime) + "s", 2.5, 0, 240, 255);
       }
     }
 
-    // 5. Update AI Rivals (Grand Prix Pack Racing & Lapping)
+    // 4. Update AI Rivals (Grand Prix Pack Racing & Lapping)
     if (gameMode == const.MODE_GRAND_PRIX) {
       for (let i = 0; i < len(rivals); i += 1) {
         let rCar = rivals[i];
@@ -471,102 +527,16 @@ while (!gui.windowShouldClose()) {
         while (dDist < -lapDist * 0.5) dDist = dDist + lapDist;
         rCar.z = -dDist;
 
-        let lapDiff = rCar.completedLaps - player.completedLaps;
-        if (lapDiff > 0 or (lapDiff == 0 and dDist > 0.0)) {
+        if (rCar.raceDistance > player.raceDistance) {
           aheadCount = aheadCount + 1;
         }
       }
 
       racePosition = aheadCount + 1;
-      if (racePosition < prevPosition) {
-        let posSuffix = "TH";
-        if (racePosition == 1) posSuffix = "ST";
-        else if (racePosition == 2) posSuffix = "ND";
-        else if (racePosition == 3) posSuffix = "RD";
-        ui.setBanner("+1 OVERTAKE!", "NOW IN " + str(racePosition) + posSuffix + " PLACE", 2.0, 255, 230, 80);
-        assets.playSfx(assets.sndConfirm);
-      }
       prevPosition = racePosition;
     }
 
-    // 8. Update Traffic (Outrun Slalom)
-    if (gameMode == const.MODE_OUTRUN) {
-      let L_col = 3.5;
-      let W_col = 1.75;
 
-      for (let i = 0; i < len(trafficCars); i += 1) {
-        let tf = trafficCars[i];
-        tf.update(player.speed, dt);
-        tf.syncPosition(track, distance);
-
-        // Near-Miss Bonus check (weave close to civilian traffic at high speed)
-        if (!tf.passed and tf.z > -1.8 and tf.z < 2.0 and player.speed > 50.0) {
-          let latDist = math.abs(player.x - tf.x);
-          if (latDist >= 1.5 and latDist < 2.8) {
-            tf.passed = true;
-            player.nitro = mu.clamp(player.nitro + 15.0, 0.0, player.maxNitro);
-            player.nearMissTimer = 1.0;
-            player.nearMissCount = player.nearMissCount + 1;
-            totalNearMisses = totalNearMisses + 1;
-            assets.playSfx(assets.sndNitro);
-          }
-        }
-
-        if (tf.z > 16.0) {
-          tf.z = -220.0 - mu.randFloat(10.0, 50.0);
-          tf.x = mu.randFloat(-3.5, 3.5);
-          tf.passed = false;
-        }
-
-        // Solid Impenetrable Traffic Collision: Cars cannot phase through.
-        // Touching a car in front blocks the trailing vehicle directly behind it without momentum reset.
-        let absDz = math.abs(tf.z);
-        let absDx = math.abs(player.x - tf.x);
-        if (absDz < L_col and absDx < W_col) {
-          let penS = (L_col - absDz) / L_col;
-          let penX = (W_col - absDx) / W_col;
-
-          if (penS < penX) {
-            // Longitudinal / Bumper contact:
-            if (tf.z <= 0.0) {
-              // Traffic is in front: block player directly behind rear bumper
-              tf.z = -L_col;
-              if (player.speed > tf.speed) {
-                player.speed = tf.speed;
-              }
-            } else {
-              // Traffic is behind player (e.g. player in reverse)
-              tf.z = L_col;
-              if (player.speed < 0.0) {
-                player.speed = 0.0;
-              }
-            }
-          } else {
-            // Lateral contact: push apart to avoid door clipping
-            let overlap = W_col - absDx;
-            let barLims = track.getBarrierLimits(player.trackDistance);
-            let halfW = 1.30;
-            let minX = -(barLims[0] - halfW);
-            let maxX = barLims[1] - halfW;
-
-            if (player.x <= tf.x) {
-              player.x = mu.clamp(player.x - overlap, minX, maxX);
-            } else {
-              player.x = mu.clamp(player.x + overlap, minX, maxX);
-            }
-            player.setTrackPosition(track, player.trackDistance, player.x);
-            if (player.lateralVelocity != 0.0) player.lateralVelocity = 0.0;
-          }
-
-          if (player.impactCooldown <= 0.0) {
-            player.impactCooldown = 0.25;
-            cam.addShake(0.18);
-            particles.emitSparks(player.worldX, player.worldY + 0.35, player.worldZ, 8);
-            assets.playSfx(assets.sndCrash);
-          }
-        }
-      }
-    }
   }
   else if (state == const.STATE_PAUSED) {
     if (gui.isKeyPressed("KEY_ESCAPE") or gui.isKeyPressed("KEY_P")) {
@@ -652,14 +622,14 @@ while (!gui.windowShouldClose()) {
     gui.clearBackground(sky[0], sky[1], sky[2]);
 
     let skyTop = tSpec["skyTop"];
-    if (skyTop == nil) skyTop = [6, 12, 32];
+    if (skyTop == nil) skyTop = [24, 88, 180];
     let skyBottom = tSpec["skyBottom"];
-    if (skyBottom == nil) skyBottom = [32, 50, 92];
+    if (skyBottom == nil) skyBottom = [145, 192, 238];
     let fogCol = tSpec["fogColor"];
-    if (fogCol == nil) fogCol = [24, 38, 68];
+    if (fogCol == nil) fogCol = [145, 192, 238];
 
     // 2D Atmospheric Horizon Sky Gradient (Dynamic screen fill)
-    let skyBands = 24;
+    let skyBands = 36;
     let bandH = scrH / skyBands;
     for (let b = 0; b < skyBands; b += 1) {
       let factor = b / (skyBands - 1.0);
@@ -676,6 +646,8 @@ while (!gui.windowShouldClose()) {
     // Cyber Showroom Turntable
     gui.drawPlane3D(0.0, -0.2, 0.0, 100.0, 100.0, 12, 16, 28);
     gui.drawGrid(12, 1.2);
+    let carSpec = const.getCarSpec(selectedCar);
+    let pCol = carSpec["primaryColor"];
     assets.playCarModel(selectedCar, 0.0, 0.0, 0.0, t * 45.0, 1.45, 255, 255, 255);
   } else {
     // Ground Horizon Plane (covers entire circuit area right beneath the track)
@@ -703,15 +675,10 @@ while (!gui.windowShouldClose()) {
       }
     }
 
-    // Draw Civilian Traffic
-    if (gameMode == const.MODE_OUTRUN) {
-      for (let i = 0; i < len(trafficCars); i += 1) {
-        trafficCars[i].draw(assets);
-      }
-    }
 
-    // Draw Player (in Bumper POV, camera is mounted out on front nose cone)
-    if (cam.pov != cam_mod.POV_BUMPER) {
+
+    // Draw Player (in Bumper POV or Cockpit POV, camera is mounted out on front nose cone / inside cockpit)
+    if (cam.pov != cam_mod.POV_BUMPER and cam.pov != cam_mod.POV_COCKPIT) {
       player.draw(assets, t);
     }
   }
@@ -746,7 +713,7 @@ while (!gui.windowShouldClose()) {
   ui.setMode(gameMode);
 
   if (state == const.STATE_TITLE) {
-    ui.drawTitleScreen(t, gameMode);
+    ui.drawTitleScreen(t, gameMode, aiDifficulty, cam.pov);
   }
   else if (state == const.STATE_GARAGE) {
     let cSpec = const.getCarSpec(selectedCar);
@@ -757,13 +724,22 @@ while (!gui.windowShouldClose()) {
     ui.drawTrackSelectScreen(selectedTrack, trkSpec, recordManager, t, aiDifficulty);
   }
   else if (state == const.STATE_COUNTDOWN) {
+    if (cam.pov == cam_mod.POV_COCKPIT) {
+      ui.drawCockpitView(player, t, dt);
+    }
     ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
     ui.drawCountdown(countdownTimer);
   }
   else if (state == const.STATE_RACE) {
+    if (cam.pov == cam_mod.POV_COCKPIT) {
+      ui.drawCockpitView(player, t, dt);
+    }
     ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
   }
   else if (state == const.STATE_PAUSED) {
+    if (cam.pov == cam_mod.POV_COCKPIT) {
+      ui.drawCockpitView(player, t, dt);
+    }
     ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
     ui.drawPauseMenu(pauseSelection, cam.getPovName(), getAiDifficultyName(aiDifficulty));
   }
