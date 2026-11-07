@@ -9,6 +9,8 @@ use "track" as track_mod;
 use "car" as car_mod;
 use "ui" as ui_mod;
 use "records" as rec_mod;
+use "track_io" as io;
+use "track_editor" as ed_mod;
 use "std.math" as math;
 
 gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "TURBO // CIRCUIT : TEST");
@@ -125,6 +127,15 @@ if (assets.shaderVelocity != nil) {
 
 gui.endDrawing();
 print("All UI state renderers executed without error!");
+
+// Test Track Serialization and Track Editor instantiation
+let exported = io.exportOfficialTrack(0);
+print("Exported official track 0 cleanly: " + exported["name"]);
+let editor = ed_mod.TrackEditor(assets, nil);
+print("TrackEditor initialized cleanly with track: " + editor.trackDef["name"]);
+editor.update(0.016);
+editor.draw(0.0);
+print("TrackEditor update and draw passes executed cleanly!");
 
 assets.unloadAll();
 gui.closeWindow();

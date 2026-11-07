@@ -125,6 +125,22 @@ export class ChaseCamera {
     this.initialized = true;
   }
 
+  update(car, track, dt) {
+    if (car == nil) return;
+    let lookCurve = 0.0;
+    let lookHill = 0.0;
+    if (track != nil) {
+      lookCurve = track.getCurveOffset(-30.0, car.trackDistance);
+      lookHill = track.getYOffset(-30.0, car.trackDistance);
+    }
+    this.setLookAhead(lookCurve, lookHill);
+    let isBoost = false;
+    if (car.isBoosting != nil) isBoost = car.isBoosting;
+    let dAngle = 0.0;
+    if (car.driftAngle != nil) dAngle = car.driftAngle;
+    this.updateFollow(car.worldX, car.worldY, car.worldZ, car.speed, car.worldHeading, car.steerAngle, dAngle, isBoost, dt);
+  }
+
   updateFollow(carX, carY, carZ, speed, heading, steerAngle, driftAngle, boosting, dt) {
     let normSpd = math.abs(speed) / 80.0;
     if (normSpd > 1.0) normSpd = 1.0;

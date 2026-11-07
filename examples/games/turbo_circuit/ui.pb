@@ -138,14 +138,18 @@ export class UIRenderer {
       }
     }
 
-    // 4. Clickable Launch Button
+    // 4. Clickable Launch & Track Editor Buttons
     let btnY = 525;
     let btnPulse = 200 + math.floor(math.sin(t * 5.0) * 55.0);
-    gui.drawRectangleAlpha(80, btnY, 710, 58, 20, 50, 90, 235);
-    gui.drawRectangleLines(80, btnY, 710, 58, 0, btnPulse, 255);
-    gui.drawText("[ ENTER GARAGE / SELECT CAR -> ]", 215, btnY + 16, 24, 255, 240, 90);
+    gui.drawRectangleAlpha(80, btnY, 440, 58, 20, 50, 90, 235);
+    gui.drawRectangleLines(80, btnY, 440, 58, 0, btnPulse, 255);
+    gui.drawText("[ ENTER GARAGE -> ]", 150, btnY + 16, 22, 255, 240, 90);
 
-    gui.drawText("CLICK ANY CARD TO SELECT      PRESS ENTER / SPACE TO LAUNCH", 84, 605, 17, 180, 210, 240);
+    gui.drawRectangleAlpha(535, btnY, 255, 58, 24, 40, 75, 235);
+    gui.drawRectangleLines(535, btnY, 255, 58, 0, 240, 255);
+    gui.drawText("TRACK EDITOR [E]", 560, btnY + 18, 18, 0, 240, 255);
+
+    gui.drawText("CLICK ANY CARD TO SELECT      PRESS ENTER TO LAUNCH      E TRACK EDITOR", 84, 605, 16, 180, 210, 240);
 
     // Right Column: Controls & Help Guide
     let cX = 815;
@@ -252,28 +256,51 @@ export class UIRenderer {
     gui.drawText("CHAMPIONSHIP CIRCUIT SELECT", 80, 50, 48, 240, 250, 255);
     gui.drawText("CHOOSE YOUR BATTLEGROUND", 84, 106, 20, 255, 80, 180);
 
-    for (let i = 0; i < const.TOTAL_TRACKS; i += 1) {
+    let totalT = const.getTotalTracks();
+    let startIdx = 0;
+    if (selectedTrack >= 4) {
+      startIdx = selectedTrack - 3;
+      if (startIdx + 4 > totalT) startIdx = totalT - 4;
+      if (startIdx < 0) startIdx = 0;
+    }
+
+    for (let slot = 0; slot < 4 and (startIdx + slot) < totalT; slot += 1) {
+      let i = startIdx + slot;
       let tInfo = const.getTrackSpec(i);
       let tX = 80;
-      let tY = 145 + i * 122;
+      let tY = 145 + slot * 122;
       let isSel = (i == selectedTrack);
       let recTime = 99.99;
-      if (recordManager != nil) recTime = recordManager.getRecord(i);
+      if (recordManager != nil and i < 4) recTime = recordManager.getRecord(i);
+
+      let isCustom = (i >= 4);
+      let nameStr = tInfo["name"];
+      if (isCustom) nameStr = "[CUSTOM] " + nameStr;
 
       if (isSel) {
         gui.drawRectangleAlpha(tX, tY, 810, 106, 24, 38, 70, 230);
         gui.drawRectangleLines(tX, tY, 810, 106, 255, 80, 180);
-        gui.drawText(tInfo["name"], tX + 24, tY + 14, 28, 255, 240, 90);
+        let titleCol = [255, 240, 90];
+        if (isCustom) titleCol = [0, 240, 255];
+        gui.drawText(nameStr, tX + 24, tY + 14, 28, titleCol[0], titleCol[1], titleCol[2]);
         gui.drawText(tInfo["subtitle"], tX + 24, tY + 48, 16, 200, 230, 255);
         gui.drawText("DIFFICULTY: " + tInfo["difficulty"] + "  //  " + str(tInfo["laps"]) + " LAPS", tX + 430, tY + 18, 17, 0, 240, 255);
-        gui.drawText("RECORD: " + str(recTime) + "s", tX + 430, tY + 48, 18, 255, 220, 60);
+        if (isCustom) {
+          gui.drawText("USER CREATED CIRCUIT", tX + 430, tY + 48, 17, 0, 240, 255);
+        } else {
+          gui.drawText("RECORD: " + str(recTime) + "s", tX + 430, tY + 48, 18, 255, 220, 60);
+        }
       } else {
         gui.drawRectangleAlpha(tX, tY, 810, 106, 12, 16, 32, 170);
         gui.drawRectangleLines(tX, tY, 810, 106, 60, 70, 90);
-        gui.drawText(tInfo["name"], tX + 24, tY + 14, 24, 170, 190, 210);
+        gui.drawText(nameStr, tX + 24, tY + 14, 24, 170, 190, 210);
         gui.drawText(tInfo["subtitle"], tX + 24, tY + 48, 16, 120, 140, 160);
         gui.drawText("DIFFICULTY: " + tInfo["difficulty"], tX + 430, tY + 18, 17, 140, 160, 180);
-        gui.drawText("RECORD: " + str(recTime) + "s", tX + 430, tY + 48, 17, 180, 170, 100);
+        if (isCustom) {
+          gui.drawText("USER CIRCUIT", tX + 430, tY + 48, 16, 120, 180, 210);
+        } else {
+          gui.drawText("RECORD: " + str(recTime) + "s", tX + 430, tY + 48, 17, 180, 170, 100);
+        }
       }
     }
 
@@ -284,6 +311,7 @@ export class UIRenderer {
     let pW = 290;
     let pH = 472;
     let railCol = curInfo["railColorA"];
+    if (railCol == nil) railCol = [255, 60, 80];
 
     gui.drawRectangleAlpha(pX, pY, pW, pH, 10, 16, 36, 235);
     gui.drawRectangleLines(pX, pY, pW, pH, railCol[0], railCol[1], railCol[2]);
@@ -341,8 +369,9 @@ export class UIRenderer {
       diffR = 255; diffG = 220; diffB = 60;
     }
 
-    gui.drawText("AI DIFFICULTY: < " + diffStr + " >   [A / D TO CHANGE]", 80, 638, 20, diffR, diffG, diffB);
-    gui.drawText("W / S  CHOOSE TRACK     ENTER  IGNITE ENGINES     ESC  BACK", 80, 668, 19, 255, 230, 90);
+    gui.drawText("AI DIFFICULTY: < " + diffStr + " >   [A / D TO CHANGE]", 80, 630, 18, diffR, diffG, diffB);
+    gui.drawText("W / S CHOOSE TRACK     ENTER LAUNCH     ESC BACK", 80, 656, 17, 255, 230, 90);
+    gui.drawText("F FORK TO EDITOR     E EDIT TRACK     N NEW CIRCUIT", 80, 680, 16, 0, 240, 255);
   }
 
   drawStatBar(x, y, label, ratio, r, g, b) {
@@ -607,6 +636,7 @@ export class UIRenderer {
 
     let tSpec = const.getTrackSpec(curTrackId);
     let railCol = tSpec["railColorA"];
+    if (railCol == nil) railCol = [255, 60, 80];
 
     // Semi-transparent radar background card
     gui.drawRectangleAlpha(mapX, mapY, mapW, mapH, 8, 12, 26, 220);

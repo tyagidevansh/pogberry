@@ -10,6 +10,9 @@ use "car" as car_mod;
 use "ui" as ui_mod;
 use "records" as rec_mod;
 use "agent_driver" as bot_mod;
+use "track_io" as io;
+use "track_editor" as ed_mod;
+use "f1_data" as f1;
 use "std.math" as math;
 
 // Initialize Window
@@ -25,6 +28,14 @@ let particles = part_mod.ParticleSystem();
 let ui = ui_mod.UIRenderer();
 let recordManager = rec_mod.RecordManager("records.txt");
 let driverBot = bot_mod.DriverBot("HUMAN_ARCADE");
+let editor = ed_mod.TrackEditor(assets, nil);
+
+// Load discovered custom tracks from disk
+let discoveredTracks = io.listCustomTracks();
+for (let dtIdx = 0; dtIdx < len(discoveredTracks); dtIdx += 1) {
+  let cItem = discoveredTracks[dtIdx];
+  const.registerCustomTrack(cItem["trackDef"]);
+}
 
 // Game State Variables
 let state = const.STATE_TITLE;
@@ -230,14 +241,23 @@ while (!gui.windowShouldClose()) {
           }
         }
       }
-      // 4. Clickable Launch Button (x: 80 to 790, y: 525 to 583)
-      else if (mouseX >= 80 and mouseX <= 790 and mouseY >= 525 and mouseY <= 583) {
+      // 4. Clickable Launch Button (x: 80 to 520, y: 525 to 583)
+      else if (mouseX >= 80 and mouseX <= 520 and mouseY >= 525 and mouseY <= 583) {
         assets.playSfx(assets.sndConfirm);
         state = const.STATE_GARAGE;
+      }
+      // 5. Track Editor Button (x: 535 to 790, y: 525 to 583)
+      else if (mouseX >= 535 and mouseX <= 790 and mouseY >= 525 and mouseY <= 583) {
+        assets.playSfx(assets.sndConfirm);
+        state = const.STATE_TRACK_EDITOR;
       }
     }
 
     // Keyboard navigation:
+    if (gui.isKeyPressed("KEY_E")) {
+      assets.playSfx(assets.sndConfirm);
+      state = const.STATE_TRACK_EDITOR;
+    }
     if (gui.isKeyPressed("KEY_W") or gui.isKeyPressed("KEY_UP")) {
       gameMode = gameMode - 1;
       if (gameMode < 0) gameMode = 1;
@@ -314,11 +334,19 @@ while (!gui.windowShouldClose()) {
     let mouseX = gui.getMouseX();
     let mouseY = gui.getMouseY();
     let mouseClick = gui.isMouseButtonPressed("LEFT");
+    let totalT = const.getTotalTracks();
+    let startIdx = 0;
+    if (selectedTrack >= 4) {
+      startIdx = selectedTrack - 3;
+      if (startIdx + 4 > totalT) startIdx = totalT - 4;
+      if (startIdx < 0) startIdx = 0;
+    }
 
     if (mouseClick) {
-      // Track cards: tX = 80, tY = 145 + i * 122, W = 810, H = 106
-      for (let i = 0; i < const.TOTAL_TRACKS; i += 1) {
-        let tY = 145 + i * 122;
+      // Track cards: tX = 80, tY = 145 + slot * 122, W = 810, H = 106
+      for (let slot = 0; slot < 4 and (startIdx + slot) < totalT; slot += 1) {
+        let i = startIdx + slot;
+        let tY = 145 + slot * 122;
         if (mouseX >= 80 and mouseX <= 890 and mouseY >= tY and mouseY <= tY + 106) {
           if (selectedTrack == i) {
             startRace();
@@ -338,18 +366,54 @@ while (!gui.windowShouldClose()) {
 
     if (gui.isKeyPressed("KEY_W") or gui.isKeyPressed("KEY_UP")) {
       selectedTrack = selectedTrack - 1;
-      if (selectedTrack < 0) selectedTrack = const.TOTAL_TRACKS - 1;
+      if (selectedTrack < 0) selectedTrack = totalT - 1;
       track = track_mod.Track(selectedTrack);
       ui.setTrackId(selectedTrack);
       assets.playSfx(assets.sndSelect);
     }
     if (gui.isKeyPressed("KEY_S") or gui.isKeyPressed("KEY_DOWN")) {
       selectedTrack = selectedTrack + 1;
-      if (selectedTrack >= const.TOTAL_TRACKS) selectedTrack = 0;
+      if (selectedTrack >= totalT) selectedTrack = 0;
       track = track_mod.Track(selectedTrack);
       ui.setTrackId(selectedTrack);
       assets.playSfx(assets.sndSelect);
     }
+    // Fork Track to Custom
+    if (gui.isKeyPressed("KEY_F")) {
+      let tSpec = const.getTrackSpec(selectedTrack);
+      let forked = io.forkTrack(selectedTrack, tSpec["name"] + " CUSTOM");
+      if (forked != nil) {
+        editor.loadTrack(forked["trackDef"], forked["filename"]);
+        state = const.STATE_TRACK_EDITOR;
+        assets.playSfx(assets.sndConfirm);
+      }
+    }
+    // Edit Track in Visual Editor
+    if (gui.isKeyPressed("KEY_E")) {
+      if (selectedTrack >= 4) {
+        let cDef = f1.getCustomTrack(selectedTrack);
+        if (cDef != nil) {
+          editor.loadTrack(cDef, nil);
+          state = const.STATE_TRACK_EDITOR;
+          assets.playSfx(assets.sndConfirm);
+        }
+      } else {
+        let tSpec = const.getTrackSpec(selectedTrack);
+        let forked = io.forkTrack(selectedTrack, tSpec["name"] + " CUSTOM");
+        if (forked != nil) {
+          editor.loadTrack(forked["trackDef"], forked["filename"]);
+          state = const.STATE_TRACK_EDITOR;
+          assets.playSfx(assets.sndConfirm);
+        }
+      }
+    }
+    // Create Brand New Track
+    if (gui.isKeyPressed("KEY_N")) {
+      editor.createNewTrack("NEW CIRCUIT");
+      state = const.STATE_TRACK_EDITOR;
+      assets.playSfx(assets.sndConfirm);
+    }
+
     // AI Difficulty adjustment
     if (gui.isKeyPressed("KEY_A") or gui.isKeyPressed("KEY_LEFT")) {
       aiDifficulty = (aiDifficulty + const.TOTAL_AI_DIFFS - 1) % const.TOTAL_AI_DIFFS;
@@ -364,6 +428,15 @@ while (!gui.windowShouldClose()) {
     }
     if (gui.isKeyPressed("KEY_ENTER") or gui.isKeyPressed("KEY_SPACE")) {
       startRace();
+    }
+  }
+  else if (state == const.STATE_TRACK_EDITOR) {
+    let edRes = editor.update(dt);
+    if (edRes == "EXIT") {
+      state = const.STATE_TITLE;
+      selectedTrack = 0;
+      track = track_mod.Track(selectedTrack);
+      ui.setTrackId(selectedTrack);
     }
   }
   else if (state == const.STATE_COUNTDOWN) {
@@ -652,6 +725,12 @@ while (!gui.windowShouldClose()) {
   let scrH = gui.getScreenHeight();
 
   gui.beginDrawing();
+
+  if (state == const.STATE_TRACK_EDITOR) {
+    editor.draw(t);
+    gui.endDrawing();
+    continue;
+  }
 
   if (state == const.STATE_GARAGE) {
     gui.clearBackground(4, 6, 18);

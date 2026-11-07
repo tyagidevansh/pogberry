@@ -155,6 +155,32 @@ export class Track {
       }
       return base;
 
+    } else if (this.trackId >= 4) {
+      // Custom track smoothstep piecewise elevation profile
+      let c = f1.getCustomTrack(this.trackId);
+      if (c != nil and c["elevations"] != nil and len(c["elevations"]) > 0) {
+        let elevs = c["elevations"];
+        let numE = len(elevs);
+        if (numE == 1) return elevs[0]["y"];
+        let idx = 0;
+        while (idx < numE - 1 and elevs[idx + 1]["s"] <= s) {
+          idx = idx + 1;
+        }
+        let kf1 = elevs[idx];
+        let kf2 = elevs[(idx + 1) % numE];
+        let s1 = kf1["s"];
+        let s2 = kf2["s"];
+        if (s2 <= s1) s2 = s2 + lapLen;
+        let span = s2 - s1;
+        if (span < 0.001) return kf1["y"];
+        let u = (s - s1) / span;
+        if (u < 0.0) u = 0.0;
+        if (u > 1.0) u = 1.0;
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        return kf1["y"] + smoothU * (kf2["y"] - kf1["y"]);
+      }
+      return 0.5;
+
     } else {
       // Monza: Royal parkland subtle undulation
       let w1 = (6.2831853 * 4.0) / lapLen;
@@ -186,21 +212,17 @@ export class Track {
     let pScale = 1.0; if (scale != nil) pScale = scale;
     let pRot = pAngle; if (rotOffset != nil) pRot = pAngle + rotOffset;
 
-    // Global track clearance check: reject props that would intrude into other track sections
+    // Global track clearance check: reject props that would intrude into any track corridor
     let defCorridor = this.roadWidth * 0.5 + this.curbWidth + this.runoffWidth;
     let safeProp = true;
-    for (let k = 0; k < numStations; k += 3) {
+    for (let k = 0; k < numStations; k += 2) {
       let otherSt = this.stations[k];
-      let ds = math.abs(sStation - otherSt["s"]);
-      if (ds > lapLen * 0.5) ds = lapLen - ds;
-      if (ds > 40.0) {
-        let dx = px - otherSt["x"];
-        let dz = pz - otherSt["z"];
-        let minClearance = defCorridor + pRad + 1.5;
-        if (dx * dx + dz * dz < minClearance * minClearance) {
-          safeProp = false;
-          break;
-        }
+      let dx = px - otherSt["x"];
+      let dz = pz - otherSt["z"];
+      let minClearance = defCorridor + pRad * 0.65 + 1.0;
+      if (dx * dx + dz * dz < minClearance * minClearance) {
+        safeProp = false;
+        break;
       }
     }
     if (!safeProp) return;
@@ -347,19 +369,22 @@ export class Track {
       let lowGapL = 99999.0; let lowGapR = 99999.0;
       for (let j = 0; j < numStations; j += 1) {
         let ox = this.stations[j]["x"] - st["x"];
-        if (ox > 145.0 or ox < -145.0) continue;
+        if (ox > 120.0 or ox < -120.0) continue;
         let oz = this.stations[j]["z"] - st["z"];
-        if (oz > 145.0 or oz < -145.0) continue;
+        if (oz > 120.0 or oz < -120.0) continue;
         let ds = st["s"] - this.stations[j]["s"];
         if (ds < 0.0) ds = -ds;
         if (ds > lapLen * 0.5) ds = lapLen - ds;
         if (ds < 120.0) continue; // Skip local track points ahead/behind
 
-        let dotT = st["tx"] * this.stations[j]["tx"] + st["tz"] * this.stations[j]["tz"];
-        if (ds < 300.0 and dotT > 0.0) continue;
+        // Only segments that are longitudinally adjacent (side-by-side)
+        let longit = ox * st["tx"] + oz * st["tz"];
+        if (longit > 18.0 or longit < -18.0) continue;
 
-        let d = math.sqrt(ox * ox + oz * oz);
-        if (d > 145.0) continue;
+        // Only parallel or anti-parallel roads
+        let dotT = st["tx"] * this.stations[j]["tx"] + st["tz"] * this.stations[j]["tz"];
+        if (math.abs(dotT) < 0.60) continue;
+
         let dy = this.stations[j]["y"] - st["y"];
         let sameLevel = (math.abs(dy) < 6.0);
         let lateral = ox * st["nx"] + oz * st["nz"];
@@ -375,54 +400,50 @@ export class Track {
       }
 
       // In the clearance pass with nearby track sections (gapL, gapR),
-      // clamp curbL and curbR so kerbs never overlap adjacent tarmac or nearby roads (on open road circuits).
-      if (this.trackId != 1) {
-        if (gapL < 900.0) {
-          let clearCurbL = gapL - halfW - 0.6;
-          if (clearCurbL < 0.0) clearCurbL = 0.0;
-          if (curbL > clearCurbL) curbL = clearCurbL;
+      // Nearest other section of the circuit on each side of this station.
+      // Boundaries are clamped strictly outside the active tarmac and kerbs.
+      let minClearL = halfW + curbL + 0.8;
+      let minClearR = halfW + curbR + 0.8;
 
-          let maxHalf = gapL * 0.49 - 0.3;
-          let clear = gapL - roadEdge - 1.5;
-          if (maxHalf < clear) clear = maxHalf;
-          if (clear < roadEdge + 0.5) clear = roadEdge + 0.5;
-          if (clear < outL) outL = clear;
-        }
-        if (gapR < 900.0) {
-          let clearCurbR = gapR - halfW - 0.6;
-          if (clearCurbR < 0.0) clearCurbR = 0.0;
-          if (curbR > clearCurbR) curbR = clearCurbR;
-
-          let maxHalf = gapR * 0.49 - 0.3;
-          let clear = gapR - roadEdge - 1.5;
-          if (maxHalf < clear) clear = maxHalf;
-          if (clear < roadEdge + 0.5) clear = roadEdge + 0.5;
-          if (clear < outR) outR = clear;
-        }
-        if (lowGapL < 900.0) {
-          let clear = lowGapL - roadEdge - 2.5;
-          if (clear < roadEdge + 1.0) clear = roadEdge + 1.0;
-          if (clear < embL) embL = clear;
-        }
-        if (lowGapR < 900.0) {
-          let clear = lowGapR - roadEdge - 2.5;
-          if (clear < roadEdge + 1.0) clear = roadEdge + 1.0;
-          if (clear < embR) embR = clear;
-        }
+      if (gapL < 900.0) {
+        let maxHalfL = gapL * 0.48 - 0.2;
+        let clearL = gapL - roadEdge - 1.5;
+        if (maxHalfL < clearL) clearL = maxHalfL;
+        if (clearL < minClearL) clearL = minClearL;
+        if (clearL < outL) outL = clearL;
       }
 
-      // Verge / barrier never intrudes into racing surface or kerbs
-      let minOutL = halfW + curbL + 0.4;
-      let minOutR = halfW + curbR + 0.4;
-      if (outL < minOutL) outL = minOutL;
-      if (outR < minOutR) outR = minOutR;
-      if (embL < outL + 1.2) embL = outL + 1.2;
-      if (embR < outR + 1.2) embR = outR + 1.2;
+      if (gapR < 900.0) {
+        let maxHalfR = gapR * 0.48 - 0.2;
+        let clearR = gapR - roadEdge - 1.5;
+        if (maxHalfR < clearR) clearR = maxHalfR;
+        if (clearR < minClearR) clearR = minClearR;
+        if (clearR < outR) outR = clearR;
+      }
 
-      // On start/finish straight, right barrier aligns with solid Pit Wall
-      let isPitStraight = (i < 58 or i > numStations - 38);
-      if (isPitStraight) {
-        if (outR > halfW + 0.40) outR = halfW + 0.40;
+      if (lowGapL < 900.0) {
+        let clear = lowGapL - roadEdge - 2.0;
+        if (clear < minClearL + 0.5) clear = minClearL + 0.5;
+        if (clear < embL) embL = clear;
+      }
+      if (lowGapR < 900.0) {
+        let clear = lowGapR - roadEdge - 2.0;
+        if (clear < minClearR + 0.5) clear = minClearR + 0.5;
+        if (clear < embR) embR = clear;
+      }
+
+      // Hard safety clamp: outL and outR can NEVER encroach inside the road + kerb
+      if (outL < minClearL) outL = minClearL;
+      if (outR < minClearR) outR = minClearR;
+      if (embL < outL + 1.0) embL = outL + 1.0;
+      if (embR < outR + 1.0) embR = outR + 1.0;
+
+      // On start/finish straight, right barrier aligns with solid Pit Wall with safe road clearance
+      let sVal = st["s"];
+      let isPitZone = (sVal < 220.0 or sVal > lapLen - 220.0);
+      if (isPitZone and this.trackId < 4) {
+        let pitWallDist = halfW + curbR + 1.2;
+        if (outR > pitWallDist) outR = pitWallDist;
       }
 
       // SELECTIVE BARRIER PLACEMENT (Formula 1 Circuit Authenticity)
@@ -481,10 +502,22 @@ export class Track {
         smoothEmbR.push(avgEmbR);
       }
       for (let i = 0; i < numStations; i += 1) {
-        this.stations[i]["outL"] = smoothOutL[i];
-        this.stations[i]["outR"] = smoothOutR[i];
-        this.stations[i]["embL"] = smoothEmbL[i];
-        this.stations[i]["embR"] = smoothEmbR[i];
+        let st = this.stations[i];
+        let minL = halfW + st["curbL"] + 0.6;
+        let minR = halfW + st["curbR"] + 0.6;
+        let sL = smoothOutL[i];
+        let sR = smoothOutR[i];
+        if (sL < minL) sL = minL;
+        if (sR < minR) sR = minR;
+        let sEmbL = smoothEmbL[i];
+        let sEmbR = smoothEmbR[i];
+        if (sEmbL < sL + 1.0) sEmbL = sL + 1.0;
+        if (sEmbR < sR + 1.0) sEmbR = sR + 1.0;
+
+        st["outL"] = sL;
+        st["outR"] = sR;
+        st["embL"] = sEmbL;
+        st["embR"] = sEmbR;
       }
     }
 
@@ -616,64 +649,58 @@ export class Track {
       // -----------------------------------------------------------------------
       // CIRCUIT DE MONACO (Monaco Grand Prix / Monte Carlo)
       // -----------------------------------------------------------------------
-      // 1. Sainte-Devote Church nestled in Gaumates ravine (Turn 1, s = 400 to 480)
-      this.addSceneryProp(rawProps, "grandstandCovered", 420.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.0, nil);
-      this.addSceneryProp(rawProps, "sainteDevote", 440.0, -corridor - 18.0, 1.0, -90.0, 220, 210, 195, 0, 8.0, nil);
+      // 1. Pit Straight & Anthony Noghes: Covered Grandstand on driver's left
+      this.addSceneryProp(rawProps, "grandstandCovered", 120.0, -corridor - 18.0, 8.5, -90.0, 255, 255, 255, 0, 10.0, nil);
 
-      // 2. Beau Rivage uphill avenue: continuous 5 to 10 story pastel apartment buildings
-      for (let s = 540.0; s <= 840.0; s += 45.0) {
-        let bVar = (math.floor(s / 45.0)) % 5;
-        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, bVar, 11.0, nil);
-        this.addSceneryProp(rawProps, "monacoBuilding", s, corridor + 20.0, 1.0, 90.0, 255, 255, 255, (bVar + 2) % 5, 11.0, nil);
+      // 2. Sainte-Devote approach & Turn 1 braking zone
+      this.addSceneryProp(rawProps, "grandstandCovered", 330.0, -corridor - 18.0, 8.5, -90.0, 255, 255, 255, 0, 10.0, nil);
+      this.addSceneryProp(rawProps, "sainteDevote", 420.0, -corridor - 26.0, 1.0, -90.0, 220, 210, 195, 0, 14.0, nil);
+
+      // 3. Beau Rivage uphill streetscape: Riviera pastel apartments on left cliff
+      for (let s = 620.0; s <= 1350.0; s += 65.0) {
+        let bVar = (math.floor(s / 65.0)) % 5;
+        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 24.0, 1.0, -90.0, 255, 255, 255, bVar, 12.0, nil);
       }
 
-      // 1. Boulevard Albert 1er: Sainte-Dévote Church at Turn 1
-      this.addSceneryProp(rawProps, "sainteDevoteChurch", 520.0, -corridor - 22.0, 1.0, -90.0, 235, 225, 210, 0, 9.0, nil);
+      // 4. Monte Carlo Casino & Hotel de Paris at Casino Square (s = 1500 to 1700)
+      this.addSceneryProp(rawProps, "grandstandCovered", 1500.0, corridor + 18.0, 8.0, 90.0, 255, 255, 255, 0, 10.0, nil);
+      this.addSceneryProp(rawProps, "monacoCasino", 1560.0, -corridor - 26.0, 1.0, -90.0, 236, 230, 218, 0, 12.0, nil);
+      this.addSceneryProp(rawProps, "hotelDeParis", 1620.0, corridor + 26.0, 1.0, 90.0, 245, 240, 228, 0, 12.0, nil);
 
-      // 2. Beau Rivage uphill streetscape: Riviera apartments climbing to Casino
-      for (let s = 620.0; s <= 1350.0; s += 60.0) {
-        let bVar = (math.floor(s / 60.0)) % 5;
-        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, bVar, 11.0, nil);
+      // 5. Mirabeau descent: Monegasque pastel apartment streetscape
+      for (let s = 1800.0; s <= 2200.0; s += 65.0) {
+        let bVar = (math.floor(s / 65.0)) % 5;
+        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 22.0, 1.0, -90.0, 255, 255, 255, bVar, 11.0, nil);
       }
 
-      // 3. Monte Carlo Casino & Hotel de Paris at Casino Square (s = 1500 to 1700)
-      this.addSceneryProp(rawProps, "grandstandCovered", 1480.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.0, nil);
-      this.addSceneryProp(rawProps, "monacoCasino", 1560.0, -corridor - 26.0, 1.0, -90.0, 236, 230, 218, 0, 10.0, nil);
-      this.addSceneryProp(rawProps, "hotelDeParis", 1620.0, corridor + 26.0, 1.0, 90.0, 245, 240, 228, 0, 10.0, nil);
+      // 6. The Fairmont Hotel wrapping around Turn 6 Lowes Hairpin
+      this.addSceneryProp(rawProps, "grandstandCovered", 2360.0, corridor + 20.0, 8.0, 90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "fairmontHotel", 2440.0, corridor + 24.0, 1.0, 90.0, 232, 228, 220, 0, 24.0, nil);
 
-      // 4. Mirabeau descent: Monegasque pastel apartment streetscape
-      for (let s = 1750.0; s <= 2250.0; s += 55.0) {
-        let bVar = (math.floor(s / 55.0)) % 5;
-        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, bVar, 11.0, nil);
-      }
+      // 7. Portier & Tunnel approach buildings
+      this.addSceneryProp(rawProps, "monacoBuilding", 2640.0, -corridor - 22.0, 1.0, -90.0, 255, 255, 255, 0, 11.0, nil);
 
-      // 5. The Fairmont Hotel wrapping around Turn 6 Lowes Hairpin
-      this.addSceneryProp(rawProps, "grandstandCovered", 2360.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.0, nil);
-      this.addSceneryProp(rawProps, "fairmontHotel", 2440.0, corridor + 22.0, 1.0, 90.0, 232, 228, 220, 0, 12.0, nil);
-
-      // 6. Portier & Tunnel approach buildings
-      this.addSceneryProp(rawProps, "monacoBuilding", 2640.0, -corridor - 20.0, 1.0, -90.0, 255, 255, 255, 0, 11.0, nil);
-
-      // 7. Port Hercule Quayside: Moored luxury superyachts along Quai des Etats-Unis
-      this.addSceneryProp(rawProps, "grandstandCovered", 3650.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.0, nil);
-      this.addSceneryProp(rawProps, "grandstandCovered", 3900.0, -corridor - 15.0, 11.0, -90.0, 255, 255, 255, 0, 8.0, nil);
+      // 8. Port Hercule Quayside: Moored luxury superyachts along Quai des Etats-Unis
+      this.addSceneryProp(rawProps, "grandstandCovered", 3740.0, -corridor - 16.0, 8.5, -90.0, 255, 255, 255, 0, 10.0, nil);
+      this.addSceneryProp(rawProps, "grandstandCovered", 4050.0, -corridor - 16.0, 8.5, -90.0, 255, 255, 255, 0, 10.0, nil);
       for (let s = 3700.0; s <= 4250.0; s += 50.0) {
         let yVar = (math.floor(s / 50.0)) % 3;
         this.addSceneryProp(rawProps, "superyacht", s, corridor + 22.0, 1.0, 0.0, 255, 255, 255, yVar, 6.0, nil);
       }
 
-      // 8. Rainier III Nautical Stadium (The Swimming Pool chicane, s = 4300 to 4600)
-      this.addSceneryProp(rawProps, "grandstandCovered", 4320.0, -corridor - 16.0, 11.0, -90.0, 255, 255, 255, 0, 8.0, nil);
-      this.addSceneryProp(rawProps, "swimmingPool", 4420.0, corridor + 24.0, 1.0, 90.0, 28, 185, 225, 0, 9.0, nil);
-      this.addSceneryProp(rawProps, "grandstandCovered", 4560.0, -corridor - 16.0, 11.0, -90.0, 255, 255, 255, 0, 8.0, nil);
+      // 9. Rainier III Nautical Stadium (The Swimming Pool chicane, s = 4300 to 4600)
+      this.addSceneryProp(rawProps, "grandstandCovered", 4320.0, -corridor - 18.0, 8.5, -90.0, 255, 255, 255, 0, 10.0, nil);
+      this.addSceneryProp(rawProps, "swimmingPool", 4420.0, corridor + 28.0, 1.0, 90.0, 28, 185, 225, 0, 28.0, nil);
+      this.addSceneryProp(rawProps, "grandstandCovered", 4580.0, -corridor - 18.0, 8.5, -90.0, 255, 255, 255, 0, 10.0, nil);
 
-      // 9. La Rascasse Bar with outdoor terrace & red umbrellas (s = 5150)
+      // 10. La Rascasse & Anthony Noghes (s = 5100 to 5150)
+      this.addSceneryProp(rawProps, "grandstandCovered", 5100.0, -corridor - 16.0, 8.5, -90.0, 255, 255, 255, 0, 10.0, nil);
       this.addSceneryProp(rawProps, "rascasseBar", 5150.0, corridor + 14.0, 1.0, 90.0, 215, 120, 95, 0, 8.0, nil);
 
-      // 10. Boulevard Albert 1er high-rise streetscape (pit straight)
+      // 11. Boulevard Albert 1er high-rise streetscape (pit straight)
       for (let s = 5300.0; s <= 5750.0; s += 50.0) {
         let bVar = (math.floor(s / 50.0)) % 5;
-        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 22.0, 1.0, -90.0, 255, 255, 255, bVar, 11.0, nil);
+        this.addSceneryProp(rawProps, "monacoBuilding", s, -corridor - 24.0, 1.0, -90.0, 255, 255, 255, bVar, 11.0, nil);
       }
 
       // Pit Garages and Pit Office on Driver's Right
@@ -732,7 +759,7 @@ export class Track {
       // 8. Bus Stop Chicane: Covered Grandstand
       this.addSceneryProp(rawProps, "grandstandCovered", 10320.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
 
-    } else {
+    } else if (this.trackId == 3) {
       // -----------------------------------------------------------------------
       // AUTODROMO NAZIONALE MONZA (Italian Grand Prix / Temple of Speed)
       // -----------------------------------------------------------------------
@@ -776,6 +803,19 @@ export class Track {
       this.addSceneryProp(rawProps, "grandstandCovered", 8450.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
       this.addSceneryProp(rawProps, "grandstandCovered", 8720.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
       this.addSceneryProp(rawProps, "billboard", 8550.0, corridor + 6.0, 12.0, 90.0, 255, 255, 255, 0, 3.5, nil);
+
+    } else if (this.trackId >= 4) {
+      let c = f1.getCustomTrack(this.trackId);
+      if (c != nil and c["props"] != nil) {
+        let pList = c["props"];
+        for (let k = 0; k < len(pList); k += 1) {
+          let p = pList[k];
+          let pRot = 0.0; if (p["yaw"] != nil) pRot = p["yaw"];
+          let pScale = 1.0; if (p["scale"] != nil) pScale = p["scale"];
+          let pVar = 0; if (p["variant"] != nil) pVar = p["variant"];
+          this.addSceneryProp(rawProps, p["type"], p["s"], p["offset"], pScale, pRot, 255, 255, 255, pVar, 8.0, nil);
+        }
+      }
     }
 
     // Brake Distance Countdown Boards (150m, 100m, 50m before major braking zones)
@@ -789,9 +829,11 @@ export class Track {
     } else if (this.trackId == 2) {
       // Spa: La Source, Les Combes, Bus Stop
       brakeZones = [240.0, 3220.0, 10120.0];
-    } else {
+    } else if (this.trackId == 3) {
       // Monza: Rettifilo Chicane, Roggia Chicane, Ascari Chicane, Parabolica
       brakeZones = [980.0, 2820.0, 6240.0, 8280.0];
+    } else {
+      brakeZones = [];
     }
 
     for (let bz = 0; bz < len(brakeZones); bz += 1) {
@@ -821,25 +863,24 @@ export class Track {
       let pz = pr["z"];
       let propR = pr["radius"];
       if (propR == nil) propR = 4.0;
-      let prS = pr["s"];
-      let hasS = (prS != nil);
+      let pKind = pr["kind"];
+      if (pKind == "grandstandCovered" or pKind == "grandstandAwning") {
+        let gScale = pr["scale"];
+        if (gScale == nil) gScale = 8.5;
+        propR = gScale * 1.15;
+      } else if (pKind == "building" or pKind == "monacoBuilding") {
+        propR = 12.0;
+      }
 
-      let otherSafe = halfW + curbW + runoffW + propR + 1.5;
-      let otherSafeSq = otherSafe * otherSafe;
+      let minSafe = roadEdge + propR + 0.8;
+      let minSafeSq = minSafe * minSafe;
       let fits = true;
 
-      // Check distance against other track sections (ds >= 35m) across the circuit.
-      // Props are already placed safely outside the local corridor during addSceneryProp.
-      for (let sIdx = 0; sIdx < numStations; sIdx += 2) {
+      for (let sIdx = 0; sIdx < numStations; sIdx += 1) {
         let st = this.stations[sIdx];
-        if (hasS) {
-          let ds = math.abs(st["s"] - prS);
-          if (ds > lapLen * 0.5) ds = lapLen - ds;
-          if (ds < 35.0) continue;
-        }
         let dx = px - st["x"];
         let dz = pz - st["z"];
-        if (dx * dx + dz * dz < otherSafeSq) {
+        if (dx * dx + dz * dz < minSafeSq) {
           fits = false;
           break;
         }
@@ -987,6 +1028,16 @@ export class Track {
     let lapLen = this.spec["length"];
     let prog = dist - math.floor(dist / lapLen) * lapLen;
     if (this.trackId == 1 and prog > 2720.0 and prog < 3570.0) return true;
+    if (this.trackId >= 4) {
+      let c = f1.getCustomTrack(this.trackId);
+      if (c != nil and c["tunnels"] != nil) {
+        let tList = c["tunnels"];
+        for (let k = 0; k < len(tList); k += 1) {
+          let t = tList[k];
+          if (prog >= t["startS"] and prog <= t["endS"]) return true;
+        }
+      }
+    }
     return false;
   }
 
@@ -1016,9 +1067,8 @@ export class Track {
     let limL = st1["outL"] * (1.0 - u) + st2["outL"] * u;
     let limR = st1["outR"] * (1.0 - u) + st2["outR"] * u;
 
-    let outerBoundary = this.roadWidth * 0.5 + this.curbWidth + this.runoffWidth + 20.0;
-    if (!hasWallL) limL = outerBoundary;
-    if (!hasWallR) limR = outerBoundary;
+    if (!hasWallL) limL = limL + 2.5;
+    if (!hasWallR) limR = limR + 2.5;
 
     return [limL, limR, hasWallL, hasWallR];
   }
@@ -2026,60 +2076,6 @@ export class Track {
           this.drawOrientedBox(lxPos, y1 + archH - 1.5, lzPos, 0.65, 1.3, 0.35, nx1, nz1, tx1, tz1, 15, 18, 25);
           gui.drawSphere3D(lxPos - 0.22 * tx1, y1 + archH - 1.7, lzPos - 0.22 * tz1, 0.30, 255, 30, 35);
         }
-      }
-
-      // H. Signature Formula 1 Overhead Sponsor Bridges
-      let isBridge = false;
-      let brH = 8.5;
-      let brR = 45; let brG = 55; let brB = 75;
-      let banR = 245; let banG = 210; let banB = 25;
-
-      if (this.trackId == 0 and i == 346) {
-        // Suzuka: Iconic Dunlop Bridge (after S-Curves)
-        isBridge = true;
-        brR = 245; brG = 210; brB = 25; // Dunlop Yellow
-        banR = 20; banG = 20; banB = 25; // Black sponsor strip
-      } else if (this.trackId == 2 and i == 210) {
-        // Spa: Rolex Raidillon Crest Bridge
-        isBridge = true;
-        brR = 12; brG = 75; brB = 42; // Rolex Green
-        banR = 235; banG = 195; banB = 30; // Gold Rolex Band
-      } else if (this.trackId == 2 and i == 392) {
-        // Spa: Kemmel Straight Aramco Bridge
-        isBridge = true;
-        brR = 0; brG = 165; brB = 215; // Aramco Cyan
-        banR = 245; banG = 245; banB = 250;
-      } else if (this.trackId == 3 and i == 163) {
-        // Monza: Pirelli Overhead Bridge (Rettifilo Chicane Approach)
-        isBridge = true;
-        brR = 245; brG = 210; brB = 25; // Pirelli Yellow
-        banR = 220; banG = 35; banB = 40; // Red Stripe
-      } else if (this.trackId == 3 and i == 1375) {
-        // Monza: Campari Bridge before Parabolica
-        isBridge = true;
-        brR = 215; brG = 30; brB = 40;
-        banR = 245; banG = 245; banB = 250;
-      }
-
-      if (isBridge) {
-        // Symmetrical portal towers anchored relative to track centerline
-        let halfSpan = (this.roadWidth + 6.0) * 0.5;
-        let towL_x = st1["x"] - halfSpan * nx1;
-        let towL_z = st1["z"] - halfSpan * nz1;
-        let towR_x = st1["x"] + halfSpan * nx1;
-        let towR_z = st1["z"] + halfSpan * nz1;
-        let totalSpan = halfSpan * 2.0 + 1.6;
-
-        // Portal towers oriented with track
-        this.drawOrientedBox(towL_x, y1 + brH * 0.5, towL_z, 1.6, brH, 1.8, nx1, nz1, tx1, tz1, 55, 62, 75);
-        this.drawOrientedBox(towR_x, y1 + brH * 0.5, towR_z, 1.6, brH, 1.8, nx1, nz1, tx1, tz1, 55, 62, 75);
-
-        // Main overhead box beam perpendicular to road spanning tower to tower
-        this.drawOrientedBox(st1["x"], y1 + brH, st1["z"], totalSpan, 1.8, 2.4, nx1, nz1, tx1, tz1, brR, brG, brB);
-        // Sponsor banner on incoming side
-        this.drawOrientedBox(st1["x"] - 1.25 * tx1, y1 + brH, st1["z"] - 1.25 * tz1, this.roadWidth * 0.85, 1.1, 0.25, nx1, nz1, tx1, tz1, banR, banG, banB);
-        // Roof top cap
-        this.drawOrientedBox(st1["x"], y1 + brH + 1.2, st1["z"], totalSpan - 0.2, 0.4, 2.2, nx1, nz1, tx1, tz1, 180, 185, 195);
       }
     }
 

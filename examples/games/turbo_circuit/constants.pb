@@ -16,6 +16,7 @@ export let STATE_PAUSED = 5;
 export let STATE_FINISH = 6;
 export let STATE_CRASHED = 7;
 export let STATE_TIMEOUT = 8;
+export let STATE_TRACK_EDITOR = 9;
 
 // Game Modes
 export let MODE_GRAND_PRIX = 0;
@@ -47,6 +48,14 @@ export let TRACK_SUNSET = 1;   // Legacy alias
 export let TRACK_CANYON = 2;   // Legacy alias
 export let TRACK_HYPERION = 3; // Legacy alias
 export let TOTAL_TRACKS = 4;
+
+export fun getTotalTracks() {
+  return 4 + len(f1.customTracks);
+}
+
+export fun registerCustomTrack(def) {
+  return f1.registerCustomTrack(def);
+}
 
 // Machine Specs: [name, subtitle, topSpeed, accel, driftGrip, maxHull, nitroCapacity, modelName, scale]
 // Balanced F1 performance envelope: aggregate performance is nearly equal with subtle personality nuances
@@ -240,6 +249,56 @@ export fun getTrackSpec(id) {
       "groundColor": [38, 105, 42]
     };
   }
+  if (id >= 4) {
+    let c = f1.getCustomTrack(id);
+    if (c != nil) {
+      let tLen = f1.getF1Length(id);
+      let rCol = [48, 50, 60];
+      if (c["roadR"] != nil) rCol = [c["roadR"], c["roadG"], c["roadB"]];
+      let cCol = [235, 40, 50];
+      if (c["curbR"] != nil) cCol = [c["curbR"], c["curbG"], c["curbB"]];
+      let gCol = [42, 115, 46];
+      if (c["groundColor"] != nil) gCol = c["groundColor"];
+      let railA = [255, 60, 80];
+      if (c["railColorA"] != nil) railA = c["railColorA"];
+      let railB = [255, 210, 40];
+      if (c["railColorB"] != nil) railB = c["railColorB"];
+      let skyC = [35, 110, 215];
+      if (c["skyColor"] != nil) skyC = c["skyColor"];
+      let skyT = [20, 80, 190];
+      if (c["skyTop"] != nil) skyT = c["skyTop"];
+      let skyB = [160, 210, 245];
+      if (c["skyBottom"] != nil) skyB = c["skyBottom"];
+      return {
+        "name": c["name"],
+        "subtitle": c["subtitle"],
+        "difficulty": c["difficulty"],
+        "laps": c["laps"],
+        "length": tLen,
+        "roadWidth": c["roadWidth"],
+        "curbWidth": c["curbWidth"],
+        "runoffWidth": c["runoffWidth"],
+        "skyColor": skyC,
+        "skyTop": skyT,
+        "skyBottom": skyB,
+        "fogColor": skyB,
+        "roadColor": rCol,
+        "curbColor": cCol,
+        "gravelColor": [150, 120, 85],
+        "grassColor": [48, 125, 50],
+        "barrierColor": [68, 75, 88],
+        "barrierTopColor": [230, 40, 50],
+        "railColorA": railA,
+        "railColorB": railB,
+        "theme": "custom",
+        "shape": "USER DESIGNED CIRCUIT",
+        "turns": len(c["nodes"]),
+        "elevationProfile": "Custom Topography",
+        "groundColor": gCol
+      };
+    }
+  }
+
   return {
     "name": "MONZA GP",
     "subtitle": "Italian Grand Prix // Temple of Speed",
