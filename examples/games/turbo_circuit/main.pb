@@ -367,6 +367,10 @@ while (!gui.windowShouldClose()) {
     }
   }
   else if (state == const.STATE_COUNTDOWN) {
+    player.speed = 0.0;
+    for (let rIdx = 0; rIdx < len(rivals); rIdx += 1) {
+      rivals[rIdx].speed = 0.0;
+    }
     let lookDist = 34.0;
     let lookCurve = track.getCurveOffset(-lookDist, distance);
     let lookHill = track.getYOffset(-lookDist, distance);
@@ -498,23 +502,56 @@ while (!gui.windowShouldClose()) {
 
     // 4. Update AI Rivals (Grand Prix Pack Racing & Lapping)
     if (gameMode == const.MODE_GRAND_PRIX) {
+      let allCars = [player];
+      for (let i = 0; i < len(rivals); i += 1) allCars.push(rivals[i]);
+
       for (let i = 0; i < len(rivals); i += 1) {
         let rCar = rivals[i];
 
-        // Closed-circuit along-track distance wrapped around lapDist
-        let dDist = rCar.trackDistance - player.trackDistance;
-        while (dDist > lapDist * 0.5) dDist = dDist - lapDist;
-        while (dDist < -lapDist * 0.5) dDist = dDist + lapDist;
+        // Multi-car pack awareness: scan for closest car ahead and behind
+        let closestAheadDist = 999.0;
+        let closestBehindDist = -999.0;
+        let leadCarSpd = player.speed;
+        let leadCarX = nil;
 
-        // Dynamic pack racing update with relative distance
-        rCar.updateAi(dDist, player.speed, dt, track);
-        rCar.z = -dDist;
+        for (let j = 0; j < len(allCars); j += 1) {
+          let other = allCars[j];
+          if (other != rCar) {
+            let deltaS = other.trackDistance - rCar.trackDistance;
+            while (deltaS > lapDist * 0.5) deltaS = deltaS - lapDist;
+            while (deltaS < -lapDist * 0.5) deltaS = deltaS + lapDist;
+
+            if (deltaS > 0.0 and deltaS < closestAheadDist) {
+              closestAheadDist = deltaS;
+              leadCarSpd = other.speed;
+              leadCarX = other.x;
+            } else if (deltaS < 0.0 and deltaS > closestBehindDist) {
+              closestBehindDist = deltaS;
+            }
+          }
+        }
+
+        rCar.rivalAheadX = leadCarX;
+
+        // Relative distance for race tactics (slipstream, battery attack, defensive blocking)
+        let packDDist = 999.0;
+        if (closestAheadDist < 55.0) {
+          packDDist = -closestAheadDist;
+        } else if (closestBehindDist > -30.0) {
+          packDDist = -closestBehindDist;
+        }
+
+        rCar.updateAi(packDDist, leadCarSpd, dt, track);
+
+        // Sorting depth relative to player camera view
+        let dDistPlayer = rCar.trackDistance - player.trackDistance;
+        while (dDistPlayer > lapDist * 0.5) dDistPlayer = dDistPlayer - lapDist;
+        while (dDistPlayer < -lapDist * 0.5) dDistPlayer = dDistPlayer + lapDist;
+        rCar.z = -dDistPlayer;
       }
 
       // Solid Impenetrable Vehicle-to-Vehicle Collisions
       // Cars cannot phase through each other. Trailing cars stay behind lead cars without momentum reset.
-      let allCars = [player];
-      for (let i = 0; i < len(rivals); i += 1) allCars.push(rivals[i]);
       car_mod.resolveCarCollisions(allCars, track, lapDist, particles, assets, cam, dt);
 
       // Re-synchronize distance and race positions after collision resolution
@@ -677,8 +714,8 @@ while (!gui.windowShouldClose()) {
 
 
 
-    // Draw Player (in Bumper POV or Cockpit POV, camera is mounted out on front nose cone / inside cockpit)
-    if (cam.pov != cam_mod.POV_BUMPER and cam.pov != cam_mod.POV_COCKPIT) {
+    // Draw Player (in Bumper, Hood, or Cockpit POV, camera is mounted on car front or inside cockpit)
+    if (cam.pov != cam_mod.POV_BUMPER and cam.pov != cam_mod.POV_HOOD and cam.pov != cam_mod.POV_COCKPIT) {
       player.draw(assets, t);
     }
   }

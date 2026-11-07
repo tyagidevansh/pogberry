@@ -1258,14 +1258,20 @@ export class UIRenderer {
     gui.drawRectangleLines(oledX, oledY, math.floor(oledW), math.floor(oledH), 45, 90, 110);
 
     // Large gear indicator
-    let gVal = 1;
-    if (player.speed > 195.0) gVal = 6;
-    else if (player.speed > 150.0) gVal = 5;
-    else if (player.speed > 110.0) gVal = 4;
-    else if (player.speed > 70.0) gVal = 3;
-    else if (player.speed > 30.0) gVal = 2;
-    let gStr = str(gVal);
-    if (player.speed < 1.0 and !player.isAccelerating) gStr = "N";
+    let gStr = "1";
+    if (player.isReversing or player.speed < -0.5) {
+      gStr = "R";
+    } else if (math.abs(player.speed) < 1.0 and (!player.isAccelerating or player.isBraking)) {
+      gStr = "N";
+    } else {
+      let gVal = 1;
+      if (player.speed > 195.0) gVal = 6;
+      else if (player.speed > 150.0) gVal = 5;
+      else if (player.speed > 110.0) gVal = 4;
+      else if (player.speed > 70.0) gVal = 3;
+      else if (player.speed > 30.0) gVal = 2;
+      gStr = str(gVal);
+    }
     gui.drawText(gStr, math.floor(wcX - 9), math.floor(oledY + 12), 38, 255, 255, 255);
 
     // Speed in KPH

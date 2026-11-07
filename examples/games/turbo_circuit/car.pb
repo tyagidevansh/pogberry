@@ -4,6 +4,17 @@ use "std.math" as math;
 use "math_util" as mu;
 use "constants" as const;
 
+fun getCornerTargetSpeed(k, maxLat, topSpeed) {
+  if (k <= 0.0030) return topSpeed;
+  let effLat = maxLat;
+  if (k > 0.010) {
+    let t = (k - 0.010) / 0.025;
+    if (t > 1.0) t = 1.0;
+    effLat = maxLat * (1.0 - t * 0.25);
+  }
+  return math.sqrt(effLat / k);
+}
+
 export class Vehicle {
   init(carId, isPlayer, name, startZ) {
     this.carId = carId;
@@ -50,6 +61,7 @@ export class Vehicle {
     this.nitro = this.maxNitro;
     this.isBoosting = false;
     this.isBraking = false;
+    this.isAccelerating = false;
     this.isOffTrack = false;
     this.onCurb = false;
     this.wallDamageCooldown = 0.0;
@@ -65,6 +77,7 @@ export class Vehicle {
     this.aiLaneTimer = 0.0;
     this.aiSkill = mu.randFloat(0.88, 1.12);
     this.aiDifficulty = 1; // 0=Rookie, 1=Amateur, 2=Pro/Expert
+    this.rivalAheadX = nil;
 
     // Visuals
     let col = this.spec["primaryColor"];
@@ -134,6 +147,7 @@ export class Vehicle {
     if (this.wallDamageCooldown > 0.0) this.wallDamageCooldown = this.wallDamageCooldown - dt;
     if (this.impactCooldown > 0.0) this.impactCooldown = this.impactCooldown - dt;
     if (this.hitFlash > 0.0) this.hitFlash = this.hitFlash - dt;
+    if (this.wallHitShake > 0.0) this.wallHitShake = mu.approach(this.wallHitShake, 0.0, dt * 12.0);
 
     let cruiseTop = this.maxSpeed;
     let boostTop = this.boostSpeed;
@@ -162,6 +176,7 @@ export class Vehicle {
 
     let boostInput = boostKey and this.nitro > 4.0 and (throttleInput or this.speed > 25.0);
     this.isBraking = brakeInput;
+    this.isAccelerating = throttleInput or boostInput;
 
     this.isDrifting = false;
     this.driftAngle = 0.0;
@@ -197,13 +212,13 @@ export class Vehicle {
         this.speed = mu.approach(this.speed, effTop, dt * effAccel);
         this.isReversing = false;
       }
-      this.nitro = mu.clamp(this.nitro + this.spec["nitroRegen"] * 0.3 * dt, 0.0, this.maxNitro);
     } else if (brakeInput) {
       this.isBoosting = false;
       if (this.speed > 2.0) {
-        // Active trail-braking deceleration
+        // Active trail-braking deceleration and authentic F1 MGU-K battery energy recovery
         this.speed = mu.approach(this.speed, 0.0, dt * 75.0);
         this.isReversing = false;
+        this.nitro = mu.clamp(this.nitro + this.spec["nitroRegen"] * 2.8 * dt, 0.0, this.maxNitro);
       } else {
         this.isReversing = true;
         this.speed = mu.approach(this.speed, -20.0, dt * 16.0);
@@ -212,7 +227,6 @@ export class Vehicle {
       this.isBoosting = false;
       this.isReversing = false;
       this.speed = mu.approach(this.speed, 0.0, dt * 16.0);
-      this.nitro = mu.clamp(this.nitro + this.spec["nitroRegen"] * 0.5 * dt, 0.0, this.maxNitro);
     }
 
     // 3. Responsive Steering & Yaw Dynamics
@@ -278,7 +292,7 @@ export class Vehicle {
 
     // 5. Spline Projection: Update track distance, lateral offset, and elevation
     if (track != nil) {
-      let proj = track.projectWorldPoint(this.worldX, this.worldZ, this.trackDistance);
+      let proj = track.projectWorldPoint(this.worldX, this.worldZ, this.trackDistance, this.worldHeading);
       let prevDist = this.trackDistance;
       this.trackDistance = proj[0];
       this.x = proj[1];
@@ -350,9 +364,12 @@ export class Vehicle {
         this.x = maxLeft;
       }
 
-      // Perimeter concrete barrier collision (Impenetrable, momentum killing)
-      if (hitWall) {
-        // Strictly re-project clamped world coordinates onto barrier inner edge
+      // Re-project clamped world coordinates onto track perimeter edge to prevent floating/levitation
+      if (sign != 0.0) {
+        if (hitWall) {
+          // Displace vehicle cleanly inward away from barrier threshold to prevent sticky collision lock
+          this.x = this.x - sign * 0.25;
+        }
         let stP = const.getTrackWorldPoint(track.trackId, this.trackDistance);
         let stTan = const.getTrackTangent(track.trackId, this.trackDistance);
         let tMag = math.sqrt(stTan[0] * stTan[0] + stTan[1] * stTan[1]);
@@ -361,7 +378,10 @@ export class Vehicle {
         let nz = stTan[0] / tMag;
         this.worldX = stP[0] + nx * this.x;
         this.worldZ = stP[1] + nz * this.x;
+      }
 
+      // Perimeter concrete barrier collision (Impenetrable, momentum killing)
+      if (hitWall) {
         // TOTALLY KILL MOMENTUM: Concrete barrier absorbs kinetic energy cold
         this.speed = 0.0;
         this.isBoosting = false;
@@ -398,12 +418,187 @@ export class Vehicle {
   updateAi(dDist, playerSpeed, dt, track) {
     if (track == nil) return;
 
-    // Lookahead corner curvature for trail braking & apex entry
-    let upcomingCurv = const.getTrackCurvature(track.trackId, this.trackDistance + 46.0);
-    let absCurv = math.abs(upcomingCurv);
+    let dist = this.trackDistance;
+    let spd = this.speed;
+    let absSpd = math.abs(spd);
+    let diff = this.aiDifficulty;
+    if (diff == nil) diff = 1;
 
-    let lookDist = 22.0 + (math.abs(this.speed) / 70.0) * 16.0;
-    let targetS = this.trackDistance + lookDist;
+    let isNarrowTrack = (track.roadWidth < 27.0);
+
+    let curCurv = const.getTrackCurvature(track.trackId, dist);
+
+    // Peak curvature across immediate turn zone (-16m exit to +32m entry)
+    let maxImmCurv = math.abs(curCurv);
+    for (let d = -16.0; d <= 32.0; d += 8.0) {
+      let k = math.abs(const.getTrackCurvature(track.trackId, dist + d));
+      if (k > maxImmCurv) maxImmCurv = k;
+    }
+
+    // Authentic cornering grip limits based on Newtonian centripetal physics (v = sqrt(a_lat / k))
+    let maxLatAccel = 42.0;
+    if (isNarrowTrack) maxLatAccel = 28.0;
+    let aBrake = 40.0;
+    let safeMargin = 2.4;
+    if (isNarrowTrack) safeMargin = 2.6;
+    let rxBuffer = 0.20;
+    let steerGain = 4.2;
+    let tcThresh = 0.60;
+    let tcSpeedRatio = 0.96;
+    let overtakeOffset = 2.2;
+    if (isNarrowTrack) overtakeOffset = 1.4;
+
+    if (diff == 0) {
+      // Rookie: clean pace, conservative braking, solid lines
+      maxLatAccel = 30.0;
+      if (isNarrowTrack) maxLatAccel = 20.0;
+      aBrake = 32.0;
+      safeMargin = 2.8;
+      rxBuffer = 0.28;
+      steerGain = 3.4;
+      tcThresh = 0.45;
+      tcSpeedRatio = 0.90;
+      overtakeOffset = 1.6;
+    } else if (diff == 1) {
+      // Pro Racer: fast competitive pace, authentic F1 racing lines, late braking
+      maxLatAccel = 42.0;
+      if (isNarrowTrack) maxLatAccel = 28.0;
+      aBrake = 38.0;
+      safeMargin = 2.3;
+      rxBuffer = 0.20;
+      steerGain = 4.0;
+      tcThresh = 0.55;
+      tcSpeedRatio = 0.94;
+      overtakeOffset = 2.0;
+      if (isNarrowTrack) overtakeOffset = 1.4;
+    } else {
+      // World Champion: elite aggressive championship lines, extreme late braking, fierce racecraft
+      maxLatAccel = 52.0;
+      if (isNarrowTrack) maxLatAccel = 36.0;
+      aBrake = 44.0;
+      safeMargin = 1.9;
+      if (isNarrowTrack) safeMargin = 2.1;
+      rxBuffer = 0.15;
+      steerGain = 4.6;
+      tcThresh = 0.70;
+      tcSpeedRatio = 0.98;
+      overtakeOffset = 2.4;
+      if (isNarrowTrack) overtakeOffset = 1.6;
+    }
+
+    let vImmediateLimit = getCornerTargetSpeed(maxImmCurv, maxLatAccel, this.maxSpeed);
+
+    let brakeInput = false;
+    let throttleInput = true;
+
+    // Scan ahead up to 280m for upcoming corner braking points with steering reaction buffer
+    for (let aheadDist = 12.0; aheadDist <= 280.0; aheadDist += 10.0) {
+      let kAhead = math.abs(const.getTrackCurvature(track.trackId, dist + aheadDist));
+      if (kAhead > 0.0028) {
+        let vCornerTarget = getCornerTargetSpeed(kAhead, maxLatAccel, this.maxSpeed);
+        if (spd > vCornerTarget) {
+          let reqDist = (spd * spd - vCornerTarget * vCornerTarget) / (2.0 * aBrake) + spd * rxBuffer;
+          if (reqDist >= (aheadDist - 2.0)) {
+            brakeInput = true;
+            throttleInput = false;
+          }
+        }
+      }
+    }
+
+    // In-turn speed control: accelerate cleanly up to the tire limit, lift at limit, brake if over limit
+    if (spd > vImmediateLimit * 1.04) {
+      brakeInput = true;
+      throttleInput = false;
+    } else if (spd > vImmediateLimit * 0.99) {
+      throttleInput = false;
+    }
+
+    // Barrier limits lookahead to anticipate narrowing walls
+    let carW = 1.4;
+    let barLimsNow = track.getBarrierLimits(dist);
+    let barLimsMid = track.getBarrierLimits(dist + 25.0);
+    let barLimsFar = track.getBarrierLimits(dist + 50.0);
+    let limL = math.min(barLimsNow[0], math.min(barLimsMid[0], barLimsFar[0]));
+    let limR = math.min(barLimsNow[1], math.min(barLimsMid[1], barLimsFar[1]));
+    let hw = track.roadWidth * 0.5;
+
+    let maxR = math.min(hw - 1.4, limR - safeMargin - carW);
+    let maxL = -math.min(hw - 1.4, limL - safeMargin - carW);
+
+    let apexCurv = const.getTrackCurvature(track.trackId, dist + 24.0);
+    let entryCurv = const.getTrackCurvature(track.trackId, dist + 70.0);
+
+    // True Formula 1 Geometric Racing Line (Out - In - Out):
+    // Curvature > 0 is Right turn (inside is +x Right, outside is -x Left)
+    // Curvature < 0 is Left turn (inside is -x Left, outside is +x Right)
+    let racingLineOffset = 0.0;
+    let maxLineOffset = 5.2;
+    if (isNarrowTrack) maxLineOffset = 2.2;
+
+    if (diff == 2) {
+      if (math.abs(curCurv) > 0.008) {
+        racingLineOffset = curCurv * 160.0; // In corner: clip inside curb apex (Right turn > 0 -> +x, Left turn < 0 -> -x)
+      } else if (math.abs(apexCurv) > 0.007) {
+        racingLineOffset = -apexCurv * 140.0; // Corner entry: setup wide on outside (Right turn ahead > 0 -> -x Left)
+      } else if (math.abs(entryCurv) > 0.007) {
+        racingLineOffset = -entryCurv * 100.0; // Long approach: drift to outside
+      }
+    } else if (diff == 1) {
+      if (math.abs(curCurv) > 0.009) {
+        racingLineOffset = curCurv * 130.0;
+      } else if (math.abs(apexCurv) > 0.008) {
+        racingLineOffset = -apexCurv * 110.0;
+      }
+    } else {
+      racingLineOffset = curCurv * 60.0;
+    }
+    racingLineOffset = mu.clamp(racingLineOffset, -maxLineOffset, maxLineOffset);
+
+    // Dynamic Overtaking & Defensive Lateral Tactics
+    let attackOffset = 0.0;
+    if (diff >= 1) {
+      if (dDist < -3.5 and dDist > -40.0) {
+        // Only pull out alongside if track is wide or on straightaway
+        let canOvertakeHere = (!isNarrowTrack or maxImmCurv < 0.008);
+        if (canOvertakeHere) {
+          let leadX = 0.0;
+          if (this.rivalAheadX != nil) leadX = this.rivalAheadX;
+          else if (this.aiLane < 0.0) leadX = -2.0;
+          else leadX = 2.0;
+
+          // Pull into open lane opposite of lead car
+          if (leadX > 0.0) {
+            attackOffset = -overtakeOffset; // Pass on left
+          } else {
+            attackOffset = overtakeOffset;  // Pass on right
+          }
+
+          // Verify barrier clearance in chosen passing lane
+          if (attackOffset > 0.0 and (this.x + attackOffset) > maxR) {
+            attackOffset = -overtakeOffset; // Switch to left if right barrier is too close
+          } else if (attackOffset < 0.0 and (this.x + attackOffset) < maxL) {
+            attackOffset = overtakeOffset;  // Switch to right if left barrier is too close
+          }
+        }
+      } else if (dDist > 2.0 and dDist < 25.0) {
+        // Leading car with chaser right behind: Defend the inside apex into the braking zone
+        if (apexCurv > 0.004) attackOffset = overtakeOffset * 0.75;
+        else if (apexCurv < -0.004) attackOffset = -overtakeOffset * 0.75;
+      }
+    }
+
+    let laneBlend = this.aiLane * 0.35;
+    let targetLane = mu.clamp(racingLineOffset * 0.70 + laneBlend + attackOffset, maxL, maxR);
+
+    // Pure Pursuit Steering Target along Track Spline with curvature-adaptive lookahead
+    let lookDist = 14.0 + (absSpd / 50.0) * 16.0;
+    if (maxImmCurv > 0.012) {
+      let tightLook = 24.0 - maxImmCurv * 300.0;
+      if (tightLook < 8.0) tightLook = 8.0;
+      if (tightLook < lookDist) lookDist = tightLook;
+    }
+    let targetS = dist + lookDist;
 
     let tPt = const.getTrackWorldPoint(track.trackId, targetS);
     let tTan = const.getTrackTangent(track.trackId, targetS);
@@ -411,19 +606,6 @@ export class Vehicle {
     if (tMag < 0.0001) tMag = 1.0;
     let tNx = -tTan[1] / tMag;
     let tNz = tTan[0] / tMag;
-
-    // AI Difficulty Configuration:
-    // 0 = ROOKIE (Easy): cruise ~78%, early braking, gentle steering, no battery deploy
-    // 1 = PRO RACER (Medium): competitive pace ~105%, late braking, battery deploy
-    // 2 = WORLD CHAMPION (Hard): relentless pace ~120%, apex clipping, aggressive battery deploy, zero handicap
-    let diff = this.aiDifficulty;
-    if (diff == nil) diff = 1;
-
-    let targetLane = this.aiLane;
-    if (diff >= 1) {
-      let apexOffset = mu.clamp(-upcomingCurv * 260.0, -5.0, 5.0);
-      targetLane = targetLane + apexOffset;
-    }
 
     let targetX = tPt[0] + tNx * targetLane;
     let targetZ = tPt[1] + tNz * targetLane;
@@ -435,97 +617,55 @@ export class Vehicle {
     while (headingErr > 3.14159) headingErr = headingErr - 6.28318;
     while (headingErr < -3.14159) headingErr = headingErr + 6.28318;
 
-    let cruiseRatio = 1.20;
-    let brakeCurvLow = 0.026;
-    let brakeSpdLow = 112.0;
-    let brakeCurvHigh = 0.035;
-    let brakeSpdHigh = 94.0;
-    let steerGain = 3.6;
-    let liftCurv = 0.022;
-    let liftRatio = 0.94;
-    let minNitroReq = 4.0;
-    let maxCurvForNitro = 0.018;
-    let allowNitro = true;
-
-    if (diff == 0) {
-      cruiseRatio = 0.78;
-      brakeCurvLow = 0.012;
-      brakeSpdLow = 52.0;
-      brakeCurvHigh = 0.018;
-      brakeSpdHigh = 40.0;
-      steerGain = 1.8;
-      liftCurv = 0.011;
-      liftRatio = 0.82;
-      minNitroReq = 30.0;
-      maxCurvForNitro = 0.005;
-      allowNitro = false;
-    } else if (diff == 1) {
-      cruiseRatio = 1.05;
-      brakeCurvLow = 0.019;
-      brakeSpdLow = 88.0;
-      brakeCurvHigh = 0.027;
-      brakeSpdHigh = 72.0;
-      steerGain = 2.7;
-      liftCurv = 0.017;
-      liftRatio = 0.90;
-      minNitroReq = 12.0;
-      maxCurvForNitro = 0.012;
-      allowNitro = true;
-    }
-
     let steerInput = mu.clamp(headingErr * steerGain, -1.0, 1.0);
 
-    let throttleInput = true;
-    let brakeInput = false;
+    // Active Barrier Proximity Deflection & Emergency Scrub
+    // Proportional steering bias and throttle cut prevents barrier impacts
+    let wallDistR = limR - this.x - carW;
+    let wallDistL = limL + this.x - carW;
+    let hasWallL = barLimsNow[2] or barLimsMid[2];
+    let hasWallR = barLimsNow[3] or barLimsMid[3];
+
+    let trkHead = const.getTrackHeading(track.trackId, dist);
+    let relHead = this.worldHeading - trkHead;
+    while (relHead > 3.14159) relHead = relHead - 6.28318;
+    while (relHead < -3.14159) relHead = relHead + 6.28318;
+
+    let wallBias = 0.0;
+    if (hasWallR and wallDistR < 2.5) {
+      wallBias = (2.5 - wallDistR) * 2.5;
+      if (wallDistR < 2.0 and steerInput < 0.0) steerInput = 0.0;
+      if (wallDistR < 1.2) {
+        if (spd > 0.5) brakeInput = true;
+        steerInput = 0.85;
+      }
+    } else if (hasWallL and wallDistL < 2.5) {
+      wallBias = -(2.5 - wallDistL) * 2.5;
+      if (wallDistL < 2.0 and steerInput > 0.0) steerInput = 0.0;
+      if (wallDistL < 1.2) {
+        if (spd > 0.5) brakeInput = true;
+        steerInput = -0.85;
+      }
+    }
+
+    steerInput = mu.clamp(steerInput + wallBias, -1.0, 1.0);
+
+    // Traction Control: prevent power understeer when steering wheel is loaded or heading is unaligned
+    let steerAbs = math.abs(this.steer);
+    let absRelHead = math.abs(relHead);
+
+    if ((steerAbs > 0.35 or absRelHead > 0.22) and spd > vImmediateLimit * 0.88) {
+      throttleInput = false;
+    }
+
+    // Tactical Battery Deployment (ERS / Overdrive)
     let boostInput = false;
-
-    // Dynamic Rubberbanding / Lead Handicap:
-    let targetCruise = this.maxSpeed * cruiseRatio;
-    if (dDist > 8.0) {
-      if (diff == 0) {
-        let leadDist = dDist - 8.0;
-        let leadFactor = mu.clamp(leadDist / 60.0, 0.0, 1.0);
-        targetCruise = targetCruise * (1.0 - leadFactor * 0.30);
-        allowNitro = false;
-      } else if (diff == 1) {
-        let leadDist = dDist - 8.0;
-        let leadFactor = mu.clamp(leadDist / 100.0, 0.0, 1.0);
-        targetCruise = targetCruise * (1.0 - leadFactor * 0.06);
-        allowNitro = true;
-      } else {
-        // World Champion AI never slows down when leading
-        allowNitro = true;
-      }
-    } else if (dDist < -8.0) {
-      if (diff == 2) {
-        // World Champion aggressively slipstreams and hunts the player
-        targetCruise = targetCruise * 1.22;
-      } else if (diff == 1) {
-        targetCruise = targetCruise * 1.08;
-      }
-    }
-    if (targetCruise < 44.0) targetCruise = 44.0; // Floor keeps race flowing and laps passing
-
-    // Throttle cap
-    if (this.speed > targetCruise) {
-      throttleInput = false;
-    }
-
-    // Active trail-braking deceleration into sharp corners
-    if ((absCurv > brakeCurvLow and this.speed > brakeSpdLow) or (absCurv > brakeCurvHigh and this.speed > brakeSpdHigh)) {
-      brakeInput = true;
-      throttleInput = false;
-    } else if (absCurv > liftCurv and this.speed > targetCruise * liftRatio) {
-      // Natural cornering lift-off
-      throttleInput = false;
-    }
-
-    // Battery deploy overdrive on clean straightaways
-    if (allowNitro and absCurv < maxCurvForNitro and math.abs(this.x) < 7.0 and this.speed > 45.0 and this.nitro > minNitroReq) {
+    let slipstreamBoost = (diff >= 1 and dDist < -6.0 and dDist > -50.0 and math.abs(curCurv) < 0.004 and math.abs(entryCurv) < 0.004);
+    let straightBoost = (diff >= 1 and maxImmCurv < 0.0040 and math.abs(entryCurv) < 0.005);
+    if (!brakeInput and throttleInput and (straightBoost or slipstreamBoost) and spd > 45.0 and this.nitro > 10.0) {
       boostInput = true;
     }
 
-    // Execute through the EXACT same Newtonian physics engine pipeline
     this.inputOverride = {
       "steer": steerInput,
       "throttle": throttleInput,
@@ -764,10 +904,23 @@ export fun resolveCarCollisions(cars, track, lapLen, particles, assets, cam, dt)
             let barLimsA = track.getBarrierLimits(carA.trackDistance);
             let barLimsB = track.getBarrierLimits(carB.trackDistance);
             let halfW = 1.30;
-            let minXA = -(barLimsA[0] - halfW);
-            let maxXA = barLimsA[1] - halfW;
-            let minXB = -(barLimsB[0] - halfW);
-            let maxXB = barLimsB[1] - halfW;
+            let barClearance = 1.0;
+            let minXA = -(barLimsA[0] - halfW - barClearance);
+            let maxXA = barLimsA[1] - halfW - barClearance;
+            let minXB = -(barLimsB[0] - halfW - barClearance);
+            let maxXB = barLimsB[1] - halfW - barClearance;
+
+            let tanA = const.getTrackTangent(track.trackId, carA.trackDistance);
+            let magA = math.sqrt(tanA[0] * tanA[0] + tanA[1] * tanA[1]);
+            if (magA < 0.0001) magA = 1.0;
+            let nxA = -tanA[1] / magA;
+            let nzA = tanA[0] / magA;
+
+            let tanB = const.getTrackTangent(track.trackId, carB.trackDistance);
+            let magB = math.sqrt(tanB[0] * tanB[0] + tanB[1] * tanB[1]);
+            if (magB < 0.0001) magB = 1.0;
+            let nxB = -tanB[1] / magB;
+            let nzB = tanB[0] / magB;
 
             if (dx >= 0.0) {
               // carA is on left, carB is on right
@@ -786,6 +939,10 @@ export fun resolveCarCollisions(cars, track, lapLen, particles, assets, cam, dt)
 
               carA.x = mu.clamp(carA.x - shiftA, minXA, maxXA);
               carB.x = mu.clamp(carB.x + shiftB, minXB, maxXB);
+              carA.worldX = carA.worldX - nxA * shiftA;
+              carA.worldZ = carA.worldZ - nzA * shiftA;
+              carB.worldX = carB.worldX + nxB * shiftB;
+              carB.worldZ = carB.worldZ + nzB * shiftB;
 
               if (carA.lateralVelocity > 0.0) carA.lateralVelocity = 0.0;
               if (carB.lateralVelocity < 0.0) carB.lateralVelocity = 0.0;
@@ -806,13 +963,14 @@ export fun resolveCarCollisions(cars, track, lapLen, particles, assets, cam, dt)
 
               carB.x = mu.clamp(carB.x - shiftB, minXB, maxXB);
               carA.x = mu.clamp(carA.x + shiftA, minXA, maxXA);
+              carB.worldX = carB.worldX - nxB * shiftB;
+              carB.worldZ = carB.worldZ - nzB * shiftB;
+              carA.worldX = carA.worldX + nxA * shiftA;
+              carA.worldZ = carA.worldZ + nzA * shiftA;
 
               if (carB.lateralVelocity > 0.0) carB.lateralVelocity = 0.0;
               if (carA.lateralVelocity < 0.0) carA.lateralVelocity = 0.0;
             }
-
-            carA.setTrackPosition(track, carA.trackDistance, carA.x);
-            carB.setTrackPosition(track, carB.trackDistance, carB.x);
           }
 
           if (carA.isPlayer or carB.isPlayer) {

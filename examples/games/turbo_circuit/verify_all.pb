@@ -49,6 +49,8 @@ for (let cId = 0; cId < 4; cId += 1) {
 let rival = car_mod.Vehicle(1, false, "RIVAL", -30.0);
 let trk = track_mod.Track(0);
 rival.updateAi(0.0, 100.0, 0.016, trk);
+// Test overtaking logic when following another vehicle
+rival.updateAi(-20.0, 90.0, 0.016, trk);
 print("AI Rival updated cleanly, worldX=" + str(rival.worldX));
 
 let traffic = car_mod.TrafficCar(-50.0);
