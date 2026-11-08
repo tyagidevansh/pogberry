@@ -67,25 +67,26 @@ export class UIRenderer {
 
     // 1. Mode Selector Panels (Left Column)
     let modes = [
-      {"title": "GRAND PRIX", "desc": "Race 5 F1 constructor rivals. Finish TOP 3 on podium to win."},
-      {"title": "TIME ATTACK", "desc": "Solo hotlap trial. Beat the circuit record in 3 laps."}
+      {"title": "GRAND PRIX", "desc": "Race 5 F1 constructor rivals. Finish top 3 on podium to win."},
+      {"title": "TIME ATTACK", "desc": "Solo hotlap trial. Beat the circuit record in 3 laps."},
+      {"title": "REALISTIC GP", "desc": "High realism. Hard impact with walls or rivals ends race."}
     ];
 
     for (let i = 0; i < len(modes); i += 1) {
       let mX = 80;
-      let mY = 178 + i * 86;
+      let mY = 174 + i * 58;
       let isSel = (i == selectedMode);
 
       if (isSel) {
-        gui.drawRectangleAlpha(mX, mY, 710, 76, 20, 40, 80, 235);
-        gui.drawRectangleLines(mX, mY, 710, 76, 0, 240, 255);
-        gui.drawText("> " + modes[i]["title"], mX + 20, mY + 14, 24, 255, 240, 90);
-        gui.drawText(modes[i]["desc"], mX + 46, mY + 44, 15, 220, 235, 255);
+        gui.drawRectangleAlpha(mX, mY, 710, 52, 20, 40, 80, 235);
+        gui.drawRectangleLines(mX, mY, 710, 52, 0, 240, 255);
+        gui.drawText("> " + modes[i]["title"], mX + 18, mY + 9, 20, 255, 240, 90);
+        gui.drawText(modes[i]["desc"], mX + 42, mY + 31, 14, 220, 235, 255);
       } else {
-        gui.drawRectangleAlpha(mX, mY, 710, 76, 12, 16, 32, 160);
-        gui.drawRectangleLines(mX, mY, 710, 76, 50, 70, 100);
-        gui.drawText("  " + modes[i]["title"], mX + 20, mY + 14, 22, 170, 190, 210);
-        gui.drawText(modes[i]["desc"], mX + 46, mY + 44, 15, 120, 140, 160);
+        gui.drawRectangleAlpha(mX, mY, 710, 52, 12, 16, 32, 160);
+        gui.drawRectangleLines(mX, mY, 710, 52, 50, 70, 100);
+        gui.drawText("  " + modes[i]["title"], mX + 18, mY + 9, 19, 170, 190, 210);
+        gui.drawText(modes[i]["desc"], mX + 42, mY + 31, 14, 120, 140, 160);
       }
     }
 
@@ -492,7 +493,7 @@ export class UIRenderer {
     gui.drawRectangleAlpha(infoX, infoY, 310, 115, 8, 12, 26, 215);
     gui.drawRectangleLines(infoX, infoY, 310, 115, 0, 220, 255);
 
-    if (this.gameMode == const.MODE_GRAND_PRIX) {
+    if (this.gameMode == const.MODE_GRAND_PRIX or this.gameMode == const.MODE_REALISTIC) {
       let posSuffix = "TH";
       let posColor = [255, 255, 255];
       if (pos == 1) { posSuffix = "ST"; posColor = [255, 220, 40]; }
@@ -502,6 +503,9 @@ export class UIRenderer {
       gui.drawText(str(pos) + posSuffix, infoX + 18, infoY + 16, 44, posColor[0], posColor[1], posColor[2]);
       gui.drawText("/ " + str(totalRacers), infoX + 120, infoY + 34, 24, 180, 200, 220);
       gui.drawText("LAP " + str(lap) + " / " + str(totalLaps), infoX + 18, infoY + 76, 20, 0, 240, 255);
+      if (this.gameMode == const.MODE_REALISTIC) {
+        gui.drawText("// REALISTIC DNF ACTIVE", infoX + 130, infoY + 80, 12, 255, 75, 75);
+      }
     } else {
       // Time Attack
       gui.drawText("TIME ATTACK", infoX + 18, infoY + 16, 28, 255, 220, 60);
@@ -679,8 +683,8 @@ export class UIRenderer {
     let p0y = cy + (pt0[1] - midZ) * rScale;
     gui.drawCircle(math.floor(p0x), math.floor(p0y), 3.5, 255, 220, 60);
 
-    // AI Rivals (Grand Prix)
-    if (this.gameMode == const.MODE_GRAND_PRIX and rivals != nil) {
+    // AI Rivals (Grand Prix & Realistic GP)
+    if ((this.gameMode == const.MODE_GRAND_PRIX or this.gameMode == const.MODE_REALISTIC) and rivals != nil) {
       for (let i = 0; i < len(rivals); i += 1) {
         let rCar = rivals[i];
         let rPt = const.getTrackWorldPoint(curTrackId, rCar.trackDistance);
@@ -768,8 +772,11 @@ export class UIRenderer {
     gui.drawRectangleAlpha(pX, pY, 600, 470, 16, 24, 48, 240);
     gui.drawRectangleLines(pX, pY, 600, 470, 255, 220, 60);
 
-    if (this.gameMode == const.MODE_GRAND_PRIX) {
+    if (this.gameMode == const.MODE_GRAND_PRIX or this.gameMode == const.MODE_REALISTIC) {
       let titleText = "GRAND PRIX COMPLETED";
+      if (this.gameMode == const.MODE_REALISTIC) {
+        titleText = "REALISTIC GP COMPLETED";
+      }
       let titleColor = [255, 240, 90];
       if (position <= 3) {
         titleText = "PODIUM VICTORY!";
@@ -829,12 +836,21 @@ export class UIRenderer {
 
     let pulse = 200 + math.floor(math.sin(t * 8.0) * 55.0);
     let text = "HULL CRITICAL // MACHINE TOTALED";
+    if (this.gameMode == const.MODE_REALISTIC) {
+      text = "TERMINAL DAMAGE // DNF";
+    }
     let tw = gui.measureText(text, 44);
-    gui.drawText(text, math.floor((this.w - tw) * 0.5), 280, 44, 255, pulse, pulse);
+    gui.drawText(text, math.floor((this.w - tw) * 0.5), 260, 44, 255, pulse, pulse);
+
+    if (this.gameMode == const.MODE_REALISTIC) {
+      let sub = "CRITICAL IMPACT IN REALISTIC MODE";
+      let sw = gui.measureText(sub, 20);
+      gui.drawText(sub, math.floor((this.w - sw) * 0.5), 320, 20, 255, 180, 180);
+    }
 
     let prompt = "PRESS ENTER TO RETURN TO GARAGE";
     let pw = gui.measureText(prompt, 24);
-    gui.drawText(prompt, math.floor((this.w - pw) * 0.5), 370, 24, 255, 255, 255);
+    gui.drawText(prompt, math.floor((this.w - pw) * 0.5), 380, 24, 255, 255, 255);
   }
 
   rotPtX(cx, cy, lx, ly, cosA, sinA) {

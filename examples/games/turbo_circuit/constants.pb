@@ -21,7 +21,9 @@ export let STATE_TRACK_EDITOR = 9;
 // Game Modes
 export let MODE_GRAND_PRIX = 0;
 export let MODE_TIME_ATTACK = 1;
+export let MODE_REALISTIC = 2;
 export let MODE_OUTRUN = -1;
+export let TOTAL_MODES = 3;
 
 // AI Difficulty Levels
 export let AI_DIFF_ROOKIE = 0;   // Easy (relaxed pace, gentle cornering)

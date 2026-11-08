@@ -102,6 +102,7 @@ fun startRace() {
   player.trackDistance = pDist;
   player.raceDistance = pRaceDist;
   player.x = pLane;
+  player.gameMode = gameMode;
   player.setTrackPosition(track, pDist, pLane);
 
   particles.clear();
@@ -110,7 +111,7 @@ fun startRace() {
   // Mode Specific Setups
   rivals = [];
 
-  if (gameMode == const.MODE_GRAND_PRIX) {
+  if (gameMode == const.MODE_GRAND_PRIX or gameMode == const.MODE_REALISTIC) {
     racePosition = 4;
     prevPosition = 4;
     // 20 Authentic Formula 1 Grid Slots: P1, P2, P3, Player(P4), P5, P6
@@ -138,6 +139,7 @@ fun startRace() {
       rCar.maxNitro = player.maxNitro;
       rCar.nitro = player.nitro;
       rCar.aiDifficulty = aiDifficulty;
+      rCar.gameMode = gameMode;
       rCar.trackDistance = gridDist;
       rCar.raceDistance = slotOffset;
       rCar.aiLane = gridLane;
@@ -146,7 +148,11 @@ fun startRace() {
       rCar.setTrackPosition(track, gridDist, gridLane);
       rivals.push(rCar);
     }
-    ui.setBanner("OBJECTIVE: PODIUM FINISH (TOP 3)", "RACE 5 RIVALS // " + str(totalLaps) + " LAPS", 4.5, 255, 220, 40);
+    if (gameMode == const.MODE_REALISTIC) {
+      ui.setBanner("REALISTIC MODE // TERMINAL DAMAGE", "WALL & CAR IMPACTS END RACE", 4.5, 255, 60, 60);
+    } else {
+      ui.setBanner("OBJECTIVE: PODIUM FINISH (TOP 3)", "RACE 5 RIVALS // " + str(totalLaps) + " LAPS", 4.5, 255, 220, 40);
+    }
   } else {
     // TIME ATTACK
     totalLaps = 3;
@@ -214,11 +220,14 @@ while (!gui.windowShouldClose()) {
     // Mouse selection on Start Screen:
     if (mouseClick) {
       // 1. Mode cards (x: 80 to 790)
-      if (mouseX >= 80 and mouseX <= 790 and mouseY >= 178 and mouseY < 254) {
+      if (mouseX >= 80 and mouseX <= 790 and mouseY >= 174 and mouseY < 228) {
         gameMode = 0;
         assets.playSfx(assets.sndSelect);
-      } else if (mouseX >= 80 and mouseX <= 790 and mouseY >= 264 and mouseY < 340) {
+      } else if (mouseX >= 80 and mouseX <= 790 and mouseY >= 232 and mouseY < 286) {
         gameMode = 1;
+        assets.playSfx(assets.sndSelect);
+      } else if (mouseX >= 80 and mouseX <= 790 and mouseY >= 290 and mouseY < 344) {
+        gameMode = 2;
         assets.playSfx(assets.sndSelect);
       }
       // 2. AI Difficulty pills (y: 382 to 428)
@@ -260,12 +269,12 @@ while (!gui.windowShouldClose()) {
     }
     if (gui.isKeyPressed("KEY_W") or gui.isKeyPressed("KEY_UP")) {
       gameMode = gameMode - 1;
-      if (gameMode < 0) gameMode = 1;
+      if (gameMode < 0) gameMode = 2;
       assets.playSfx(assets.sndSelect);
     }
     if (gui.isKeyPressed("KEY_S") or gui.isKeyPressed("KEY_DOWN")) {
       gameMode = gameMode + 1;
-      if (gameMode > 1) gameMode = 0;
+      if (gameMode > 2) gameMode = 0;
       assets.playSfx(assets.sndSelect);
     }
     // AI Difficulty keys
@@ -509,6 +518,12 @@ while (!gui.windowShouldClose()) {
       cam.addShake(player.wallHitShake);
       player.wallHitShake = 0.0;
     }
+
+    if (player.isTerminalCrash or player.hull <= 0.0) {
+      state = const.STATE_CRASHED;
+      assets.playSfx(assets.sndExplode);
+      cam.addShake(1.2);
+    }
     distance = player.trackDistance;
 
     // Track scroll
@@ -574,7 +589,7 @@ while (!gui.windowShouldClose()) {
     }
 
     // 4. Update AI Rivals (Grand Prix Pack Racing & Lapping)
-    if (gameMode == const.MODE_GRAND_PRIX) {
+    if (gameMode == const.MODE_GRAND_PRIX or gameMode == const.MODE_REALISTIC) {
       let allCars = [player];
       for (let i = 0; i < len(rivals); i += 1) allCars.push(rivals[i]);
 
@@ -586,6 +601,10 @@ while (!gui.windowShouldClose()) {
         let closestBehindDist = -999.0;
         let leadCarSpd = player.speed;
         let leadCarX = nil;
+
+        // Flank threat detection
+        let threatLeft = false;
+        let threatRight = false;
 
         for (let j = 0; j < len(allCars); j += 1) {
           let other = allCars[j];
@@ -601,10 +620,30 @@ while (!gui.windowShouldClose()) {
             } else if (deltaS < 0.0 and deltaS > closestBehindDist) {
               closestBehindDist = deltaS;
             }
+
+            if (math.abs(deltaS) < 6.5) {
+              let dX = other.x - rCar.x;
+              if (dX > 0.0 and dX < 3.2) {
+                threatRight = true;
+              } else if (dX < 0.0 and dX > -3.2) {
+                threatLeft = true;
+              }
+            }
           }
         }
 
         rCar.rivalAheadX = leadCarX;
+        rCar.closestAheadDist = closestAheadDist;
+        rCar.leadCarSpd = leadCarSpd;
+        rCar.threatLeft = threatLeft;
+        rCar.threatRight = threatRight;
+
+        let pDeltaS = player.trackDistance - rCar.trackDistance;
+        while (pDeltaS > lapDist * 0.5) pDeltaS = pDeltaS - lapDist;
+        while (pDeltaS < -lapDist * 0.5) pDeltaS = pDeltaS + lapDist;
+        rCar.playerDeltaS = pDeltaS;
+        rCar.playerDeltaX = player.x - rCar.x;
+        rCar.playerNear = (math.abs(pDeltaS) < 35.0);
 
         // Relative distance for race tactics (slipstream, battery attack, defensive blocking)
         let packDDist = 999.0;
@@ -626,6 +665,12 @@ while (!gui.windowShouldClose()) {
       // Solid Impenetrable Vehicle-to-Vehicle Collisions
       // Cars cannot phase through each other. Trailing cars stay behind lead cars without momentum reset.
       car_mod.resolveCarCollisions(allCars, track, lapDist, particles, assets, cam, dt);
+
+      if (player.isTerminalCrash or player.hull <= 0.0) {
+        state = const.STATE_CRASHED;
+        assets.playSfx(assets.sndExplode);
+        cam.addShake(1.2);
+      }
 
       // Re-synchronize distance and race positions after collision resolution
       distance = player.trackDistance;
@@ -780,7 +825,7 @@ while (!gui.windowShouldClose()) {
     track.draw(0.0, player.trackDistance, t, assets, cam);
 
     // Draw AI Rivals in World Space
-    if (gameMode == const.MODE_GRAND_PRIX) {
+    if (gameMode == const.MODE_GRAND_PRIX or gameMode == const.MODE_REALISTIC) {
       for (let i = 0; i < len(rivals); i += 1) {
         let rCar = rivals[i];
         let dDist = math.abs(rCar.trackDistance - player.trackDistance);
@@ -843,20 +888,20 @@ while (!gui.windowShouldClose()) {
     if (cam.pov == cam_mod.POV_COCKPIT) {
       ui.drawCockpitView(player, t, dt);
     }
-    ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
+    ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX or gameMode == const.MODE_REALISTIC), t, distance, lapDist, rivals);
     ui.drawCountdown(countdownTimer);
   }
   else if (state == const.STATE_RACE) {
     if (cam.pov == cam_mod.POV_COCKPIT) {
       ui.drawCockpitView(player, t, dt);
     }
-    ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
+    ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX or gameMode == const.MODE_REALISTIC), t, distance, lapDist, rivals);
   }
   else if (state == const.STATE_PAUSED) {
     if (cam.pov == cam_mod.POV_COCKPIT) {
       ui.drawCockpitView(player, t, dt);
     }
-    ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX), t, distance, lapDist, rivals);
+    ui.drawHUD(player, currentLap, totalLaps, currentLapTime, bestLapTime, racePosition, len(rivals) + 1, (gameMode == const.MODE_GRAND_PRIX or gameMode == const.MODE_REALISTIC), t, distance, lapDist, rivals);
     ui.drawPauseMenu(pauseSelection, cam.getPovName(), getAiDifficultyName(aiDifficulty));
   }
   else if (state == const.STATE_FINISH) {

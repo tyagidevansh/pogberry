@@ -78,6 +78,15 @@ export class Vehicle {
     this.aiSkill = mu.randFloat(0.88, 1.12);
     this.aiDifficulty = 1; // 0=Rookie, 1=Amateur, 2=Pro/Expert
     this.rivalAheadX = nil;
+    this.gameMode = const.MODE_GRAND_PRIX;
+    this.isTerminalCrash = false;
+    this.closestAheadDist = nil;
+    this.leadCarSpd = nil;
+    this.playerDeltaS = nil;
+    this.playerDeltaX = nil;
+    this.playerNear = false;
+    this.threatLeft = false;
+    this.threatRight = false;
 
     // Visuals
     let col = this.spec["primaryColor"];
@@ -355,6 +364,18 @@ export class Vehicle {
       let maxRight = limR - carHalfW;
       let maxLeft = -(limL - carHalfW);
 
+      // Enforce barrier safety margin for non-player cars: AI cars stay inside track bounds
+      if (!this.isPlayer) {
+        let aiWallMargin = 1.20;
+        if (this.x >= maxRight - aiWallMargin) {
+          this.x = maxRight - aiWallMargin;
+          if (this.lateralVelocity > 0.0) this.lateralVelocity = 0.0;
+        } else if (this.x <= maxLeft + aiWallMargin) {
+          this.x = maxLeft + aiWallMargin;
+          if (this.lateralVelocity < 0.0) this.lateralVelocity = 0.0;
+        }
+      }
+
       let hitWall = false;
       let sign = 0.0;
 
@@ -386,6 +407,14 @@ export class Vehicle {
 
       // Perimeter concrete barrier collision (Impenetrable, momentum killing)
       if (hitWall) {
+        let impactSpeed = math.abs(this.speed);
+        let impactLat = math.abs(this.lateralVelocity);
+        let isHardWallCrash = (impactSpeed >= 22.0 or impactLat >= 4.5);
+        if (this.isPlayer and this.gameMode == const.MODE_REALISTIC and isHardWallCrash) {
+          this.isTerminalCrash = true;
+          this.hull = 0.0;
+        }
+
         // TOTALLY KILL MOMENTUM: Concrete barrier absorbs kinetic energy cold
         this.speed = 0.0;
         this.isBoosting = false;
@@ -518,6 +547,35 @@ export class Vehicle {
       throttleInput = false;
     }
 
+    // Multi-car collision avoidance: brake when approaching car ahead in same lane
+    if (this.closestAheadDist != nil and this.closestAheadDist < 35.0) {
+      let leadX = 0.0;
+      if (this.rivalAheadX != nil) leadX = this.rivalAheadX;
+      let latGap = math.abs(this.x - leadX);
+
+      if (latGap < 2.5) {
+        let tgtSpd = playerSpeed;
+        if (this.leadCarSpd != nil) tgtSpd = this.leadCarSpd;
+
+        let closingSpeed = spd - tgtSpd;
+        let minSafeDist = 5.0;
+        if (this.gameMode == const.MODE_REALISTIC) minSafeDist = 8.0;
+
+        if (this.closestAheadDist < minSafeDist) {
+          brakeInput = true;
+          throttleInput = false;
+        } else if (closingSpeed > 0.0) {
+          let neededDist = (closingSpeed * closingSpeed) / (2.0 * aBrake) + closingSpeed * 0.25;
+          if (this.closestAheadDist < neededDist + minSafeDist) {
+            brakeInput = true;
+            throttleInput = false;
+          } else if (spd > tgtSpd) {
+            throttleInput = false;
+          }
+        }
+      }
+    }
+
     // Barrier limits lookahead to anticipate narrowing walls
     let carW = 1.4;
     let barLimsNow = track.getBarrierLimits(dist);
@@ -526,6 +584,10 @@ export class Vehicle {
     let limL = math.min(barLimsNow[0], math.min(barLimsMid[0], barLimsFar[0]));
     let limR = math.min(barLimsNow[1], math.min(barLimsMid[1], barLimsFar[1]));
     let hw = track.roadWidth * 0.5;
+
+    if (this.gameMode == const.MODE_REALISTIC) {
+      safeMargin = 3.2;
+    }
 
     let maxR = math.min(hw - 1.4, limR - safeMargin - carW);
     let maxL = -math.min(hw - 1.4, limL - safeMargin - carW);
@@ -592,8 +654,42 @@ export class Vehicle {
       }
     }
 
+    // Active player avoidance: steer away from player vehicle
+    let playerAvoidOffset = 0.0;
+    if (this.playerNear and this.playerDeltaS != nil and this.playerDeltaX != nil) {
+      let pDistLong = math.abs(this.playerDeltaS);
+      let pDistLat = math.abs(this.playerDeltaX);
+
+      if (pDistLong < 28.0 and pDistLat < 4.0) {
+        let avoidDist = 2.4;
+        if (this.gameMode == const.MODE_REALISTIC) avoidDist = 3.4;
+
+        if (this.playerDeltaX > 0.0) {
+          playerAvoidOffset = -avoidDist;
+        } else {
+          playerAvoidOffset = avoidDist;
+        }
+
+        if (pDistLong < 8.0 and pDistLat < 2.6) {
+          if (this.gameMode == const.MODE_REALISTIC and spd > 20.0) {
+            throttleInput = false;
+          }
+        }
+      }
+    }
+
     let laneBlend = this.aiLane * 0.35;
-    let targetLane = mu.clamp(racingLineOffset * 0.70 + laneBlend + attackOffset, maxL, maxR);
+    let targetLane = racingLineOffset * 0.70 + laneBlend + attackOffset + playerAvoidOffset;
+
+    // Flank threat clamping: do not steer toward car alongside
+    if (this.threatLeft and targetLane < this.x) {
+      targetLane = this.x + 0.3;
+    }
+    if (this.threatRight and targetLane > this.x) {
+      targetLane = this.x - 0.3;
+    }
+
+    targetLane = mu.clamp(targetLane, maxL, maxR);
 
     // Pure Pursuit Steering Target along Track Spline with curvature-adaptive lookahead
     let lookDist = 14.0 + (absSpd / 50.0) * 16.0;
@@ -634,10 +730,13 @@ export class Vehicle {
     while (relHead > 3.14159) relHead = relHead - 6.28318;
     while (relHead < -3.14159) relHead = relHead + 6.28318;
 
-    if (hasWallR and wallDistR < 2.0) {
-      if (spd > 20.0) brakeInput = true;
-      let awayTargetX = tPt[0] - tNx * 1.5;
-      let awayTargetZ = tPt[1] - tNz * 1.5;
+    let wallBuffer = 2.2;
+    if (this.gameMode == const.MODE_REALISTIC) wallBuffer = 3.2;
+
+    if (hasWallR and wallDistR < wallBuffer) {
+      if (spd > 15.0) brakeInput = true;
+      let awayTargetX = tPt[0] - tNx * 2.0;
+      let awayTargetZ = tPt[1] - tNz * 2.0;
       let toAwayX = awayTargetX - this.worldX;
       let toAwayZ = awayTargetZ - this.worldZ;
       let awayHeading = math.atan2(toAwayX, toAwayZ);
@@ -645,10 +744,10 @@ export class Vehicle {
       while (awayErr > 3.14159) awayErr = awayErr - 6.28318;
       while (awayErr < -3.14159) awayErr = awayErr + 6.28318;
       steerInput = mu.clamp(awayErr * steerGain, -1.0, 1.0);
-    } else if (hasWallL and wallDistL < 2.0) {
-      if (spd > 20.0) brakeInput = true;
-      let awayTargetX = tPt[0] + tNx * 1.5;
-      let awayTargetZ = tPt[1] + tNz * 1.5;
+    } else if (hasWallL and wallDistL < wallBuffer) {
+      if (spd > 15.0) brakeInput = true;
+      let awayTargetX = tPt[0] + tNx * 2.0;
+      let awayTargetZ = tPt[1] + tNz * 2.0;
       let toAwayX = awayTargetX - this.worldX;
       let toAwayZ = awayTargetZ - this.worldZ;
       let awayHeading = math.atan2(toAwayX, toAwayZ);
@@ -984,12 +1083,27 @@ export fun resolveCarCollisions(cars, track, lapLen, particles, assets, cam, dt)
 
           if (carA.isPlayer or carB.isPlayer) {
             let pCar = carA;
-            if (carB.isPlayer) pCar = carB;
+            let otherCar = carB;
+            if (carB.isPlayer) {
+              pCar = carB;
+              otherCar = carA;
+            }
             if (pCar.impactCooldown <= 0.0) {
               pCar.impactCooldown = 0.25;
               if (cam != nil) cam.addShake(0.18);
               if (particles != nil) particles.emitSparks(pCar.worldX, pCar.worldY + 0.35, pCar.worldZ, 8);
               if (assets != nil) assets.playSfx(assets.sndCrash);
+            }
+
+            // Realistic Mode: terminal damage on hard vehicle collision
+            if (pCar.gameMode == const.MODE_REALISTIC) {
+              let relSpeed = math.abs(carA.speed - carB.speed);
+              let maxSpd = math.max(carA.speed, carB.speed);
+              let isHardVehicleCrash = (relSpeed > 18.0 or (maxSpd > 28.0 and (penS > 0.35 or penX > 0.50)));
+              if (isHardVehicleCrash) {
+                pCar.isTerminalCrash = true;
+                pCar.hull = 0.0;
+              }
             }
           }
         }

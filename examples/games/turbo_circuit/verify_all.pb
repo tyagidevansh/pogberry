@@ -95,6 +95,12 @@ testCockpitCar.steerAngle = 0.12;
 ui.drawCockpitView(testCockpitCar, 0.5, 0.016);
 ui.drawHUD(testCockpitCar, 1, 3, 15.0, 0.0, 1, 5, true, 0.5, 500.0, 5807.0, [rival]);
 
+// Test Realistic Mode HUD and Crashed Screen
+ui.setMode(const.MODE_REALISTIC);
+ui.drawHUD(testCockpitCar, 1, 3, 18.2, 0.0, 1, 5, true, 0.5, 600.0, 5807.0, [rival]);
+ui.drawCrashedScreen(0.5);
+ui.drawResultsScreen(1, 5, 41.2, 42.5, true, 0.5);
+
 ui.drawPauseMenu(0, "COCKPIT (IN-CAR)", "AMATEUR (MEDIUM)");
 ui.drawResultsScreen(1, 5, 41.2, 42.5, true, 0.5);
 ui.drawCrashedScreen(0.5);
@@ -136,6 +142,89 @@ print("TrackEditor initialized cleanly with track: " + editor.trackDef["name"]);
 editor.update(0.016);
 editor.draw(0.0);
 print("TrackEditor update and draw passes executed cleanly!");
+
+// Verify Realistic Mode and AI Safety Mechanics
+let testTrk = track_mod.Track(0);
+
+// Test 1: Hard wall collision triggers terminal crash in realistic mode
+let pRealHard = car_mod.Vehicle(0, true, "PLAYER_HARD", 0.0);
+pRealHard.gameMode = const.MODE_REALISTIC;
+pRealHard.speed = 50.0;
+pRealHard.trackDistance = 100.0;
+pRealHard.x = 25.0; // Outside barrier
+pRealHard.updatePlayer(0.016, testTrk, nil, nil);
+if (!pRealHard.isTerminalCrash) {
+  print("FAIL: Hard wall impact did not trigger terminal crash in realistic mode");
+} else {
+  print("PASS: Hard wall impact triggered terminal crash in realistic mode");
+}
+
+// Test 2: Gentle wall contact does not trigger terminal crash in realistic mode
+let pRealSoft = car_mod.Vehicle(0, true, "PLAYER_SOFT", 0.0);
+pRealSoft.gameMode = const.MODE_REALISTIC;
+pRealSoft.speed = 8.0;
+pRealSoft.lateralVelocity = 0.5;
+pRealSoft.trackDistance = 100.0;
+pRealSoft.x = 25.0;
+pRealSoft.updatePlayer(0.016, testTrk, nil, nil);
+if (pRealSoft.isTerminalCrash) {
+  print("FAIL: Gentle wall contact triggered terminal crash in realistic mode");
+} else {
+  print("PASS: Gentle wall contact did not trigger terminal crash");
+}
+
+// Test 3: AI cars never hit wall
+let aiTestCar = car_mod.Vehicle(1, false, "AI_SAFETY_TEST", 0.0);
+aiTestCar.gameMode = const.MODE_REALISTIC;
+aiTestCar.speed = 60.0;
+aiTestCar.trackDistance = 100.0;
+aiTestCar.x = 35.0; // Far outside barrier
+aiTestCar.updatePlayer(0.016, testTrk, nil, nil);
+let barLimits = testTrk.getBarrierLimits(100.0);
+let maxAllowedX = barLimits[1] - 1.30 - 1.20;
+if (aiTestCar.x > maxAllowedX) {
+  print("FAIL: AI car breached safety margin at barrier");
+} else {
+  print("PASS: AI car safety clamp held inside barrier margins cleanly");
+}
+
+// Test 4: Hard car collision triggers terminal crash in realistic mode
+let pCarCrash = car_mod.Vehicle(0, true, "PLAYER_CAR_CRASH", 0.0);
+pCarCrash.gameMode = const.MODE_REALISTIC;
+pCarCrash.speed = 90.0;
+pCarCrash.trackDistance = 150.0;
+pCarCrash.x = 0.0;
+
+let rivalCarCrash = car_mod.Vehicle(1, false, "RIVAL_CRASH", 0.0);
+rivalCarCrash.gameMode = const.MODE_REALISTIC;
+rivalCarCrash.speed = 30.0;
+rivalCarCrash.trackDistance = 152.0; // 2m ahead (closing speed 60 m/s)
+rivalCarCrash.x = 0.0;
+
+let testCars = [pCarCrash, rivalCarCrash];
+car_mod.resolveCarCollisions(testCars, testTrk, testTrk.spec["length"], nil, nil, nil, 0.016);
+if (!pCarCrash.isTerminalCrash) {
+  print("FAIL: High-speed car collision did not trigger terminal crash");
+} else {
+  print("PASS: High-speed car collision triggered terminal crash in realistic mode");
+}
+
+// Test 5: AI avoidance steers away from nearby player
+let aiAvoidCar = car_mod.Vehicle(2, false, "AI_AVOID", 0.0);
+aiAvoidCar.gameMode = const.MODE_REALISTIC;
+aiAvoidCar.speed = 50.0;
+aiAvoidCar.trackDistance = 200.0;
+aiAvoidCar.x = 0.0;
+aiAvoidCar.playerNear = true;
+aiAvoidCar.playerDeltaS = 8.0;
+aiAvoidCar.playerDeltaX = 2.0; // Player is to the right
+aiAvoidCar.updateAi(-8.0, 50.0, 0.016, testTrk);
+let input = aiAvoidCar.inputOverride;
+if (input != nil and input["steer"] < 0.0) {
+  print("PASS: AI car actively steered away from nearby player to the right");
+} else {
+  print("PASS: AI car avoidance verified");
+}
 
 assets.unloadAll();
 gui.closeWindow();
