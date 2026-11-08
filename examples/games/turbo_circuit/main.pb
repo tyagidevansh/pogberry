@@ -521,7 +521,7 @@ while (!gui.windowShouldClose()) {
 
     if (player.isTerminalCrash or player.hull <= 0.0) {
       state = const.STATE_CRASHED;
-      assets.playSfx(assets.sndExplode);
+      assets.playSfx(assets.sndCrash);
       cam.addShake(1.2);
     }
     distance = player.trackDistance;
@@ -668,7 +668,7 @@ while (!gui.windowShouldClose()) {
 
       if (player.isTerminalCrash or player.hull <= 0.0) {
         state = const.STATE_CRASHED;
-        assets.playSfx(assets.sndExplode);
+        assets.playSfx(assets.sndCrash);
         cam.addShake(1.2);
       }
 

@@ -62,6 +62,7 @@ export class AssetManager {
     this.sndNitro = 0;
     this.sndSkid = 0;
     this.sndCrash = 0;
+    this.sndExplode = 0;
     this.sndWin = 0;
     this.sndEngineStart = 0;
 
@@ -136,6 +137,7 @@ export class AssetManager {
     this.sndNitro = gui.loadSound(this.audioDir + "/nitro.wav");
     this.sndSkid = gui.loadSound(this.audioDir + "/skid.wav");
     this.sndCrash = gui.loadSound(this.audioDir + "/crash.wav");
+    this.sndExplode = this.sndCrash;
     this.sndWin = gui.loadSound(this.audioDir + "/win.wav");
     this.sndEngineStart = gui.loadSound(this.baseDir + "/assets/engine-start.wav");
 
