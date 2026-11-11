@@ -819,7 +819,7 @@ while (!gui.windowShouldClose()) {
       groundAnchorX = st0["x"];
       groundAnchorZ = st0["z"];
     }
-    gui.drawPlane3D(groundAnchorX, -0.2, groundAnchorZ, 6000.0, 6000.0, ground[0], ground[1], ground[2]);
+    gui.drawPlane3D(groundAnchorX, -0.2, groundAnchorZ, 8000.0, 8000.0, ground[0], ground[1], ground[2]);
 
     // Draw Persistent Entire Track & Roadside Props
     track.draw(0.0, player.trackDistance, t, assets, cam);

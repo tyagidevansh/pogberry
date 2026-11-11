@@ -391,11 +391,11 @@ export class Track {
 
         if (lateral > roadEdge + 0.5) {
           if (sameLevel and lateral < gapR) gapR = lateral;
-          if (dy < 2.5 and lateral < lowGapR) lowGapR = lateral;
+          if (math.abs(dy) < 8.0 and lateral < lowGapR) lowGapR = lateral;
         } else if (lateral < -roadEdge - 0.5) {
           let latDist = -lateral;
           if (sameLevel and latDist < gapL) gapL = latDist;
-          if (dy < 2.5 and latDist < lowGapL) lowGapL = latDist;
+          if (math.abs(dy) < 8.0 and latDist < lowGapL) lowGapL = latDist;
         }
       }
 
@@ -422,12 +422,16 @@ export class Track {
       }
 
       if (lowGapL < 900.0) {
-        let clear = lowGapL - roadEdge - 2.0;
+        let maxHalfL = lowGapL * 0.48 - 9.0;
+        let clear = lowGapL - roadEdge - 10.0;
+        if (maxHalfL < clear) clear = maxHalfL;
         if (clear < minClearL + 0.5) clear = minClearL + 0.5;
         if (clear < embL) embL = clear;
       }
       if (lowGapR < 900.0) {
-        let clear = lowGapR - roadEdge - 2.0;
+        let maxHalfR = lowGapR * 0.48 - 9.0;
+        let clear = lowGapR - roadEdge - 10.0;
+        if (maxHalfR < clear) clear = maxHalfR;
         if (clear < minClearR + 0.5) clear = minClearR + 0.5;
         if (clear < embR) embR = clear;
       }
@@ -465,12 +469,14 @@ export class Track {
       st["outR"] = outR;
       st["embL"] = embL;
       st["embR"] = embR;
+      st["gapL"] = gapL;
+      st["gapR"] = gapR;
       st["hasWallL"] = hasWallL;
       st["hasWallR"] = hasWallR;
       st["runL"] = (outL >= halfW + curbL + 0.2);
       st["runR"] = (outR >= halfW + curbR + 0.2);
-      st["embOkL"] = (embL >= outL + 0.9);
-      st["embOkR"] = (embR >= outR + 0.9);
+      st["embOkL"] = true;
+      st["embOkR"] = true;
 
       st["ol_x"] = st["x"] - outL * st["nx"];
       st["ol_z"] = st["z"] - outL * st["nz"];
@@ -526,6 +532,33 @@ export class Track {
       let st = this.stations[i];
       let nx = st["nx"];
       let nz = st["nz"];
+      let gapL = st["gapL"];
+      let gapR = st["gapR"];
+
+      // If an adjacent road is nearby, clamp embankment and calculate safe slope width
+      let slopeL = 8.0;
+      let slopeR = 8.0;
+      if (gapL < 900.0) {
+        let maxReachL = gapL - roadEdge - 2.5;
+        if (st["embL"] > maxReachL - 1.0) st["embL"] = maxReachL - 1.0;
+        if (st["embL"] < st["outL"]) st["embL"] = st["outL"];
+        let remL = maxReachL - st["embL"];
+        if (remL < slopeL) slopeL = remL;
+        if (slopeL < 0.2) slopeL = 0.2;
+      }
+      if (gapR < 900.0) {
+        let maxReachR = gapR - roadEdge - 2.5;
+        if (st["embR"] > maxReachR - 1.0) st["embR"] = maxReachR - 1.0;
+        if (st["embR"] < st["outR"]) st["embR"] = st["outR"];
+        let remR = maxReachR - st["embR"];
+        if (remR < slopeR) slopeR = remR;
+        if (slopeR < 0.2) slopeR = 0.2;
+      }
+      st["slopeL"] = slopeL;
+      st["slopeR"] = slopeR;
+      st["embOkL"] = true;
+      st["embOkR"] = true;
+
       st["ol_x"] = st["x"] - st["outL"] * nx;
       st["ol_z"] = st["z"] - st["outL"] * nz;
       st["or_x"] = st["x"] + st["outR"] * nx;
@@ -1124,16 +1157,16 @@ export class Track {
       let sxC = apexX + (xC - apexX) * sFrac;
       let szC = apexZ + (zC - apexZ) * sFrac;
 
-      // Grey mountain rock base as quad trapezoids from y = -12.0 up to sY
-      gui.drawQuad3D(x1, -12.0, z1, sx1, sY, sz1, sxC, sY, szC, xC, -12.0, zC, r1, g1, b1);
-      gui.drawQuad3D(xC, -12.0, zC, sxC, sY, szC, sx2, sY, sz2, x2, -12.0, z2, r2, g2, b2);
+      // Grey mountain rock base as quad trapezoids from y = -60.0 up to sY
+      gui.drawQuad3D(x1, -60.0, z1, sx1, sY, sz1, sxC, sY, szC, xC, -60.0, zC, r1, g1, b1);
+      gui.drawQuad3D(xC, -60.0, zC, sxC, sY, szC, sx2, sY, sz2, x2, -60.0, z2, r2, g2, b2);
 
       // Solid snow cap triangles covering peak from sY up to apexY
       gui.drawTriangle3D(sx1, sY, sz1, apexX, apexY, apexZ, sxC, sY, szC, 242, 246, 252);
       gui.drawTriangle3D(sxC, sY, szC, apexX, apexY, apexZ, sx2, sY, sz2, 218, 224, 236);
     } else {
-      gui.drawTriangle3D(x1, -12.0, z1, apexX, apexY, apexZ, xC, -12.0, zC, r1, g1, b1);
-      gui.drawTriangle3D(xC, -12.0, zC, apexX, apexY, apexZ, x2, -12.0, z2, r2, g2, b2);
+      gui.drawTriangle3D(x1, -60.0, z1, apexX, apexY, apexZ, xC, -60.0, zC, r1, g1, b1);
+      gui.drawTriangle3D(xC, -60.0, zC, apexX, apexY, apexZ, x2, -60.0, z2, r2, g2, b2);
     }
   }
 
@@ -1248,11 +1281,11 @@ export class Track {
     if (this.trackId == 0) {
       // SUZUKA GP: Layered Mie mountain silhouettes with depth shading
       // Far Layer: Mount Gozaisho and Suzuka mountain massifs
-      this.drawMountainRidge(cX, cZ, 1650.0, 16, 0.0, 6.2831853, 180.0, 70, 36, 52, 78, 22, 34, 56, false);
+      this.drawMountainRidge(cX, cZ, 3600.0, 16, 0.0, 6.2831853, 390.0, 150, 36, 52, 78, 22, 34, 56, false);
       // Mid Layer: Highland forested ridges
-      this.drawMountainRidge(cX, cZ, 1180.0, 16, 0.20, 6.2831853, 115.0, 55, 28, 58, 50, 18, 42, 36, false);
+      this.drawMountainRidge(cX, cZ, 3100.0, 16, 0.20, 6.2831853, 300.0, 145, 28, 58, 50, 18, 42, 36, false);
       // Near Layer: Undulating Japanese highland foothills
-      this.drawMountainRidge(cX, cZ, 760.0, 14, 0.44, 6.2831853, 55.0, 40, 32, 74, 42, 20, 52, 28, false);
+      this.drawMountainRidge(cX, cZ, 2600.0, 14, 0.44, 6.2831853, 190.0, 140, 32, 74, 42, 20, 52, 28, false);
 
     } else if (this.trackId == 1) {
       // MONACO GP: Mediterranean Sea azure horizon and coastal waters
@@ -1262,18 +1295,18 @@ export class Track {
     } else if (this.trackId == 2) {
       // SPA GP: Rolling Ardennes valley pine forest ridges
       // Far Layer: Distant Ardennes blue-green ridge
-      this.drawMountainRidge(cX, cZ, 1650.0, 18, 0.0, 6.2831853, 160.0, 60, 24, 46, 60, 16, 32, 44, false);
+      this.drawMountainRidge(cX, cZ, 3600.0, 18, 0.0, 6.2831853, 350.0, 130, 24, 46, 60, 16, 32, 44, false);
       // Mid Layer: Rolling coniferous valley pine ridge
-      this.drawMountainRidge(cX, cZ, 1200.0, 18, 0.18, 6.2831853, 110.0, 50, 22, 56, 36, 14, 40, 26, false);
+      this.drawMountainRidge(cX, cZ, 3100.0, 18, 0.18, 6.2831853, 285.0, 130, 22, 56, 36, 14, 40, 26, false);
       // Near Layer: Valley slope pine crowns
-      this.drawMountainRidge(cX, cZ, 780.0, 16, 0.35, 6.2831853, 50.0, 40, 30, 76, 42, 18, 54, 30, false);
+      this.drawMountainRidge(cX, cZ, 2600.0, 16, 0.35, 6.2831853, 170.0, 135, 30, 76, 42, 18, 54, 30, false);
 
     } else {
       // MONZA GP: Alpine peaks on the distant northern horizon and royal parkland tree canopies
       // Distant snow-capped Italian Alps on northern horizon
-      this.drawMountainRidge(cX, cZ, 1750.0, 10, 2.1, 2.2, 220.0, 80, 138, 148, 170, 92, 102, 126, true);
+      this.drawMountainRidge(cX, cZ, 3600.0, 10, 2.1, 2.2, 450.0, 160, 138, 148, 170, 92, 102, 126, true);
       // Royal parkland continuous oak tree canopies
-      this.drawMountainRidge(cX, cZ, 720.0, 20, 0.0, 6.2831853, 38.0, 28, 38, 76, 42, 24, 52, 28, false);
+      this.drawMountainRidge(cX, cZ, 2600.0, 20, 0.0, 6.2831853, 135.0, 100, 38, 76, 42, 24, 52, 28, false);
     }
   }
 
@@ -1889,41 +1922,54 @@ export class Track {
 
           // Solid ground embankments connecting outer edges down to ground plane y = -0.2
           if (!isSuzukaBridge and (y1 > 0.0 or y2 > 0.0)) {
-            let slopeW = 8.0;
-            let embR = math.floor(grassCol[0] * 0.72);
-            let embG = math.floor(grassCol[1] * 0.72);
-            let embB = math.floor(grassCol[2] * 0.72);
-            if (grassPattern == 0) {
-              embR = math.floor(grassCol[0] * 0.65);
-              embG = math.floor(grassCol[1] * 0.65);
-              embB = math.floor(grassCol[2] * 0.65);
+            let slopeW1_L = st1["slopeL"]; if (slopeW1_L == nil) slopeW1_L = 8.0;
+            let slopeW2_L = st2["slopeL"]; if (slopeW2_L == nil) slopeW2_L = 8.0;
+            let slopeW1_R = st1["slopeR"]; if (slopeW1_R == nil) slopeW1_R = 8.0;
+            let slopeW2_R = st2["slopeR"]; if (slopeW2_R == nil) slopeW2_R = 8.0;
+
+            if (st1["embOkL"] and st2["embOkL"]) {
+              let embR = math.floor(grassCol[0] * 0.72);
+              let embG = math.floor(grassCol[1] * 0.72);
+              let embB = math.floor(grassCol[2] * 0.72);
+              if (grassPattern == 0) {
+                embR = math.floor(grassCol[0] * 0.65);
+                embG = math.floor(grassCol[1] * 0.65);
+                embB = math.floor(grassCol[2] * 0.65);
+              }
+
+              let exL1 = st1["el_x"]; let ezL1 = st1["el_z"];
+              let exL2 = st2["el_x"]; let ezL2 = st2["el_z"];
+              let fxL1 = exL1 - slopeW1_L * nx1; let fzL1 = ezL1 - slopeW1_L * nz1;
+              let fxL2 = exL2 - slopeW2_L * nx2; let fzL2 = ezL2 - slopeW2_L * nz2;
+
+              gui.drawQuad3D(exL1, y1 - 0.02, ezL1,
+                             fxL1, -0.2, fzL1,
+                             fxL2, -0.2, fzL2,
+                             exL2, y2 - 0.02, ezL2,
+                             embR, embG, embB);
             }
 
-            let exL1 = st1["el_x"]; let ezL1 = st1["el_z"];
-            if (!st1["embOkL"]) { exL1 = st1["ol_x"]; ezL1 = st1["ol_z"]; }
-            let exL2 = st2["el_x"]; let ezL2 = st2["el_z"];
-            if (!st2["embOkL"]) { exL2 = st2["ol_x"]; ezL2 = st2["ol_z"]; }
-            let fxL1 = exL1 - slopeW * nx1; let fzL1 = ezL1 - slopeW * nz1;
-            let fxL2 = exL2 - slopeW * nx2; let fzL2 = ezL2 - slopeW * nz2;
+            if (st1["embOkR"] and st2["embOkR"]) {
+              let embR = math.floor(grassCol[0] * 0.72);
+              let embG = math.floor(grassCol[1] * 0.72);
+              let embB = math.floor(grassCol[2] * 0.72);
+              if (grassPattern == 0) {
+                embR = math.floor(grassCol[0] * 0.65);
+                embG = math.floor(grassCol[1] * 0.65);
+                embB = math.floor(grassCol[2] * 0.65);
+              }
 
-            gui.drawQuad3D(exL1, y1 - 0.02, ezL1,
-                           fxL1, -0.2, fzL1,
-                           fxL2, -0.2, fzL2,
-                           exL2, y2 - 0.02, ezL2,
-                           embR, embG, embB);
+              let exR1 = st1["er_x"]; let ezR1 = st1["er_z"];
+              let exR2 = st2["er_x"]; let ezR2 = st2["er_z"];
+              let fxR1 = exR1 + slopeW1_R * nx1; let fzR1 = ezR1 + slopeW1_R * nz1;
+              let fxR2 = exR2 + slopeW2_R * nx2; let fzR2 = ezR2 + slopeW2_R * nz2;
 
-            let exR1 = st1["er_x"]; let ezR1 = st1["er_z"];
-            if (!st1["embOkR"]) { exR1 = st1["or_x"]; ezR1 = st1["or_z"]; }
-            let exR2 = st2["er_x"]; let ezR2 = st2["er_z"];
-            if (!st2["embOkR"]) { exR2 = st2["or_x"]; ezR2 = st2["or_z"]; }
-            let fxR1 = exR1 + slopeW * nx1; let fzR1 = ezR1 + slopeW * nz1;
-            let fxR2 = exR2 + slopeW * nx2; let fzR2 = ezR2 + slopeW * nz2;
-
-            gui.drawQuad3D(exR1, y1 - 0.02, ezR1,
-                           exR2, y2 - 0.02, ezR2,
-                           fxR2, -0.2, fzR2,
-                           fxR1, -0.2, fzR1,
-                           embR, embG, embB);
+              gui.drawQuad3D(exR1, y1 - 0.02, ezR1,
+                             exR2, y2 - 0.02, ezR2,
+                             fxR2, -0.2, fzR2,
+                             fxR1, -0.2, fzR1,
+                             embR, embG, embB);
+            }
           }
         }
       }
