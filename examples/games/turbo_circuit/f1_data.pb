@@ -28,23 +28,23 @@ export fun getCustomTrack(id) {
 
 export fun getF1Length(id) {
   if (id == 0) return SUZUKA_LENGTH;
-  if (id == 1) return MONACO_LENGTH;
-  if (id == 2) return SPA_LENGTH;
-  if (id == 3) return MONZA_LENGTH;
+  if (id == 1) return SPA_LENGTH;
+  if (id == 2) return MONZA_LENGTH;
+  if (id == 3) return MONACO_LENGTH;
   if (id >= 4 and id < 4 + len(customTracks)) {
     let c = customTracks[id - 4];
     if (c["length"] != nil and c["length"] > 0.0) return c["length"];
     if (c["calculatedLength"] != nil and c["calculatedLength"] > 0.0) return c["calculatedLength"];
     return 5000.0;
   }
-  return MONZA_LENGTH;
+  return MONACO_LENGTH;
 }
 
 export fun getF1Bounds(id) {
   if (id == 0) return [-1020.0, 1020.0, -460.0, 660.0];
-  if (id == 1) return [-420.0, 420.0, -520.0, 520.0];
-  if (id == 2) return [-680.0, 660.0, -1320.0, 800.0];
-  if (id == 3) return [-480.0, 820.0, -910.0, 1310.0];
+  if (id == 1) return [-680.0, 660.0, -1320.0, 800.0];
+  if (id == 2) return [-480.0, 820.0, -910.0, 1310.0];
+  if (id == 3) return [-420.0, 420.0, -520.0, 520.0];
   if (id >= 4 and id < 4 + len(customTracks)) {
     let c = customTracks[id - 4];
     if (c["bounds"] != nil) return c["bounds"];
@@ -580,13 +580,13 @@ let nodes_monza = [
 
 export fun getF1Nodes(id) {
   if (id == 0) return nodes_suzuka;
-  if (id == 1) return nodes_monaco;
-  if (id == 2) return nodes_spa;
-  if (id == 3) return nodes_monza;
+  if (id == 1) return nodes_spa;
+  if (id == 2) return nodes_monza;
+  if (id == 3) return nodes_monaco;
   if (id >= 4 and id < 4 + len(customTracks)) {
     return customTracks[id - 4]["nodes"];
   }
-  return nodes_monza;
+  return nodes_monaco;
 }
 
 export fun getTrackWorldPoint(id, s) {

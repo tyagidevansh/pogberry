@@ -205,6 +205,21 @@ export fun exportOfficialTrack(id) {
     elevations.push({ "s": 7460.0, "y": 14.5 }); // Bridge overpass
     elevations.push({ "s": 9500.0, "y": 6.0 });
   } else if (id == 1) {
+    // Spa elevations
+    elevations.push({ "s": 0.0, "y": 12.0 });
+    elevations.push({ "s": 800.0, "y": 4.0 });  // Foot of Eau Rouge
+    elevations.push({ "s": 1400.0, "y": 28.0 }); // Raidillon crest
+    elevations.push({ "s": 3800.0, "y": 24.0 }); // Les Combes
+    elevations.push({ "s": 6200.0, "y": 10.0 }); // Pouhon
+    elevations.push({ "s": 11500.0, "y": 14.0 }); // Blanchimont
+  } else if (id == 2) {
+    // Monza elevations
+    elevations.push({ "s": 0.0, "y": 4.0 });
+    elevations.push({ "s": 2800.0, "y": 5.5 });  // Curva Grande
+    elevations.push({ "s": 5500.0, "y": 3.0 });  // Lesmo
+    elevations.push({ "s": 8500.0, "y": 4.5 });  // Ascari
+    elevations.push({ "s": 10500.0, "y": 4.0 }); // Parabolica
+  } else {
     // Monaco elevations
     elevations.push({ "s": 0.0, "y": 0.5 });
     elevations.push({ "s": 480.0, "y": 0.5 });
@@ -215,21 +230,6 @@ export fun exportOfficialTrack(id) {
     elevations.push({ "s": 5200.0, "y": 0.8 }); // Quayside
     elevations.push({ "s": 5500.0, "y": 0.5 });
     tunnels.push({ "startS": 2720.0, "endS": 3570.0, "name": "The Tunnel" });
-  } else if (id == 2) {
-    // Spa elevations
-    elevations.push({ "s": 0.0, "y": 12.0 });
-    elevations.push({ "s": 800.0, "y": 4.0 });  // Foot of Eau Rouge
-    elevations.push({ "s": 1400.0, "y": 28.0 }); // Raidillon crest
-    elevations.push({ "s": 3800.0, "y": 24.0 }); // Les Combes
-    elevations.push({ "s": 6200.0, "y": 10.0 }); // Pouhon
-    elevations.push({ "s": 11500.0, "y": 14.0 }); // Blanchimont
-  } else {
-    // Monza elevations
-    elevations.push({ "s": 0.0, "y": 4.0 });
-    elevations.push({ "s": 2800.0, "y": 5.5 });  // Curva Grande
-    elevations.push({ "s": 5500.0, "y": 3.0 });  // Lesmo
-    elevations.push({ "s": 8500.0, "y": 4.5 });  // Ascari
-    elevations.push({ "s": 10500.0, "y": 4.0 }); // Parabolica
   }
 
   let def = {

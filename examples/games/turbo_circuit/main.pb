@@ -40,7 +40,7 @@ for (let dtIdx = 0; dtIdx < len(discoveredTracks); dtIdx += 1) {
 // Game State Variables
 let state = const.STATE_TITLE;
 let gameMode = const.MODE_GRAND_PRIX;
-let selectedCar = const.CAR_PHANTOM;
+let selectedCar = const.CAR_VALKYRIE;
 let selectedTrack = const.TRACK_SHIBUYA;
 let aiDifficulty = const.AI_DIFF_PRO; // 0=Rookie (Easy), 1=Pro Racer (Medium), 2=Champion (Hard)
 
@@ -55,8 +55,8 @@ let player = car_mod.Vehicle(selectedCar, true, "PLAYER", 0.0);
 
 // AI Competitors for Grand Prix
 let rivals = [];
-let rivalNames = ["SCUDERIA", "BULL GP", "SILVER ARROW", "PAPAYA GP", "BRITISH GP"];
-let rivalCars = [const.CAR_PHANTOM, const.CAR_VALKYRIE, const.CAR_SHINOBI, const.CAR_VANTA, const.CAR_BRITISH];
+let rivalNames = ["BULL GP", "SILVER ARROW", "SCUDERIA", "PAPAYA GP", "BRITISH GP"];
+let rivalCars = [const.CAR_VALKYRIE, const.CAR_SHINOBI, const.CAR_PHANTOM, const.CAR_VANTA, const.CAR_BRITISH];
 
 // Timers & Metrics
 let countdownTimer = 3.8;
@@ -738,7 +738,6 @@ while (!gui.windowShouldClose()) {
         state = const.STATE_RACE;
       } else if (pauseSelection == 1) {
         startRace();
-        state = const.STATE_RACE;
       } else if (pauseSelection == 2) {
         cam.cyclePov();
       } else if (pauseSelection == 3) {

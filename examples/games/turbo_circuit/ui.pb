@@ -285,7 +285,6 @@ export class UIRenderer {
         if (isCustom) titleCol = [0, 240, 255];
         gui.drawText(nameStr, tX + 24, tY + 14, 28, titleCol[0], titleCol[1], titleCol[2]);
         gui.drawText(tInfo["subtitle"], tX + 24, tY + 48, 16, 200, 230, 255);
-        gui.drawText("DIFFICULTY: " + tInfo["difficulty"] + "  //  " + str(tInfo["laps"]) + " LAPS", tX + 430, tY + 18, 17, 0, 240, 255);
         if (isCustom) {
           gui.drawText("USER CREATED CIRCUIT", tX + 430, tY + 48, 17, 0, 240, 255);
         } else {
@@ -296,7 +295,6 @@ export class UIRenderer {
         gui.drawRectangleLines(tX, tY, 810, 106, 60, 70, 90);
         gui.drawText(nameStr, tX + 24, tY + 14, 24, 170, 190, 210);
         gui.drawText(tInfo["subtitle"], tX + 24, tY + 48, 16, 120, 140, 160);
-        gui.drawText("DIFFICULTY: " + tInfo["difficulty"], tX + 430, tY + 18, 17, 140, 160, 180);
         if (isCustom) {
           gui.drawText("USER CIRCUIT", tX + 430, tY + 48, 16, 120, 180, 210);
         } else {
@@ -907,30 +905,30 @@ export class UIRenderer {
     let cx = scrW * 0.5;
 
     let cId = player.carId;
-    let teamCol = [225, 25, 35]; // Ferrari Scarlet
-    let teamTrim = [255, 215, 30]; // Yellow
-    let suitCol = [215, 20, 30];
-    let suitTrim = [255, 255, 255];
-    let gloveCol = [245, 245, 250];
+    let teamCol = [14, 35, 82]; // Red Bull Navy
+    let teamTrim = [235, 30, 45]; // Red Bull Red
+    let suitCol = [18, 42, 95];
+    let suitTrim = [255, 215, 25];
+    let gloveCol = [22, 50, 110];
 
-    if (cId == 1) { // McLaren Papaya
-      teamCol = [255, 128, 0];
-      teamTrim = [0, 210, 225];
-      suitCol = [255, 120, 0];
-      suitTrim = [20, 24, 30];
-      gloveCol = [255, 135, 15];
-    } else if (cId == 2) { // Mercedes Petronas Silver/Teal
+    if (cId == 1) { // Mercedes Petronas Silver/Teal
       teamCol = [0, 162, 155];
       teamTrim = [230, 235, 245];
       suitCol = [240, 242, 248];
       suitTrim = [0, 162, 155];
       gloveCol = [245, 248, 252];
-    } else if (cId == 3) { // Red Bull Navy
-      teamCol = [14, 35, 82];
-      teamTrim = [235, 30, 45];
-      suitCol = [18, 42, 95];
-      suitTrim = [255, 215, 25];
-      gloveCol = [22, 50, 110];
+    } else if (cId == 2) { // Ferrari Scarlet
+      teamCol = [225, 25, 35];
+      teamTrim = [255, 215, 30];
+      suitCol = [215, 20, 30];
+      suitTrim = [255, 255, 255];
+      gloveCol = [245, 245, 250];
+    } else if (cId == 3) { // McLaren Papaya
+      teamCol = [255, 128, 0];
+      teamTrim = [0, 210, 225];
+      suitCol = [255, 120, 0];
+      suitTrim = [20, 24, 30];
+      gloveCol = [255, 135, 15];
     }
 
     let carbonDark = [14, 16, 20];

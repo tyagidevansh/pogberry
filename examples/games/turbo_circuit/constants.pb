@@ -33,22 +33,22 @@ export let AI_DIFF_CHAMPION = 2; // Hard / Legend (100% full throttle, late brak
 export let TOTAL_AI_DIFFS = 3;
 
 // Vehicle IDs
-export let CAR_PHANTOM = 0;   // Scuderia Ferrari SF-24
-export let CAR_VALKYRIE = 1;  // Red Bull Racing RB-20
-export let CAR_SHINOBI = 2;   // Mercedes-AMG Silver Arrow W15
+export let CAR_VALKYRIE = 0;  // Red Bull Racing RB-20
+export let CAR_SHINOBI = 1;   // Mercedes-AMG Silver Arrow W15
+export let CAR_PHANTOM = 2;   // Scuderia Ferrari SF-24
 export let CAR_VANTA = 3;     // McLaren Papaya Speed MCL38
 export let CAR_BRITISH = 4;   // Aston Martin British Racing AMR24
 export let TOTAL_CARS = 4;
 
 // Official FIA Formula 1 Track IDs
 export let TRACK_SUZUKA = 0;   // Suzuka International Circuit (Japanese GP // Figure-8 & Esses)
-export let TRACK_MONACO = 1;   // Circuit de Monaco (Riviera GP // Harbor & Casino Hairpin)
-export let TRACK_SPA = 2;      // Circuit de Spa-Francorchamps (Ardennes GP // Eau Rouge & Kemmel)
-export let TRACK_MONZA = 3;    // Autodromo Nazionale Monza (Italian GP // Temple of Speed & Chicanes)
+export let TRACK_SPA = 1;      // Circuit de Spa-Francorchamps (Ardennes GP // Eau Rouge & Kemmel)
+export let TRACK_MONZA = 2;    // Autodromo Nazionale Monza (Italian GP // Temple of Speed & Chicanes)
+export let TRACK_MONACO = 3;   // Circuit de Monaco (Riviera GP // Harbor & Casino Hairpin)
 export let TRACK_SHIBUYA = 0;  // Legacy alias
-export let TRACK_SUNSET = 1;   // Legacy alias
-export let TRACK_CANYON = 2;   // Legacy alias
-export let TRACK_HYPERION = 3; // Legacy alias
+export let TRACK_CANYON = 1;   // Legacy alias
+export let TRACK_HYPERION = 2; // Legacy alias
+export let TRACK_SUNSET = 3;   // Legacy alias
 export let TOTAL_TRACKS = 4;
 
 export fun getTotalTracks() {
@@ -64,28 +64,8 @@ export fun registerCustomTrack(def) {
 export fun getCarSpec(id) {
   if (id == 0) {
     return {
-      "name": "SCUDERIA SF-24",
-      "subtitle": "Maranello V6 Turbo-Hybrid",
-      "team": "SCUDERIA FERRARI",
-      "topSpeed": 162.0,
-      "boostSpeed": 227.0,
-      "accel": 37.6,
-      "handling": 43.0,
-      "driftRate": 2.2,
-      "maxHull": 100.0,
-      "nitroCapacity": 100.0,
-      "nitroBurn": 24.0,
-      "nitroRegen": 13.0,
-      "model": "car_ferrari.obj",
-      "scale": 1.45,
-      "primaryColor": [235, 25, 35],     // Ferrari Red
-      "glowColor": [255, 215, 20]         // Modena Yellow
-    };
-  }
-  if (id == 1) {
-    return {
-      "name": "APEX BULL RB-20",
-      "subtitle": "Milton Keynes High-Downforce",
+      "name": "RB-20",
+      "subtitle": "Pierre Wache will redeem himself",
       "team": "RED BULL RACING",
       "topSpeed": 158.0,
       "boostSpeed": 221.0,
@@ -102,10 +82,10 @@ export fun getCarSpec(id) {
       "glowColor": [255, 215, 30]         // Gold
     };
   }
-  if (id == 2) {
+  if (id == 1) {
     return {
-      "name": "SILVER ARROW W15",
-      "subtitle": "Brackley Dual-Axis Aero",
+      "name": "W15",
+      "subtitle": "Filled with Toto's love",
       "team": "MERCEDES-AMG PETRONAS",
       "topSpeed": 161.0,
       "boostSpeed": 225.0,
@@ -122,10 +102,30 @@ export fun getCarSpec(id) {
       "glowColor": [0, 235, 215]          // Petronas Teal
     };
   }
+  if (id == 2) {
+    return {
+      "name": "SF-24",
+      "subtitle": "Mamma mia!",
+      "team": "SCUDERIA FERRARI",
+      "topSpeed": 162.0,
+      "boostSpeed": 227.0,
+      "accel": 37.6,
+      "handling": 43.0,
+      "driftRate": 2.2,
+      "maxHull": 100.0,
+      "nitroCapacity": 100.0,
+      "nitroBurn": 24.0,
+      "nitroRegen": 13.0,
+      "model": "car_ferrari.obj",
+      "scale": 1.45,
+      "primaryColor": [235, 25, 35],     // Ferrari Red
+      "glowColor": [255, 215, 20]         // Modena Yellow
+    };
+  }
   if (id == 3) {
     return {
-      "name": "PAPAYA SPEED MCL38",
-      "subtitle": "Woking High-Speed Specialist",
+      "name": "MCL38",
+      "subtitle": "Is this is the world champion hotline?",
       "team": "MCLAREN FORMULA 1",
       "topSpeed": 159.0,
       "boostSpeed": 223.0,
@@ -195,35 +195,6 @@ export fun getTrackSpec(id) {
   }
   if (id == 1) {
     return {
-      "name": "MONACO GP",
-      "subtitle": "Monaco Grand Prix // Circuit de Monaco",
-      "difficulty": "EXPERT",
-      "laps": 3,
-      "length": 5800.0,
-      "roadWidth": 20.0,
-      "curbWidth": 1.4,
-      "runoffWidth": 1.8,
-      "skyColor": [28, 118, 222],
-      "skyTop": [20, 92, 195],
-      "skyBottom": [155, 208, 245],
-      "fogColor": [155, 208, 245],
-      "roadColor": [48, 50, 60],
-      "curbColor": [240, 45, 55],
-      "gravelColor": [140, 80, 70],
-      "grassColor": [165, 170, 180],
-      "barrierColor": [70, 76, 88],
-      "barrierTopColor": [255, 215, 30],
-      "railColorA": [255, 60, 80],
-      "railColorB": [255, 210, 40],
-      "theme": "sunset",
-      "shape": "MONTE CARLO HARBOR CIRCUIT",
-      "turns": 19,
-      "elevationProfile": "Beau Rivage Climb & Harbor Descents",
-      "groundColor": [150, 155, 165]
-    };
-  }
-  if (id == 2) {
-    return {
       "name": "SPA GP",
       "subtitle": "Belgian Grand Prix // Spa-Francorchamps",
       "difficulty": "EXPERT",
@@ -249,6 +220,35 @@ export fun getTrackSpec(id) {
       "turns": 19,
       "elevationProfile": "Eau Rouge & Raidillon 17% Climb",
       "groundColor": [38, 105, 42]
+    };
+  }
+  if (id == 2) {
+    return {
+      "name": "MONZA GP",
+      "subtitle": "Italian Grand Prix // Temple of Speed",
+      "difficulty": "HARD",
+      "laps": 3,
+      "length": 9600.0,
+      "roadWidth": 32.0,
+      "curbWidth": 2.6,
+      "runoffWidth": 10.0,
+      "skyColor": [38, 118, 215],
+      "skyTop": [25, 90, 185],
+      "skyBottom": [165, 202, 240],
+      "fogColor": [165, 202, 240],
+      "roadColor": [46, 48, 58],
+      "curbColor": [30, 160, 75],
+      "gravelColor": [140, 115, 85],
+      "grassColor": [52, 126, 48],
+      "barrierColor": [68, 74, 86],
+      "barrierTopColor": [230, 40, 50],
+      "railColorA": [30, 160, 75],
+      "railColorB": [220, 35, 45],
+      "theme": "orbital",
+      "shape": "TEMPLE OF SPEED & CHICANES",
+      "turns": 11,
+      "elevationProfile": "Flat-out Straights & Heavy Braking Chicanes",
+      "groundColor": [46, 112, 44]
     };
   }
   if (id >= 4) {
@@ -302,31 +302,31 @@ export fun getTrackSpec(id) {
   }
 
   return {
-    "name": "MONZA GP",
-    "subtitle": "Italian Grand Prix // Temple of Speed",
-    "difficulty": "HARD",
+    "name": "MONACO GP",
+    "subtitle": "Monaco Grand Prix // Circuit de Monaco",
+    "difficulty": "EXPERT",
     "laps": 3,
-    "length": 9600.0,
-    "roadWidth": 32.0,
-    "curbWidth": 2.6,
-    "runoffWidth": 10.0,
-    "skyColor": [38, 118, 215],
-    "skyTop": [25, 90, 185],
-    "skyBottom": [165, 202, 240],
-    "fogColor": [165, 202, 240],
-    "roadColor": [46, 48, 58],
-    "curbColor": [30, 160, 75],
-    "gravelColor": [140, 115, 85],
-    "grassColor": [52, 126, 48],
-    "barrierColor": [68, 74, 86],
-    "barrierTopColor": [230, 40, 50],
-    "railColorA": [30, 160, 75],
-    "railColorB": [220, 35, 45],
-    "theme": "orbital",
-    "shape": "TEMPLE OF SPEED & CHICANES",
-    "turns": 11,
-    "elevationProfile": "Flat-out Straights & Heavy Braking Chicanes",
-    "groundColor": [46, 112, 44]
+    "length": 5800.0,
+    "roadWidth": 20.0,
+    "curbWidth": 1.4,
+    "runoffWidth": 1.8,
+    "skyColor": [28, 118, 222],
+    "skyTop": [20, 92, 195],
+    "skyBottom": [155, 208, 245],
+    "fogColor": [155, 208, 245],
+    "roadColor": [48, 50, 60],
+    "curbColor": [240, 45, 55],
+    "gravelColor": [140, 80, 70],
+    "grassColor": [165, 170, 180],
+    "barrierColor": [70, 76, 88],
+    "barrierTopColor": [255, 215, 30],
+    "railColorA": [255, 60, 80],
+    "railColorB": [255, 210, 40],
+    "theme": "sunset",
+    "shape": "MONTE CARLO HARBOR CIRCUIT",
+    "turns": 19,
+    "elevationProfile": "Beau Rivage Climb & Harbor Descents",
+    "groundColor": [150, 155, 165]
   };
 }
 

@@ -169,10 +169,10 @@ export class AssetManager {
   }
 
   playCarModel(carId, x, y, z, rotY, scale, r, g, b) {
-    let m = this.modelFerrari;
-    if (carId == 0) m = this.modelFerrari;
-    else if (carId == 1) m = this.modelRedBull;
-    else if (carId == 2) m = this.modelMercedes;
+    let m = this.modelRedBull;
+    if (carId == 0) m = this.modelRedBull;
+    else if (carId == 1) m = this.modelMercedes;
+    else if (carId == 2) m = this.modelFerrari;
     else m = this.modelMcLaren;
 
     if (m > 0) {

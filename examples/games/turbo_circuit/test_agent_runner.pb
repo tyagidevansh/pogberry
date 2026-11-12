@@ -37,7 +37,7 @@ print("============================================================");
 print("COMPREHENSIVE CHAMPIONSHIP BENCHMARK ACROSS ALL CIRCUITS");
 print("============================================================");
 
-let trackTimeouts = [180.0, 120.0, 220.0, 180.0];
+let trackTimeouts = [180.0, 220.0, 180.0, 120.0];
 
 for (let tId = 0; tId < const.TOTAL_TRACKS; tId += 1) {
   print("\n>>> TESTING CIRCUIT " + str(tId) + " <<<");

@@ -5,7 +5,7 @@ export class RecordManager {
   init(filepath) {
     this.path = filepath;
     // Default best lap times in seconds for each F1 track
-    this.records = [88.50, 54.20, 102.50, 78.40];
+    this.records = [88.50, 102.50, 78.40, 54.20];
     this.load();
   }
 
@@ -26,8 +26,9 @@ export class RecordManager {
         // not let a corrupt ghost record make Time Attack unwinnable.
         let minimum = 18.0;
         if (i == 0) minimum = 28.0;
-        else if (i == 2) minimum = 34.0;
-        else if (i == 3) minimum = 28.0;
+        else if (i == 1) minimum = 34.0;
+        else if (i == 2) minimum = 28.0;
+        else if (i == 3) minimum = 18.0;
         if (val >= minimum and val < 3600.0) {
           this.records[i] = val;
         }

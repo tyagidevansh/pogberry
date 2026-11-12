@@ -76,44 +76,6 @@ export class Track {
       return base;
 
     } else if (this.trackId == 1) {
-      // Monaco: Natural city street gradient
-      // Start/harbor straight at y = 0.5. Gentle climb up Beau Rivage to Casino Square peaking at y = 7.5 (a smooth 7m rise).
-      // Gentle slope down through Mirabeau & Fairmont hairpin to Portier at y = 1.5, then flat y = 0.8 through the tunnel and harbor quayside.
-      let base = 0.5;
-      if (s >= 480.0 and s < 1350.0) {
-        // Beau Rivage uphill climb (s=480 to 1350): climb 0.5m -> 7.5m
-        let u = (s - 480.0) / (1350.0 - 480.0);
-        let smoothU = u * u * (3.0 - 2.0 * u);
-        base = 0.5 + smoothU * 7.0;
-      } else if (s >= 1350.0 and s < 1740.0) {
-        // Casino Square crest (s=1350 to 1740): plateau peaking at 7.5m
-        let u = (s - 1350.0) / 390.0;
-        base = 7.5 - math.sin(u * 3.14159265 * 0.5) * 0.3;
-      } else if (s >= 1740.0 and s < 2650.0) {
-        // Mirabeau & Fairmont descent (s=1740 to 2650): slope down from 7.2m -> 1.0m
-        let u = (s - 1740.0) / (2650.0 - 1740.0);
-        let smoothU = u * u * (3.0 - 2.0 * u);
-        base = 7.2 - smoothU * 6.2;
-      } else if (s >= 2650.0 and s < 2720.0) {
-        // Portier / Tunnel approach: gentle descent 1.0m -> 0.8m
-        let u = (s - 2650.0) / 70.0;
-        let smoothU = u * u * (3.0 - 2.0 * u);
-        base = 1.0 - smoothU * 0.2;
-      } else if (s >= 2720.0 and s < 5200.0) {
-        // Flat through the tunnel and harbor quayside at y = 0.8m
-        base = 0.8;
-      } else if (s >= 5200.0 and s < 5500.0) {
-        // Harbor quayside blend to start straight: 0.8m -> 0.5m
-        let u = (s - 5200.0) / 300.0;
-        let smoothU = u * u * (3.0 - 2.0 * u);
-        base = 0.8 - smoothU * 0.3;
-      } else {
-        // Start straight: flat y = 0.5m
-        base = 0.5;
-      }
-      return base;
-
-    } else if (this.trackId == 2) {
       // Spa-Francorchamps: The legendary Ardennes Rollercoaster
       // Start straight at 14m, drop into Eau Rouge brook (2.5m at s=720),
       // STEEP Raidillon wall climb up to 38.5m at s=1260 (17% grade!),
@@ -155,6 +117,49 @@ export class Track {
       }
       return base;
 
+    } else if (this.trackId == 2) {
+      // Monza: Royal parkland subtle undulation
+      let w1 = (6.2831853 * 4.0) / lapLen;
+      return 3.0 + math.sin(s * w1) * 1.5;
+
+    } else if (this.trackId == 3) {
+      // Monaco: Natural city street gradient
+      // Start/harbor straight at y = 0.5. Gentle climb up Beau Rivage to Casino Square peaking at y = 7.5 (a smooth 7m rise).
+      // Gentle slope down through Mirabeau & Fairmont hairpin to Portier at y = 1.5, then flat y = 0.8 through the tunnel and harbor quayside.
+      let base = 0.5;
+      if (s >= 480.0 and s < 1350.0) {
+        // Beau Rivage uphill climb (s=480 to 1350): climb 0.5m -> 7.5m
+        let u = (s - 480.0) / (1350.0 - 480.0);
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        base = 0.5 + smoothU * 7.0;
+      } else if (s >= 1350.0 and s < 1740.0) {
+        // Casino Square crest (s=1350 to 1740): plateau peaking at 7.5m
+        let u = (s - 1350.0) / 390.0;
+        base = 7.5 - math.sin(u * 3.14159265 * 0.5) * 0.3;
+      } else if (s >= 1740.0 and s < 2650.0) {
+        // Mirabeau & Fairmont descent (s=1740 to 2650): slope down from 7.2m -> 1.0m
+        let u = (s - 1740.0) / (2650.0 - 1740.0);
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        base = 7.2 - smoothU * 6.2;
+      } else if (s >= 2650.0 and s < 2720.0) {
+        // Portier / Tunnel approach: gentle descent 1.0m -> 0.8m
+        let u = (s - 2650.0) / 70.0;
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        base = 1.0 - smoothU * 0.2;
+      } else if (s >= 2720.0 and s < 5200.0) {
+        // Flat through the tunnel and harbor quayside at y = 0.8m
+        base = 0.8;
+      } else if (s >= 5200.0 and s < 5500.0) {
+        // Harbor quayside blend to start straight: 0.8m -> 0.5m
+        let u = (s - 5200.0) / 300.0;
+        let smoothU = u * u * (3.0 - 2.0 * u);
+        base = 0.8 - smoothU * 0.3;
+      } else {
+        // Start straight: flat y = 0.5m
+        base = 0.5;
+      }
+      return base;
+
     } else if (this.trackId >= 4) {
       // Custom track smoothstep piecewise elevation profile
       let c = f1.getCustomTrack(this.trackId);
@@ -182,9 +187,7 @@ export class Track {
       return 0.5;
 
     } else {
-      // Monza: Royal parkland subtle undulation
-      let w1 = (6.2831853 * 4.0) / lapLen;
-      return 3.0 + math.sin(s * w1) * 1.5;
+      return 0.5;
     }
   }
 
@@ -315,7 +318,7 @@ export class Track {
       let curbL = this.curbWidth;
       let curbR = this.curbWidth;
 
-      if (this.trackId == 1) {
+      if (this.trackId == 3) {
         // Monaco GP: Curbs dynamically placed on all genuine corner apexes and exits
         let absCurv = math.abs(st["curv"]);
         if (absCurv > 0.0035) {
@@ -680,6 +683,96 @@ export class Track {
 
     } else if (this.trackId == 1) {
       // -----------------------------------------------------------------------
+      // CIRCUIT DE SPA-FRANCORCHAMPS (Belgian Grand Prix)
+      // -----------------------------------------------------------------------
+      // Dense Ardennes Pine Forest
+      for (let s = 0.0; s < lapLen; s += 36.0) {
+        let pVar = (math.floor(s / 36.0)) % 2;
+        this.addSceneryProp(rawProps, "tree", s, -corridor - 8.5, 13.0, 0.0, 255, 255, 255, pVar, 4.5, nil);
+        this.addSceneryProp(rawProps, "tree", s, corridor + 8.5, 11.5, 0.0, 255, 255, 255, (pVar + 1) % 2, 4.5, nil);
+      }
+
+      // 1. Pit Straight & Paddock (s = 10600 to 11200 & 0 to 100)
+      for (let s = -350.0; s <= 100.0; s += 20.0) {
+        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.5, 11.5, 90.0, 130, 140, 155, 0, 7.5, nil);
+        this.addSceneryProp(rawProps, "grandstandCovered", s, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+      }
+      this.addSceneryProp(rawProps, "pitsOffice", 20.0, halfW + 10.0, 11.5, 90.0, 140, 150, 165, 0, 8.5, nil);
+
+      // 2. La Source Hairpin (Turn 1): Covered Grandstand overlooking the hairpin
+      this.addSceneryProp(rawProps, "grandstandCovered", 340.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "pitsGarage", 420.0, corridor + 8.0, 11.5, 90.0, 110, 120, 135, 0, 7.5, nil);
+
+      // 3. Eau Rouge & Raidillon (Turns 2-4): Grandstand at foot and crest
+      this.addSceneryProp(rawProps, "grandstandCovered", 820.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "grandstandAwning", 1150.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
+
+      // 4. Les Combes & Malmedy (Turns 5-7): Covered Grandstand
+      this.addSceneryProp(rawProps, "grandstandCovered", 3450.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "billboard", 3350.0, corridor + 6.0, 12.0, 90.0, 255, 255, 255, 0, 3.5, nil);
+
+      // 5. Bruxelles Hairpin (Turn 8): Downhill turn
+      this.addSceneryProp(rawProps, "billboard", 4450.0, -corridor - 6.0, 12.0, -90.0, 255, 255, 255, 0, 3.5, nil);
+
+      // 6. Pouhon Amphitheater (Turns 10-11): Spectator camping hillside with tents!
+      for (let s = 5700.0; s <= 6500.0; s += 80.0) {
+        this.addSceneryProp(rawProps, "tentLong", s, corridor + 22.0, 11.0, 90.0, 140, 150, 170, 0, 6.5, nil);
+        this.addSceneryProp(rawProps, "tent", s + 40.0, corridor + 24.0, 10.0, 90.0, 185, 95, 28, 0, 5.0, nil);
+      }
+
+      // 7. Fagnes Chicane: Covered Grandstand
+      this.addSceneryProp(rawProps, "grandstandCovered", 7250.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+
+      // 8. Bus Stop Chicane: Covered Grandstand
+      this.addSceneryProp(rawProps, "grandstandCovered", 10320.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
+
+    } else if (this.trackId == 2) {
+      // -----------------------------------------------------------------------
+      // AUTODROMO NAZIONALE MONZA (Italian Grand Prix / Temple of Speed)
+      // -----------------------------------------------------------------------
+      // Royal Parkland Oak Trees
+      for (let s = 0.0; s < lapLen; s += 36.0) {
+        let pVar = (math.floor(s / 36.0)) % 2;
+        this.addSceneryProp(rawProps, "tree", s, -corridor - 8.5, 13.5, 0.0, 255, 255, 255, pVar, 4.5, nil);
+        this.addSceneryProp(rawProps, "tree", s, corridor + 8.5, 12.0, 0.0, 255, 255, 255, (pVar + 1) % 2, 4.5, nil);
+      }
+
+      // 1. Rettifilo Main Straight & Tribuna Grandstands (s = 8900 to 9600 & 0 to 750)
+      for (let s = -450.0; s <= 550.0; s += 22.0) {
+        let isAwning = ((math.floor(s / 22.0)) % 2 == 1);
+        let gKind = "grandstandCovered";
+        if (isAwning) gKind = "grandstandAwning";
+        this.addSceneryProp(rawProps, gKind, s, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+      }
+      // Monza Pit Building with authentic Formula 1 constructor team colors
+      let liveryIdx = 0;
+      for (let s = -350.0; s <= 450.0; s += 20.0) {
+        let teamCol = teamLiveries[liveryIdx % 10];
+        liveryIdx += 1;
+        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.5, 11.5, 90.0, 135, 140, 150, 0, 7.5, nil);
+        this.addSceneryProp(rawProps, "paddockHauler", s, halfW + 18.0, 1.4, 90.0, teamCol[0], teamCol[1], teamCol[2], 0, 5.0, nil);
+      }
+      this.addSceneryProp(rawProps, "pitsOffice", 180.0, halfW + 10.0, 11.5, 90.0, 140, 150, 165, 0, 8.5, nil);
+
+      // 2. Variante del Rettifilo Chicane: Tribuna 6 and Tribuna 8
+      this.addSceneryProp(rawProps, "grandstandCovered", 1120.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "grandstandCovered", 1250.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+
+      // 3. Variante della Roggia: Tribuna Roggia
+      this.addSceneryProp(rawProps, "grandstandCovered", 3020.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
+
+      // 4. Variante Ascari: Continuous Tribuna Ascari Grandstands
+      this.addSceneryProp(rawProps, "grandstandCovered", 6450.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "grandstandAwning", 6650.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "grandstandCovered", 6850.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
+
+      // 5. Curva Parabolica (Curva Alboreto): Grandstand 21 and 22
+      this.addSceneryProp(rawProps, "grandstandCovered", 8450.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "grandstandCovered", 8720.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
+      this.addSceneryProp(rawProps, "billboard", 8550.0, corridor + 6.0, 12.0, 90.0, 255, 255, 255, 0, 3.5, nil);
+
+    } else if (this.trackId == 3) {
+      // -----------------------------------------------------------------------
       // CIRCUIT DE MONACO (Monaco Grand Prix / Monte Carlo)
       // -----------------------------------------------------------------------
       // 1. Pit Straight & Anthony Noghes: Covered Grandstand on driver's left
@@ -746,53 +839,6 @@ export class Track {
       this.addSceneryProp(rawProps, "rivieraVilla", 420.0, -corridor - 32.0, 1.0, -90.0, 230, 222, 208, 0, 8.0, nil);
       this.addSceneryProp(rawProps, "rivieraVilla", 850.0, -corridor - 34.0, 1.2, -90.0, 230, 222, 208, 0, 8.0, nil);
       this.addSceneryProp(rawProps, "monacoBuilding", 1260.0, -corridor - 32.0, 1.0, -90.0, 242, 235, 220, 1, 10.0, nil);
-
-    } else if (this.trackId == 2) {
-      // -----------------------------------------------------------------------
-      // CIRCUIT DE SPA-FRANCORCHAMPS (Belgian Grand Prix)
-      // -----------------------------------------------------------------------
-      // Dense Ardennes Pine Forest
-      for (let s = 0.0; s < lapLen; s += 36.0) {
-        let pVar = (math.floor(s / 36.0)) % 2;
-        this.addSceneryProp(rawProps, "tree", s, -corridor - 8.5, 13.0, 0.0, 255, 255, 255, pVar, 4.5, nil);
-        this.addSceneryProp(rawProps, "tree", s, corridor + 8.5, 11.5, 0.0, 255, 255, 255, (pVar + 1) % 2, 4.5, nil);
-      }
-
-      // 1. Pit Straight & Paddock (s = 10600 to 11200 & 0 to 100)
-      for (let s = -350.0; s <= 100.0; s += 20.0) {
-        this.addSceneryProp(rawProps, "pitsGarage", s, halfW + 6.5, 11.5, 90.0, 130, 140, 155, 0, 7.5, nil);
-        this.addSceneryProp(rawProps, "grandstandCovered", s, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
-      }
-      this.addSceneryProp(rawProps, "pitsOffice", 20.0, halfW + 10.0, 11.5, 90.0, 140, 150, 165, 0, 8.5, nil);
-
-      // 2. La Source Hairpin (Turn 1): Covered Grandstand overlooking the hairpin
-      this.addSceneryProp(rawProps, "grandstandCovered", 340.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
-      this.addSceneryProp(rawProps, "pitsGarage", 420.0, corridor + 8.0, 11.5, 90.0, 110, 120, 135, 0, 7.5, nil);
-
-      // 3. Eau Rouge & Raidillon (Turns 2-4): Grandstand at foot and crest
-      this.addSceneryProp(rawProps, "grandstandCovered", 820.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
-      this.addSceneryProp(rawProps, "grandstandAwning", 1150.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
-
-      // 4. Les Combes & Malmedy (Turns 5-7): Covered Grandstand
-      this.addSceneryProp(rawProps, "grandstandCovered", 3450.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
-      this.addSceneryProp(rawProps, "billboard", 3350.0, corridor + 6.0, 12.0, 90.0, 255, 255, 255, 0, 3.5, nil);
-
-      // 5. Bruxelles Hairpin (Turn 8): Downhill turn
-      this.addSceneryProp(rawProps, "billboard", 4450.0, -corridor - 6.0, 12.0, -90.0, 255, 255, 255, 0, 3.5, nil);
-
-      // 6. Pouhon Amphitheater (Turns 10-11): Spectator camping hillside with tents!
-      for (let s = 5700.0; s <= 6500.0; s += 80.0) {
-        this.addSceneryProp(rawProps, "tentLong", s, corridor + 22.0, 11.0, 90.0, 140, 150, 170, 0, 6.5, nil);
-        this.addSceneryProp(rawProps, "tent", s + 40.0, corridor + 24.0, 10.0, 90.0, 185, 95, 28, 0, 5.0, nil);
-      }
-
-      // 7. Fagnes Chicane: Covered Grandstand
-      this.addSceneryProp(rawProps, "grandstandCovered", 7250.0, -corridor - 18.0, 11.5, -90.0, 255, 255, 255, 0, 9.5, nil);
-
-      // 8. Bus Stop Chicane: Covered Grandstand
-      this.addSceneryProp(rawProps, "grandstandCovered", 10320.0, corridor + 18.0, 11.5, 90.0, 255, 255, 255, 0, 9.5, nil);
-
-    } else if (this.trackId == 3) {
       // -----------------------------------------------------------------------
       // AUTODROMO NAZIONALE MONZA (Italian Grand Prix / Temple of Speed)
       // -----------------------------------------------------------------------
@@ -857,14 +903,14 @@ export class Track {
       // Suzuka: Turn 1, Turn 11 Hairpin, Casio Triangle
       brakeZones = [540.0, 5640.0, 8450.0];
     } else if (this.trackId == 1) {
-      // Monaco: Sainte-Devote, Mirabeau, Nouvelle Chicane, Rascasse
-      brakeZones = [360.0, 1650.0, 2980.0, 4850.0];
-    } else if (this.trackId == 2) {
       // Spa: La Source, Les Combes, Bus Stop
       brakeZones = [240.0, 3220.0, 10120.0];
-    } else if (this.trackId == 3) {
+    } else if (this.trackId == 2) {
       // Monza: Rettifilo Chicane, Roggia Chicane, Ascari Chicane, Parabolica
       brakeZones = [980.0, 2820.0, 6240.0, 8280.0];
+    } else if (this.trackId == 3) {
+      // Monaco: Sainte-Devote, Mirabeau, Nouvelle Chicane, Rascasse
+      brakeZones = [360.0, 1650.0, 2980.0, 4850.0];
     } else {
       brakeZones = [];
     }
@@ -1060,7 +1106,7 @@ export class Track {
   isInTunnel(dist) {
     let lapLen = this.spec["length"];
     let prog = dist - math.floor(dist / lapLen) * lapLen;
-    if (this.trackId == 1 and prog > 2720.0 and prog < 3570.0) return true;
+    if (this.trackId == 3 and prog > 2720.0 and prog < 3570.0) return true;
     if (this.trackId >= 4) {
       let c = f1.getCustomTrack(this.trackId);
       if (c != nil and c["tunnels"] != nil) {
@@ -1288,11 +1334,6 @@ export class Track {
       this.drawMountainRidge(cX, cZ, 2600.0, 14, 0.44, 6.2831853, 190.0, 140, 32, 74, 42, 20, 52, 28, false);
 
     } else if (this.trackId == 1) {
-      // MONACO GP: Mediterranean Sea azure horizon and coastal waters
-      gui.drawPlane3D(-1200.0, -2.0, 200.0, 3600.0, 3600.0, 18, 88, 158);
-      gui.drawPlane3D(cX - 200.0, -1.2, cZ + 200.0, 1800.0, 1800.0, 22, 102, 172);
-
-    } else if (this.trackId == 2) {
       // SPA GP: Rolling Ardennes valley pine forest ridges
       // Far Layer: Distant Ardennes blue-green ridge
       this.drawMountainRidge(cX, cZ, 3600.0, 18, 0.0, 6.2831853, 350.0, 130, 24, 46, 60, 16, 32, 44, false);
@@ -1301,12 +1342,17 @@ export class Track {
       // Near Layer: Valley slope pine crowns
       this.drawMountainRidge(cX, cZ, 2600.0, 16, 0.35, 6.2831853, 170.0, 135, 30, 76, 42, 18, 54, 30, false);
 
-    } else {
+    } else if (this.trackId == 2) {
       // MONZA GP: Alpine peaks on the distant northern horizon and royal parkland tree canopies
       // Distant snow-capped Italian Alps on northern horizon
       this.drawMountainRidge(cX, cZ, 3600.0, 10, 2.1, 2.2, 450.0, 160, 138, 148, 170, 92, 102, 126, true);
       // Royal parkland continuous oak tree canopies
       this.drawMountainRidge(cX, cZ, 2600.0, 20, 0.0, 6.2831853, 135.0, 100, 38, 76, 42, 24, 52, 28, false);
+
+    } else {
+      // MONACO GP: Mediterranean Sea azure horizon and coastal waters
+      gui.drawPlane3D(-1200.0, -2.0, 200.0, 3600.0, 3600.0, 18, 88, 158);
+      gui.drawPlane3D(cX - 200.0, -1.2, cZ + 200.0, 1800.0, 1800.0, 22, 102, 172);
     }
   }
 
@@ -1342,7 +1388,7 @@ export class Track {
     this.drawDistantBackdrop(cX, cZ, t);
 
     // 0a. Port Hercule Harbor Water Basin (Monaco GP)
-    if (this.trackId == 1) {
+    if (this.trackId == 3) {
       // Confined Mediterranean harbor water surface inside the quayside basin
       gui.drawPlane3D(200.0, 0.05, 340.0, 180.0, 280.0, 18, 98, 160);
 
@@ -1471,9 +1517,9 @@ export class Track {
       let s1 = st1["s"];
       let inBrakeZone = false;
       if (this.trackId == 0 and ((s1 >= 440.0 and s1 <= 540.0) or (s1 >= 5530.0 and s1 <= 5640.0) or (s1 >= 8350.0 and s1 <= 8450.0))) inBrakeZone = true;
-      else if (this.trackId == 1 and ((s1 >= 270.0 and s1 <= 360.0) or (s1 >= 1560.0 and s1 <= 1650.0) or (s1 >= 2890.0 and s1 <= 2980.0) or (s1 >= 4760.0 and s1 <= 4850.0))) inBrakeZone = true;
-      else if (this.trackId == 2 and ((s1 >= 150.0 and s1 <= 240.0) or (s1 >= 3120.0 and s1 <= 3220.0) or (s1 >= 10020.0 and s1 <= 10120.0))) inBrakeZone = true;
-      else if (this.trackId == 3 and ((s1 >= 880.0 and s1 <= 980.0) or (s1 >= 2720.0 and s1 <= 2820.0) or (s1 >= 6140.0 and s1 <= 6240.0) or (s1 >= 8180.0 and s1 <= 8280.0))) inBrakeZone = true;
+      else if (this.trackId == 1 and ((s1 >= 150.0 and s1 <= 240.0) or (s1 >= 3120.0 and s1 <= 3220.0) or (s1 >= 10020.0 and s1 <= 10120.0))) inBrakeZone = true;
+      else if (this.trackId == 2 and ((s1 >= 880.0 and s1 <= 980.0) or (s1 >= 2720.0 and s1 <= 2820.0) or (s1 >= 6140.0 and s1 <= 6240.0) or (s1 >= 8180.0 and s1 <= 8280.0))) inBrakeZone = true;
+      else if (this.trackId == 3 and ((s1 >= 270.0 and s1 <= 360.0) or (s1 >= 1560.0 and s1 <= 1650.0) or (s1 >= 2890.0 and s1 <= 2980.0) or (s1 >= 4760.0 and s1 <= 4850.0))) inBrakeZone = true;
 
       if (inBrakeZone) {
         let skidW = 0.26;
@@ -1607,19 +1653,19 @@ export class Track {
       let isCornerCurb = (math.abs(st1["curv"]) > 0.0035 or math.abs(st2["curv"]) > 0.0035);
       if (isCornerCurb) {
         let cR = 196; let cG = 198; let cB = 206;
-        if (this.trackId == 3) {
+        if (this.trackId == 2) {
           // Monza: Italian Tricolore (Green, White, Red)
           let mMod = i % 3;
           if (mMod == 0) { cR = 25; cG = 145; cB = 60; }
           else if (mMod == 1) { cR = 242; cG = 244; cB = 248; }
           else { cR = 220; cG = 32; cB = 38; }
-        } else if (this.trackId == 2) {
+        } else if (this.trackId == 1) {
           // Spa-Francorchamps: Belgian Tricolore (Black, Yellow, Red)
           let sMod = i % 3;
           if (sMod == 0) { cR = 25; cG = 25; cB = 28; }
           else if (sMod == 1) { cR = 248; cG = 212; cB = 24; }
           else { cR = 220; cG = 32; cB = 38; }
-        } else if (this.trackId == 1) {
+        } else if (this.trackId == 3) {
           // Monaco: Swimming Pool chicane aprons (Yellow & Cyan), red/white elsewhere
           if (s1 >= 4450.0 and s1 <= 4620.0) {
             if (i % 2 == 0) { cR = 25; cG = 140; cB = 220; }
@@ -1664,7 +1710,7 @@ export class Track {
       }
 
       // E. Runoff / Pedestrian Sidewalks
-      if (this.trackId == 1) {
+      if (this.trackId == 3) {
         // MONACO GP: Light-grey urban concrete pedestrian sidewalks on both sides
         let swR = 165; let swG = 170; let swB = 180;
         let cL1_x = st1["cl_x"]; let cL1_z = st1["cl_z"];
@@ -1722,7 +1768,7 @@ export class Track {
       let sMid = st1["s"];
       let isSuzukaBridge = (this.trackId == 0 and sMid >= 7290.0 and sMid <= 7644.0);
       let isSuzukaUnderpass = (this.trackId == 0 and sMid >= 3640.0 and sMid <= 3780.0);
-      let isMonacoTunnel = (this.trackId == 1 and sMid >= 2720.0 and sMid <= 3570.0);
+      let isMonacoTunnel = (this.trackId == 3 and sMid >= 2720.0 and sMid <= 3570.0);
 
       if (isSuzukaBridge) {
         // A. Reinforced concrete deck fascia along both elevated edges
@@ -1860,7 +1906,7 @@ export class Track {
                          140, 135, 130);
         }
       } else {
-        if (this.trackId == 1) {
+        if (this.trackId == 3) {
           // MONACO GP: Authentic city street circuit sidewalks and solid retaining foundations
           let swR = 165; let swG = 170; let swB = 180;
           let apronW = 4.0;
