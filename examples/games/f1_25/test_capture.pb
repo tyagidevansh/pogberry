@@ -10,10 +10,10 @@ use "car" as car_mod;
 use "ui" as ui_mod;
 use "std.math" as math;
 
-gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "TURBO // CIRCUIT : CAPTURE");
+gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "PB SPORTS // F1 25 : CAPTURE");
 gui.setTargetFPS(const.TARGET_FPS);
 
-let assets = assets_mod.AssetManager("examples/games/turbo_circuit");
+let assets = assets_mod.AssetManager("examples/games/f1_25");
 assets.loadAll();
 
 let cam = cam_mod.ChaseCamera();

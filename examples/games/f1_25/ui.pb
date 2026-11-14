@@ -1,4 +1,4 @@
-// TURBO CIRCUIT: OVERDRIVE — User Interface & Menus
+// PB SPORTS F1 25, User Interface & Menus
 use "pb_gui" as gui;
 use "std.math" as math;
 use "constants" as const;
@@ -60,10 +60,10 @@ export class UIRenderer {
 
     // Glowing Header Logo
     let pulse = 220 + math.floor(math.sin(t * 4.0) * 35.0);
-    gui.drawText("TURBO // CIRCUIT", 80, 42, 54, 0, 240, pulse);
-    gui.drawRectangle(80, 104, 210, 28, 255, 30, 120);
-    gui.drawText("OVERDRIVE", 90, 108, 21, 255, 255, 255);
-    gui.drawText("FORMULA 1 ARCADE RACING IN POGBERRY", 82, 144, 16, 160, 190, 220);
+    gui.drawText("PB SPORTS", 80, 42, 54, 0, 240, pulse);
+    gui.drawRectangle(80, 104, 150, 28, 255, 30, 120);
+    gui.drawText("F1 25", 90, 108, 21, 255, 255, 255);
+    gui.drawText("IT'S IN THE BERRY // OFFICIAL FIA FORMULA 1 RACING", 82, 144, 16, 160, 190, 220);
 
     // 1. Mode Selector Panels (Left Column)
     let modes = [

@@ -8,7 +8,7 @@ use "assets" as assets_mod;
 use "ui" as ui_mod;
 
 gui.initWindow(1280, 720, "Test Cockpit View");
-let assets = assets_mod.AssetManager("examples/games/turbo_circuit");
+let assets = assets_mod.AssetManager("examples/games/f1_25");
 assets.loadAll();
 
 let track = track_mod.Track(const.TRACK_SUZUKA);

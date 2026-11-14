@@ -1,4 +1,4 @@
-// TURBO CIRCUIT: OVERDRIVE — Automated AI Agent Driver & Telemetry System
+// PB SPORTS F1 25, Automated AI Agent Driver & Telemetry System
 use "constants" as const;
 use "track" as track_mod;
 use "car" as car_mod;

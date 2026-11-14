@@ -1,4 +1,4 @@
-// TURBO CIRCUIT: OVERDRIVE — Visual In-Game Track Editor
+// PB SPORTS F1 25, Visual In-Game Track Editor
 use "pb_gui" as gui;
 use "std.math" as math;
 use "math_util" as mu;

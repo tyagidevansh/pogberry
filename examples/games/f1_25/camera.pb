@@ -1,4 +1,4 @@
-// TURBO CIRCUIT: OVERDRIVE — True World-Space 3D Chase Camera
+// PB SPORTS F1 25, True World-Space 3D Chase Camera
 use "pb_gui" as gui;
 use "std.math" as math;
 use "math_util" as mu;

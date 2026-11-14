@@ -1,4 +1,4 @@
-// TURBO CIRCUIT: OVERDRIVE — 3D Particle Systems
+// PB SPORTS F1 25, 3D Particle Systems
 use "pb_gui" as gui;
 use "std.math" as math;
 use "math_util" as mu;

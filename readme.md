@@ -1,8 +1,8 @@
 # Pogberry
 
-Pogberry is a lightweight, bytecode-compiled programming language designed for learning, scripting, and building standalone 2D games. It pairs an approachable, readable syntax with a fast C interpreter and an embeddable runtime. The command-line executable and C embedding API use the short name `pb`.
+Pogberry is a lightweight, bytecode-compiled programming language designed for learning, scripting, and building standalone 2D and 3D games. It pairs an approachable, readable syntax with a fast C interpreter and an embeddable runtime. The command-line executable and C embedding API use the short name `pb`.
 
-The project is under active development. The core language, collections, classes, source modules, native modules, embedding API, test suite, and 2D game engine work today.
+The project is under active development. The core language, collections, classes, source modules, native modules, embedding API, test suite, and 2D and 3D game engine work today.
 
 ## Build and install
 
@@ -52,8 +52,8 @@ pb repl
 ```
 
 Without installing, commands can be run directly from the repository root:
-- On Linux/macOS: `./build/pb run examples/games/cyber_runner`
-- On Windows: `build\pb run examples\games\cyber_runner`
+- On Linux or macOS: `./build/pb run examples/games/f1_25`
+- On Windows: `build\pb run examples\games\f1_25`
 
 Build the embeddable shared library:
 
@@ -73,15 +73,15 @@ The [examples](examples/README.md) directory is organized by purpose:
 
 - `examples/basics` contains small language examples.
 - `examples/algorithms` contains algorithms and data structures.
-- `examples/games` contains GUI examples and a multi-file GUI project.
+- `examples/games` contains 2D and 3D games, including PB Sports F1 25.
 - `examples/module_project` contains an interactive multi-file terminal game.
 
 ```sh
 pb run examples/module_project
-pb run examples/games/cyber_runner
+pb run examples/games/f1_25
 ```
 
-For 2D game development, windowing, sprites, and audio with `pb_gui`, refer to the [2D Game Cheatsheet](docs/CHEATSHEET.md).
+For 3D game development, see the PB Sports F1 25 guide in `examples/games/f1_25/README.md`.
 
 ## Language basics
 
@@ -336,14 +336,16 @@ It exports `pi`, `e`, `abs`, `floor`, `sqrt`, `min`, `max`, and `clamp`.
 `abs` and the helpers are Pogberry code. Only `floor` and `sqrt` delegate to
 the host's internal `pb.math` capability.
 
-## 2D Game Development (`pb_gui`)
+## 2D and 3D game development with pb_gui
 
-Pogberry includes a built-in 2D game engine module powered by Raylib. It is designed to be simple, approachable, and fun to use without overwhelming boilerplate.
+Pogberry includes a graphics module powered by Raylib. It supports both 2D and 3D rendering in the same window.
+
+### 2D rendering example
 
 ```pb
 use "pb_gui" as gui;
 
-gui.initWindow(800, 600, "My Game");
+gui.initWindow(800, 600, "2D Example");
 gui.setTargetFPS(60);
 
 while (!gui.windowShouldClose())
@@ -357,16 +359,50 @@ while (!gui.windowShouldClose())
 gui.closeWindow();
 ```
 
-The module provides everything needed to create 2D games:
-- **Windowing & Display:** Resizing, fullscreen toggle, window title, target FPS, and frame time (`getFrameTime()`).
-- **Shapes & Drawing:** Lines, circles, outlines, ellipses, rectangles, and rounded cards.
-- **Text:** On-screen text rendering and text measurement for layout centering.
-- **Input:** Keyboard and mouse queries (press, hold, release, cursor position, and scroll wheel).
-- **2D Collisions:** Fast intersection checks between rectangles, circles, and points.
-- **Sprites & Textures:** Image loading (`.png`, `.bmp`, `.jpg`) and spritesheet rectangle rendering (`drawTextureRec`).
-- **Audio:** Sound effects (`loadSound`, `playSound`) and streaming background music (`loadMusic`, `playMusic`).
+### 3D rendering example
 
-For the complete reference with code snippets and starter templates, see the [2D Game Cheatsheet](docs/CHEATSHEET.md).
+3D drawing runs inside a `begin3D` and `end3D` block. You can draw 3D shapes or load 3D models from disk, then draw 2D text or interface elements on top:
+
+```pb
+use "pb_gui" as gui;
+
+gui.initWindow(1280, 720, "3D Example");
+gui.setTargetFPS(60);
+
+while (!gui.windowShouldClose())
+{
+  gui.beginDrawing();
+  gui.clearBackground(24, 28, 36);
+
+  // Camera: eye X, Y, Z, target X, Y, Z, fov
+  gui.begin3D(0.0, 5.0, 10.0, 0.0, 0.0, 0.0, 45.0);
+  gui.drawGrid(20, 1.0);
+  gui.drawPlane3D(0.0, 0.0, 0.0, 20.0, 20.0, 40, 45, 55);
+  gui.drawCubeWires3D(0.0, 1.0, 0.0, 2.0, 2.0, 2.0, 60, 220, 240);
+  gui.end3D();
+
+  // 2D interface pass
+  gui.drawText("3D in Pogberry", 20, 20, 24, 255, 255, 255);
+  gui.endDrawing();
+}
+
+gui.closeWindow();
+```
+
+The module provides functions for 2D and 3D games:
+- Window control with resizing, fullscreen toggles, window titles, target frame rates, and frame time measurement.
+- 2D shapes such as lines, circles, outlines, ellipses, and rectangles.
+- 3D camera passes using `begin3D` or `begin3DEx`, closed with `end3D`.
+- 3D shapes such as cubes, planes, spheres, cylinders, triangles, and quads.
+- 3D model loading for OBJ and GLB files with `loadModel`, drawing with `drawModel` or `drawModelEx`, and memory release with `unloadModel`.
+- Text rendering and text measurement for layout alignment.
+- Keyboard, mouse, cursor position, and scroll wheel input queries.
+- 2D collision detection between rectangles, circles, and points.
+- Sprites and textures with image loading, spritesheet rendering via `drawTextureRec`, and render textures.
+- Fragment shader loading and custom uniform updates.
+- Audio playback with `loadSound` for effects and `loadMusic` for streaming tracks.
+
+For a full 3D game implementation, see `examples/games/f1_25`. It includes procedural road generation, multi-camera chase views, rivals, collision physics, and audio.
 
 ## Prelude functions
 

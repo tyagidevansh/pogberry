@@ -1,4 +1,4 @@
-// TURBO CIRCUIT: OVERDRIVE — Main Game Loop
+// PB SPORTS F1 25, Main Game Loop
 use "pb_gui" as gui;
 use "constants" as const;
 use "math_util" as mu;
@@ -16,11 +16,11 @@ use "f1_data" as f1;
 use "std.math" as math;
 
 // Initialize Window
-gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "TURBO // CIRCUIT : OVERDRIVE");
+gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "PB SPORTS // F1 25");
 gui.setExitKey(0); // Disable default ESC window exit so ESC can trigger in-game pause
 gui.setTargetFPS(const.TARGET_FPS);
 
-let assets = assets_mod.AssetManager("examples/games/turbo_circuit");
+let assets = assets_mod.AssetManager("examples/games/f1_25");
 assets.loadAll();
 
 let cam = cam_mod.ChaseCamera();
@@ -919,4 +919,4 @@ while (!gui.windowShouldClose()) {
 // Cleanup and Exit
 assets.unloadAll();
 gui.closeWindow();
-print("TURBO CIRCUIT: OVERDRIVE session exited cleanly.");
+print("PB SPORTS F1 25 session exited cleanly.");

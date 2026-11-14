@@ -1,4 +1,4 @@
-// TURBO CIRCUIT: OVERDRIVE — Complete Subsystem Test & Verification
+// PB SPORTS F1 25, Complete Subsystem Test & Verification
 use "pb_gui" as gui;
 use "constants" as const;
 use "math_util" as mu;
@@ -13,10 +13,10 @@ use "track_io" as io;
 use "track_editor" as ed_mod;
 use "std.math" as math;
 
-gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "TURBO // CIRCUIT : TEST");
+gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "PB SPORTS // F1 25 : TEST");
 gui.setTargetFPS(const.TARGET_FPS);
 
-let assets = assets_mod.AssetManager("examples/games/turbo_circuit");
+let assets = assets_mod.AssetManager("examples/games/f1_25");
 assets.loadAll();
 
 let cam = cam_mod.ChaseCamera();

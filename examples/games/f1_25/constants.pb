@@ -1,4 +1,4 @@
-// TURBO CIRCUIT: OVERDRIVE — Game Constants & Configuration
+// PB SPORTS F1 25, Game Constants & Configuration
 use "std.math" as math;
 use "f1_data" as f1;
 
