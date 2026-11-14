@@ -995,14 +995,56 @@ static void ifStatement() {
   patchJump(elseJump);
 }
 
+static bool checkNewlineArg(void) {
+  if (parser.current.type == TOKEN_IDENTIFIER &&
+      parser.current.length == 7 &&
+      memcmp(parser.current.start, "newline", 7) == 0) {
+    const char *p = parser.current.start + 7;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+    if (*p == '=' && *(p + 1) != '=') {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void printStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'print'.");
-  expression();
 
   bool newline = true;
+
+  if (check(TOKEN_RIGHT_PAREN)) {
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+    consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+    emitConstant(OBJ_VAL(copyString("", 0)));
+    emitByte(OP_PRINT);
+    return;
+  }
+
+  if (checkNewlineArg()) {
+    advance();
+    consume(TOKEN_EQUAL, "Expect '=' after 'newline'.");
+    if (match(TOKEN_TRUE)) {
+      newline = true;
+    } else if (match(TOKEN_FALSE)) {
+      newline = false;
+    } else {
+      error("Expect 'true' or 'false' after 'newline='.");
+    }
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+    consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+    if (newline) {
+      emitConstant(OBJ_VAL(copyString("", 0)));
+      emitByte(OP_PRINT);
+    }
+    return;
+  }
+
+  expression();
+
   if (match(TOKEN_COMMA)) {
-    consume(TOKEN_IDENTIFIER, "Expect 'newline' after comma.");
-    if (strncmp(parser.previous.start, "newline", parser.previous.length) == 0) {
+    if (checkNewlineArg()) {
+      advance();
       consume(TOKEN_EQUAL, "Expect '=' after 'newline'.");
       if (match(TOKEN_TRUE)) {
         newline = true;
@@ -1012,7 +1054,31 @@ static void printStatement() {
         error("Expect 'true' or 'false' after 'newline='.");
       }
     } else {
-      error("Expect 'newline' after comma.");
+      emitByte(OP_PRINT_NO_NEWLINE);
+      for (;;) {
+        emitConstant(OBJ_VAL(copyString(" ", 1)));
+        emitByte(OP_PRINT_NO_NEWLINE);
+
+        expression();
+
+        if (match(TOKEN_COMMA)) {
+          if (checkNewlineArg()) {
+            advance();
+            consume(TOKEN_EQUAL, "Expect '=' after 'newline'.");
+            if (match(TOKEN_TRUE)) {
+              newline = true;
+            } else if (match(TOKEN_FALSE)) {
+              newline = false;
+            } else {
+              error("Expect 'true' or 'false' after 'newline='.");
+            }
+            break;
+          }
+          emitByte(OP_PRINT_NO_NEWLINE);
+        } else {
+          break;
+        }
+      }
     }
   }
 
@@ -1021,9 +1087,9 @@ static void printStatement() {
 
   if (!newline) {
     emitByte(OP_PRINT_NO_NEWLINE);
-    return;
+  } else {
+    emitByte(OP_PRINT);
   }
-  emitByte(OP_PRINT);
 }
 
 static void returnStatement() {
