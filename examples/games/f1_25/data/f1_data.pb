@@ -1,4 +1,3 @@
-// PB SPORTS F1 25, Official FIA Formula 1 Circuit Data & Spline Engine
 use "std.math" as math;
 
 export let SUZUKA_LENGTH = 9200.0;

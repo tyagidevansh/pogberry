@@ -1,7 +1,6 @@
-// PB SPORTS F1 25, True World-Space 3D Chase Camera
 use "pb_gui" as gui;
 use "std.math" as math;
-use "math_util" as mu;
+use "data/math_util" as mu;
 
 export let POV_COCKPIT     = 0;
 export let POV_CLOSE_CHASE = 1;
@@ -34,7 +33,7 @@ export class ChaseCamera {
     this.targetLookHill = 0.0;
     this.shakeTimer = 0.0;
     this.initialized = false;
-    this.pov = 1; // Default: POV_CLOSE_CHASE (Index 1 matching UI "CHASE 1")
+    this.pov = 1;
   }
 
   cyclePov() {
@@ -74,7 +73,6 @@ export class ChaseCamera {
     let fwdX = math.sin(heading);
     let fwdZ = math.cos(heading);
 
-    // Default: 0 = POV_COCKPIT
     let targetCamX = carX + fwdX * 0.18;
     let targetCamY = carY + 0.84;
     let targetCamZ = carZ + fwdZ * 0.18;
@@ -83,7 +81,7 @@ export class ChaseCamera {
     let targetLookZ = carZ + fwdZ * 45.0;
 
     if (this.pov == 1) {
-      // 1. CLOSE CHASE
+
       targetCamX = carX - fwdX * 5.4;
       targetCamY = carY + 2.05;
       targetCamZ = carZ - fwdZ * 5.4;
@@ -91,7 +89,7 @@ export class ChaseCamera {
       targetLookY = carY + 1.1;
       targetLookZ = carZ + fwdZ * 20.0;
     } else if (this.pov == 2) {
-      // 2. FAR CHASE
+
       targetCamX = carX - fwdX * 8.5;
       targetCamY = carY + 3.4;
       targetCamZ = carZ - fwdZ * 8.5;
@@ -99,7 +97,7 @@ export class ChaseCamera {
       targetLookY = carY + 1.2;
       targetLookZ = carZ + fwdZ * 28.0;
     } else if (this.pov == 3) {
-      // 3. HOOD
+
       targetCamX = carX + fwdX * 1.35;
       targetCamY = carY + 0.85;
       targetCamZ = carZ + fwdZ * 1.35;
@@ -107,7 +105,7 @@ export class ChaseCamera {
       targetLookY = carY + 0.65;
       targetLookZ = carZ + fwdZ * 45.0;
     } else if (this.pov == 4) {
-      // 4. LOW BUMPER
+
       targetCamX = carX + fwdX * 2.3;
       targetCamY = carY + 0.52;
       targetCamZ = carZ + fwdZ * 2.3;
@@ -158,7 +156,7 @@ export class ChaseCamera {
     let targetFov = this.baseFov;
 
     if (this.pov == 0) {
-      // 0. COCKPIT (IN-CAR)
+
       targetCamX = carX + fwdX * 0.18;
       targetCamY = carY + 0.78;
       targetCamZ = carZ + fwdZ * 0.18;
@@ -168,7 +166,7 @@ export class ChaseCamera {
       followSpeed = 34.0;
       targetFov = 74.0 + normSpd * 5.0;
     } else if (this.pov == 1) {
-      // 1. CLOSE CHASE
+
       let camDist = 5.4 + normSpd * 1.2;
       let lookDist = 20.0 + normSpd * 4.0;
       targetCamX = carX - fwdX * camDist;
@@ -180,7 +178,7 @@ export class ChaseCamera {
       followSpeed = 14.0;
       targetFov = 66.0 + normSpd * 6.0;
     } else if (this.pov == 2) {
-      // 2. FAR CHASE
+
       let camDist = 8.5 + normSpd * 1.6;
       let lookDist = 28.0 + normSpd * 4.0;
       targetCamX = carX - fwdX * camDist;
@@ -192,7 +190,7 @@ export class ChaseCamera {
       followSpeed = 12.0;
       targetFov = 64.0 + normSpd * 5.0;
     } else if (this.pov == 3) {
-      // 3. HOOD
+
       targetCamX = carX + fwdX * 1.35;
       targetCamY = carY + 0.85;
       targetCamZ = carZ + fwdZ * 1.35;
@@ -202,7 +200,7 @@ export class ChaseCamera {
       followSpeed = 36.0;
       targetFov = 72.0 + normSpd * 6.0;
     } else {
-      // 4. LOW BUMPER
+
       targetCamX = carX + fwdX * 2.3;
       targetCamY = carY + 0.52;
       targetCamZ = carZ + fwdZ * 2.3;
@@ -235,12 +233,10 @@ export class ChaseCamera {
       this.fov = mu.lerp(this.fov, targetFov, dt * 4.0);
     }
 
-    // Level Horizon: Zero camera roll to guarantee comfort and eliminate nausea
     this.upX = 0.0;
     this.upY = 1.0;
     this.upZ = 0.0;
 
-    // 5. Screen Shake decay
     if (this.shake > 0.0) {
       this.shakeTimer = this.shakeTimer + dt * 24.0;
       this.shake = this.shake - dt * 2.2;
@@ -278,7 +274,6 @@ export class ChaseCamera {
     let tx = st0["tx"]; let tz = st0["tz"];
     let nx = st0["nx"]; let nz = st0["nz"];
 
-    // Dynamic sweeping cinematic tracking along start/finish straight
     let sideDist = -8.5 + math.sin(t * 0.28) * 3.0;
     let backDist = -22.0 + math.cos(t * 0.22) * 5.0;
     this.x = wx + nx * sideDist + tx * backDist;
@@ -319,9 +314,9 @@ export class ChaseCamera {
       sx = math.sin(this.shakeTimer) * this.shake * 0.14;
       sy = math.cos(this.shakeTimer * 1.2) * this.shake * 0.10;
     }
-    gui.begin3DEx(this.x + sx, this.y + sy, this.z,
-                  this.targetX + sx, this.targetY + sy, this.targetZ,
-                  this.upX, this.upY, this.upZ, this.fov);
+    gui.begin3DEx([this.x + sx, this.y + sy, this.z],
+                  [this.targetX + sx, this.targetY + sy, this.targetZ],
+                  [this.upX, this.upY, this.upZ], this.fov);
   }
 
   end3DPass() {

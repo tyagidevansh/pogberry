@@ -1,7 +1,6 @@
-// PB SPORTS F1 25, User Interface & Menus
 use "pb_gui" as gui;
 use "std.math" as math;
-use "constants" as const;
+use "data/constants" as const;
 
 export class UIRenderer {
   init() {
@@ -58,14 +57,12 @@ export class UIRenderer {
 
     gui.drawRectangleAlpha(0, 0, this.w, this.h, 2, 4, 14, 180);
 
-    // Glowing Header Logo
     let pulse = 220 + math.floor(math.sin(t * 4.0) * 35.0);
     gui.drawText("PB SPORTS", 80, 42, 54, 0, 240, pulse);
     gui.drawRectangle(80, 104, 150, 28, 255, 30, 120);
     gui.drawText("F1 25", 90, 108, 21, 255, 255, 255);
     gui.drawText("IT'S IN THE BERRY // OFFICIAL FIA FORMULA 1 RACING", 82, 144, 16, 160, 190, 220);
 
-    // 1. Mode Selector Panels (Left Column)
     let modes = [
       {"title": "GRAND PRIX", "desc": "Race 5 F1 constructor rivals. Finish top 3 on podium to win."},
       {"title": "TIME ATTACK", "desc": "Solo hotlap trial. Beat the circuit record in 3 laps."},
@@ -90,7 +87,6 @@ export class UIRenderer {
       }
     }
 
-    // 2. AI Competition Difficulty Selector
     let diffY = 360;
     gui.drawText("AI COMPETITION DIFFICULTY   [A / D OR CLICK]", 82, diffY, 15, 0, 240, 255);
     let diffs = [
@@ -116,7 +112,6 @@ export class UIRenderer {
       }
     }
 
-    // 3. Camera Perspective Selector (POV)
     let povY = 442;
     gui.drawText("CAMERA VIEW PERSPECTIVE   [C KEY OR CLICK]", 82, povY, 15, 0, 240, 255);
     let povNames = ["COCKPIT", "CHASE 1", "CHASE 2", "HOOD", "BUMPER"];
@@ -139,7 +134,6 @@ export class UIRenderer {
       }
     }
 
-    // 4. Clickable Launch & Track Editor Buttons
     let btnY = 525;
     let btnPulse = 200 + math.floor(math.sin(t * 5.0) * 55.0);
     gui.drawRectangleAlpha(80, btnY, 440, 58, 20, 50, 90, 235);
@@ -152,7 +146,6 @@ export class UIRenderer {
 
     gui.drawText("CLICK ANY CARD TO SELECT      PRESS ENTER TO LAUNCH      E TRACK EDITOR", 84, 605, 16, 180, 210, 240);
 
-    // Right Column: Controls & Help Guide
     let cX = 815;
     let cY = 178;
     let cW = 395;
@@ -179,7 +172,6 @@ export class UIRenderer {
       gui.drawText(ctrlList[c][1], cX + 165, rowY, 14, 220, 230, 245);
     }
 
-    // Circuit legend footnote
     gui.drawRectangleAlpha(cX + 16, cY + 365, cW - 32, 60, 16, 22, 40, 200);
     gui.drawText("FORMULA 1 WORLD TOUR CIRCUITS", cX + 26, cY + 374, 13, 0, 240, 255);
     gui.drawText("SUZUKA // MONACO // SPA // MONZA", cX + 26, cY + 398, 14, 255, 255, 255);
@@ -191,7 +183,6 @@ export class UIRenderer {
     gui.drawText("F1 PADDOCK GARAGE", 80, 60, 48, 240, 250, 255);
     gui.drawText("OFFICIAL CONSTRUCTOR LINEUP", 84, 116, 20, 0, 220, 255);
 
-    // Car Cards along bottom
     for (let i = 0; i < const.TOTAL_CARS; i += 1) {
       let carInfo = const.getCarSpec(i);
       let cardW = 270;
@@ -225,7 +216,6 @@ export class UIRenderer {
       }
     }
 
-    // Vehicle Spec Radar / Detail Box (Top Right)
     let specX = 860;
     let specY = 60;
     let specPrimary = spec["primaryColor"];
@@ -241,13 +231,11 @@ export class UIRenderer {
     gui.drawText(spec["name"], specX + 20, specY + 32, 24, 255, 240, 100);
     gui.drawText(spec["subtitle"], specX + 20, specY + 60, 14, 180, 210, 240);
 
-    // Stat bars
     this.drawStatBar(specX + 20, specY + 88, "CRUISE SPEED", spec["topSpeed"] / 180.0, 0, 240, 255);
     this.drawStatBar(specX + 20, specY + 122, "ACCELERATION", spec["accel"] / 48.0, 255, 200, 50);
     this.drawStatBar(specX + 20, specY + 156, "HANDLING", spec["handling"] / 50.0, 255, 60, 180);
     this.drawStatBar(specX + 20, specY + 190, "BATTERY DEPLOY", spec["boostSpeed"] / 240.0, 0, 240, 255);
 
-    // Instructions
     gui.drawText("A / D  CHOOSE MACHINE     ENTER  SELECT TRACK     ESC  BACK", 80, 672, 20, 255, 240, 90);
   }
 
@@ -303,7 +291,6 @@ export class UIRenderer {
       }
     }
 
-    // Circuit Map Preview Card (Right Side)
     let curInfo = const.getTrackSpec(selectedTrack);
     let pX = 920;
     let pY = 145;
@@ -319,7 +306,6 @@ export class UIRenderer {
     gui.drawText(curInfo["name"], pX + 16, pY + 38, 22, 255, 235, 90);
     gui.drawText(curInfo["shape"], pX + 16, pY + 66, 14, 200, 220, 245);
 
-    // Render 2D Circuit Map Outline in Preview Card
     let bnds = const.getTrackBounds(selectedTrack);
     let spanX = bnds[1] - bnds[0];
     let spanZ = bnds[3] - bnds[2];
@@ -344,13 +330,11 @@ export class UIRenderer {
       gui.drawLine(math.floor(ax), math.floor(ay), math.floor(bx), math.floor(by), railCol[0], railCol[1], railCol[2]);
     }
 
-    // Start / Finish Line Marker
     let pt0 = const.getTrackWorldPoint(selectedTrack, 0.0);
     let p0x = mapCX + (pt0[0] - midX) * mScale;
     let p0y = mapCY + (pt0[1] - midZ) * mScale;
     gui.drawCircle(math.floor(p0x), math.floor(p0y), 4.0, 255, 220, 60);
 
-    // Track Specs below circuit preview
     gui.drawText("CHICANES / TURNS: " + str(curInfo["turns"]), pX + 18, pY + 300, 14, 210, 230, 255);
     gui.drawText("CIRCUIT LENGTH: " + str(math.floor(curInfo["length"])) + " M", pX + 18, pY + 328, 14, 0, 240, 255);
     gui.drawText("ROAD WIDTH: " + str(math.floor(curInfo["roadWidth"])) + " METERS", pX + 18, pY + 356, 14, 210, 230, 255);
@@ -411,7 +395,7 @@ export class UIRenderer {
     this.inCockpit = false;
 
     if (!inCockpit) {
-      // 1. Speedometer & Tachometer (Bottom Right)
+
       let gaugeX = this.w - 300;
       let gaugeY = this.h - 180;
       gui.drawRectangleAlpha(gaugeX, gaugeY, 275, 155, 8, 12, 26, 215);
@@ -421,7 +405,6 @@ export class UIRenderer {
       gui.drawText(str(kph), gaugeX + 20, gaugeY + 14, 56, 255, 255, 255);
       gui.drawText("KPH", gaugeX + 155, gaugeY + 46, 20, 0, 220, 255);
 
-      // RPM Bar
       let rpmRatio = math.abs(player.speed) / player.maxSpeed;
       if (rpmRatio > 1.0) rpmRatio = 1.0;
       gui.drawRectangle(gaugeX + 20, gaugeY + 80, 235, 10, 30, 40, 60);
@@ -429,7 +412,6 @@ export class UIRenderer {
       let rpmColG = math.floor((1.0 - rpmRatio) * 255);
       gui.drawRectangle(gaugeX + 20, gaugeY + 80, math.floor(235 * rpmRatio), 10, rpmColR, rpmColG, 40);
 
-      // Gear indicator & Reverse
       if (player.isReversing) {
         let rPulse = 180 + math.floor(math.sin(t * 12.0) * 75.0);
         gui.drawText("GEAR [R]", gaugeX + 20, gaugeY + 98, 18, 255, rPulse, 40);
@@ -447,7 +429,6 @@ export class UIRenderer {
         gui.drawText("// BATTERY DEPLOY", gaugeX + 105, gaugeY + 98, 14, 0, 240, 255);
       }
 
-      // Subtle controls reminder / Autopilot indicator
       if (player.isAutopilot) {
         let aiPulse = 180 + math.floor(math.sin(t * 10.0) * 75.0);
         gui.drawText("[AI PILOT ACTIVE: PRESS O]", gaugeX + 16, gaugeY + 128, 13, 0, 240, aiPulse);
@@ -455,7 +436,6 @@ export class UIRenderer {
         gui.drawText("W:GAS S:BRAKE A/D:STEER [O]:AI", gaugeX + 16, gaugeY + 128, 12, 140, 165, 190);
       }
 
-      // 2. Battery Deploy Gauge (Bottom Center)
       let nitroX = math.floor(this.w * 0.5) - 170;
       let nitroY = this.h - 58;
       gui.drawRectangleAlpha(nitroX, nitroY, 340, 44, 8, 12, 26, 210);
@@ -465,7 +445,6 @@ export class UIRenderer {
       gui.drawRectangle(nitroX + 10, nitroY + 10, math.floor(320 * nitroRatio), 24, 0, 240, 255);
       gui.drawText("BATTERY DEPLOY [SPACE]", nitroX + 16, nitroY + 14, 15, 255, 255, 255);
 
-      // 3. Circuit Progression Meter (Bottom Left)
       let meterX = 30;
       let meterY = this.h - 58;
       gui.drawRectangleAlpha(meterX, meterY, 260, 44, 8, 12, 26, 210);
@@ -485,7 +464,6 @@ export class UIRenderer {
       gui.drawText("CIRCUIT LAP: " + str(lapPct) + "%", meterX + 16, meterY + 14, 15, 255, 255, 255);
     }
 
-    // 4. Position & Lap Info (Top Left)
     let infoX = 30;
     let infoY = 24;
     gui.drawRectangleAlpha(infoX, infoY, 310, 115, 8, 12, 26, 215);
@@ -505,13 +483,12 @@ export class UIRenderer {
         gui.drawText("// REALISTIC DNF ACTIVE", infoX + 130, infoY + 80, 12, 255, 75, 75);
       }
     } else {
-      // Time Attack
+
       gui.drawText("TIME ATTACK", infoX + 18, infoY + 16, 28, 255, 220, 60);
       gui.drawText("LAP " + str(lap) + " / " + str(totalLaps), infoX + 18, infoY + 54, 20, 0, 240, 255);
       gui.drawText("SOLO RECORD TRIAL", infoX + 18, infoY + 82, 16, 180, 200, 220);
     }
 
-    // 5. Stopwatch / Clock (Top Right)
     let timeX = this.w - 280;
     let timeY = 24;
     gui.drawRectangleAlpha(timeX, timeY, 250, 75, 8, 12, 26, 215);
@@ -531,9 +508,8 @@ export class UIRenderer {
       gui.drawText("BEST: " + str(bSec) + "." + str(bMs), timeX + 16, timeY + 45, 17, 255, 220, 60);
     }
 
-    // 6. Top-Center Mode Special Indicator
     if (this.gameMode == const.MODE_TIME_ATTACK and bestLap > 0.0) {
-      // Time Attack Delta split indicator
+
       let dBoxW = 220;
       let dBoxX = math.floor((this.w - dBoxW) * 0.5);
       let dBoxY = 24;
@@ -555,7 +531,6 @@ export class UIRenderer {
       gui.drawText(dStr, dBoxX + 16, dBoxY + 16, 20, delR, delG, delB);
     }
 
-    // 7. Dynamic Banner Notification (Center Top)
     if (this.bannerTimer > 0.0) {
       let bW = 680;
       let bH = 80;
@@ -572,7 +547,6 @@ export class UIRenderer {
       gui.drawText(this.bannerSub, math.floor((this.w - sw) * 0.5), bY + 48, 18, 220, 235, 255);
     }
 
-    // 7b. Corner Braking Warning (Flashing Chevron Indicator when speed is excessive)
     if (player.brakeWarning != 0 and this.bannerTimer <= 0.0) {
       let warnW = 440;
       let warnH = 68;
@@ -596,7 +570,6 @@ export class UIRenderer {
       gui.drawText(subText, math.floor((this.w - sw) * 0.5), warnY + 44, 14, 255, 230, 80);
     }
 
-    // 7c. Off-Track Gravel Drag / Barrier Spin-Out Notification
     if (player.spinTimer > 0.0) {
       let spPulse = 200 + math.floor(math.sin(t * 18.0) * 55.0);
       let spText = "CRASH! VEHICLE SPIN-OUT!";
@@ -627,8 +600,6 @@ export class UIRenderer {
       gui.drawText(otSub, math.floor((this.w - sw) * 0.5), otY + 42, 13, 255, 230, 90);
     }
 
-
-    // 9. 2D Circuit Radar Minimap (Top Right Corner below Clock)
     let mapX = this.w - 280;
     let mapY = 112;
     let mapW = 250;
@@ -640,12 +611,10 @@ export class UIRenderer {
     let railCol = tSpec["railColorA"];
     if (railCol == nil) railCol = [255, 60, 80];
 
-    // Semi-transparent radar background card
     gui.drawRectangleAlpha(mapX, mapY, mapW, mapH, 8, 12, 26, 220);
     gui.drawRectangleLines(mapX, mapY, mapW, mapH, railCol[0], railCol[1], railCol[2]);
     gui.drawText("// " + tSpec["name"] + " RADAR", mapX + 14, mapY + 10, 13, 0, 240, 255);
 
-    // 2D Circuit Outline
     let bnds = const.getTrackBounds(curTrackId);
     let spanX = bnds[1] - bnds[0];
     let spanZ = bnds[3] - bnds[2];
@@ -675,13 +644,11 @@ export class UIRenderer {
       gui.drawLine(math.floor(ax), math.floor(ay), math.floor(bx), math.floor(by), 120, 140, 175);
     }
 
-    // Start / Finish Line Marker
     let pt0 = const.getTrackWorldPoint(curTrackId, 0.0);
     let p0x = cx + (pt0[0] - midX) * rScale;
     let p0y = cy + (pt0[1] - midZ) * rScale;
     gui.drawCircle(math.floor(p0x), math.floor(p0y), 3.5, 255, 220, 60);
 
-    // AI Rivals (Grand Prix & Realistic GP)
     if ((this.gameMode == const.MODE_GRAND_PRIX or this.gameMode == const.MODE_REALISTIC) and rivals != nil) {
       for (let i = 0; i < len(rivals); i += 1) {
         let rCar = rivals[i];
@@ -692,7 +659,6 @@ export class UIRenderer {
       }
     }
 
-    // Player Blip & Heading Direction Tick
     let pPt = const.getTrackWorldPoint(curTrackId, distance);
     let px = cx + (pPt[0] - midX) * rScale;
     let py = cy + (pPt[1] - midZ) * rScale;
@@ -707,7 +673,6 @@ export class UIRenderer {
     gui.drawCircle(math.floor(px), math.floor(py), 2.0, 255, 255, 255);
     gui.drawLine(math.floor(px), math.floor(py), math.floor(px + dirX), math.floor(py + dirY), 255, 255, 255);
 
-    // 10. Near Miss Alert
     if (player.nearMissTimer > 0.0) {
       let nmPulse = 200 + math.floor(math.sin(t * 15.0) * 55.0);
       gui.drawText("NEAR MISS! +15% BATTERY", math.floor(this.w * 0.5) - 150, 260, 24, 0, 240, 255);
@@ -723,12 +688,10 @@ export class UIRenderer {
     let mX = math.floor(this.w * 0.5) - math.floor(mW * 0.5);
     let mY = math.floor(this.h * 0.5) - math.floor(mH * 0.5);
 
-    // Frosted dark chassis panel with cyan laser border
     gui.drawRectangleAlpha(mX, mY, mW, mH, 12, 18, 34, 248);
     gui.drawRectangleLines(mX, mY, mW, mH, 0, 240, 255);
     gui.drawRectangleLines(mX + 2, mY + 2, mW - 4, mH - 4, 0, 110, 160);
 
-    // Glowing Header
     gui.drawText("SYSTEM PAUSED", mX + 145, mY + 26, 32, 255, 255, 255);
     gui.drawRectangle(mX + 35, mY + 68, mW - 70, 2, 0, 240, 255);
 
@@ -757,7 +720,6 @@ export class UIRenderer {
       }
     }
 
-    // Interactive Keybinding Guide Footer
     gui.drawRectangle(mX + 35, mY + mH - 46, mW - 70, 1, 60, 80, 110);
     gui.drawText("[W/S] NAVIGATE   [A/D] ADJUST   [ENTER] SELECT   [ESC] RESUME", mX + 40, mY + mH - 32, 14, 130, 160, 190);
   }
@@ -793,7 +755,7 @@ export class UIRenderer {
 
       gui.drawText(medalStr, pX + 50, pY + 150, 22, medalCol[0], medalCol[1], medalCol[2]);
     } else {
-      // Time Attack
+
       gui.drawText("TIME ATTACK RECORD TRIAL", pX + 50, pY + 36, 36, 255, 220, 60);
       gui.drawText("3 LAPS COMPLETED", pX + 50, pY + 100, 26, 255, 255, 255);
     }
@@ -905,25 +867,25 @@ export class UIRenderer {
     let cx = scrW * 0.5;
 
     let cId = player.carId;
-    let teamCol = [14, 35, 82]; // Red Bull Navy
-    let teamTrim = [235, 30, 45]; // Red Bull Red
+    let teamCol = [14, 35, 82];
+    let teamTrim = [235, 30, 45];
     let suitCol = [18, 42, 95];
     let suitTrim = [255, 215, 25];
     let gloveCol = [22, 50, 110];
 
-    if (cId == 1) { // Mercedes Petronas Silver/Teal
+    if (cId == 1) {
       teamCol = [0, 162, 155];
       teamTrim = [230, 235, 245];
       suitCol = [240, 242, 248];
       suitTrim = [0, 162, 155];
       gloveCol = [245, 248, 252];
-    } else if (cId == 2) { // Ferrari Scarlet
+    } else if (cId == 2) {
       teamCol = [225, 25, 35];
       teamTrim = [255, 215, 30];
       suitCol = [215, 20, 30];
       suitTrim = [255, 255, 255];
       gloveCol = [245, 245, 250];
-    } else if (cId == 3) { // McLaren Papaya
+    } else if (cId == 3) {
       teamCol = [255, 128, 0];
       teamTrim = [0, 210, 225];
       suitCol = [255, 120, 0];
@@ -945,34 +907,27 @@ export class UIRenderer {
 
     let steer = player.steerAngle;
 
-    // ---------------------------------------------------------------------------
-    // 1. OPEN-WHEEL FRONT SUSPENSION, BRAKE DUCTS & AERO WAKE DEFLECTORS
-    // ---------------------------------------------------------------------------
     let wyWheels = 552.0 + pitch * 0.4;
     let wxL = cx - 380.0 + steer * 18.0;
     let wxR = cx + 380.0 + steer * 18.0;
 
-    // Double Wishbone Suspension Arms & Steering Pushrods
     let wishNoseY = wyWheels + 12.0;
-    // Left wishbones (Upper, Lower, Pushrod)
+
     gui.drawLine(math.floor(cx - 52.0), math.floor(wyWheels - 36), math.floor(wxL + 34.0), math.floor(wyWheels - 22), 32, 35, 42);
     gui.drawLine(math.floor(cx - 52.0), math.floor(wyWheels - 35), math.floor(wxL + 34.0), math.floor(wyWheels - 21), 75, 82, 95);
     gui.drawLine(math.floor(cx - 62.0), math.floor(wyWheels + 22), math.floor(wxL + 34.0), math.floor(wyWheels + 16), 32, 35, 42);
     gui.drawLine(math.floor(cx - 46.0), math.floor(wishNoseY), math.floor(wxL + 30.0), math.floor(wyWheels + 2), 95, 105, 120);
 
-    // Right wishbones (Upper, Lower, Pushrod)
     gui.drawLine(math.floor(cx + 52.0), math.floor(wyWheels - 36), math.floor(wxR - 34.0), math.floor(wyWheels - 22), 32, 35, 42);
     gui.drawLine(math.floor(cx + 52.0), math.floor(wyWheels - 35), math.floor(wxR - 34.0), math.floor(wyWheels - 21), 75, 82, 95);
     gui.drawLine(math.floor(cx + 62.0), math.floor(wyWheels + 22), math.floor(wxR - 34.0), math.floor(wyWheels + 16), 32, 35, 42);
     gui.drawLine(math.floor(cx + 46.0), math.floor(wishNoseY), math.floor(wxR - 30.0), math.floor(wyWheels + 2), 95, 105, 120);
 
-    // Carbon Fiber Aerodynamic Brake Cooling Ducts
     gui.drawRectangle(math.floor(wxL + 20.0), math.floor(wyWheels - 32.0), 16, 70, 24, 26, 32);
     gui.drawRectangleLines(math.floor(wxL + 20.0), math.floor(wyWheels - 32.0), 16, 70, 55, 60, 72);
     gui.drawRectangle(math.floor(wxR - 36.0), math.floor(wyWheels - 32.0), 16, 70, 24, 26, 32);
     gui.drawRectangleLines(math.floor(wxR - 36.0), math.floor(wyWheels - 32.0), 16, 70, 55, 60, 72);
 
-    // Wide Formula 1 slick tires seen in 3D perspective from cockpit
     let tW = 80.0;
     let tH = 132.0;
     let steerTiltPx = steer * 40.0;
@@ -1011,7 +966,6 @@ export class UIRenderer {
         }
       }
 
-      // Modern Formula 1 Aerodynamic Wheel Wake Deflector (Curved Carbon Fin above tire)
       let defW = tW + 12.0;
       let defX = math.floor(topX - defW * 0.5);
       let defY = math.floor(wyWheels - tH * 0.5 - 8.0);
@@ -1019,37 +973,31 @@ export class UIRenderer {
       gui.drawRectangle(defX + 2, defY + 1, math.floor(defW - 4), 3, teamCol[0], teamCol[1], teamCol[2]);
       gui.drawRectangleLines(defX, defY, math.floor(defW), 8, 60, 65, 78);
 
-      // Subtle Pirelli P-Zero Soft red compound marker band on inner shoulder
       let stripeY = math.floor(wyWheels - tH * 0.15);
       let stripeX = math.floor(curWx - tW * 0.5 + 4);
       if (side > 0) stripeX = math.floor(curWx + tW * 0.5 - 10);
       gui.drawRectangle(stripeX, stripeY, 6, 28, 235, 30, 40);
     }
 
-    // ---------------------------------------------------------------------------
-    // 2. FORMULA 1 NOSECONE & FRONT WING (Touches Road)
-    // ---------------------------------------------------------------------------
     let yTip = 530.0 + pitch;
     let yBase = 625.0 + pitch;
     let wTip = 36.0;
     let wBase = 120.0;
 
-    // Front Wing Mainplane on Tarmac
     let fwW = 340.0;
     let fwLeft = math.floor(cx - fwW * 0.5);
     gui.drawRectangle(fwLeft, math.floor(yTip) - 5, math.floor(fwW), 10, 18, 20, 24);
     gui.drawRectangle(fwLeft + 6, math.floor(yTip) - 2, math.floor(fwW - 12), 5, teamCol[0], teamCol[1], teamCol[2]);
     gui.drawRectangle(fwLeft + 22, math.floor(yTip) - 6, math.floor(fwW - 44), 2, 235, 238, 245);
-    // Left Endplate
+
     gui.drawRectangle(fwLeft - 8, math.floor(yTip) - 24, 8, 30, 24, 26, 32);
     gui.drawRectangle(fwLeft - 8, math.floor(yTip) - 24, 8, 10, teamCol[0], teamCol[1], teamCol[2]);
-    // Right Endplate
+
     gui.drawRectangle(fwLeft + math.floor(fwW), math.floor(yTip) - 24, 8, 30, 24, 26, 32);
     gui.drawRectangle(fwLeft + math.floor(fwW), math.floor(yTip) - 24, 8, 10, teamCol[0], teamCol[1], teamCol[2]);
-    // Pitot tube & Telemetry aerial
+
     gui.drawLine(math.floor(cx), math.floor(yTip - 3), math.floor(cx), math.floor(yTip - 32), 210, 220, 235);
 
-    // Nosecone tapered chassis body
     let nSlices = 28;
     for (let s = 0; s < nSlices; s += 1) {
       let factor = s / (nSlices - 1.0);
@@ -1078,14 +1026,10 @@ export class UIRenderer {
       }
     }
 
-    // Driver Car Number on nosecone
     gui.drawText("16", math.floor(cx - 11), math.floor(yTip + 44.0), 20, 255, 255, 255);
 
-    // ---------------------------------------------------------------------------
-    // 3. SOLID CARBON-FIBER MONOCOQUE COCKPIT FLANKS & SHOULDERS
-    // ---------------------------------------------------------------------------
     let flankTopY = 415 + math.floor(pitch * 0.3);
-    // Left solid carbon cockpit flank
+
     for (let y = flankTopY; y < scrH; y += 2) {
       let f = (y - flankTopY) / (scrH - flankTopY + 0.0);
       let wallW = math.floor(130.0 + f * 150.0);
@@ -1094,12 +1038,11 @@ export class UIRenderer {
       if ((math.floor(y / 4)) % 2 == 1) {
         gui.drawRectangle(0, y, wallW, 2, carbonMid[0], carbonMid[1], carbonMid[2]);
       }
-      // Specular bevel highlight along top rim
+
       gui.drawRectangle(wallW - 14, y, 14, 2, carbonLight[0], carbonLight[1], carbonLight[2]);
       gui.drawRectangle(wallW - 4, y, 4, 2, teamCol[0], teamCol[1], teamCol[2]);
     }
 
-    // Right solid carbon cockpit flank
     for (let y = flankTopY; y < scrH; y += 2) {
       let f = (y - flankTopY) / (scrH - flankTopY + 0.0);
       let wallW = math.floor(130.0 + f * 150.0);
@@ -1113,19 +1056,17 @@ export class UIRenderer {
       gui.drawRectangle(rX, y, 4, 2, teamCol[0], teamCol[1], teamCol[2]);
     }
 
-    // Aerodynamic Side Mirrors (Mounted firmly onto Cockpit Tub Shoulders)
     let mW = 124; let mH = 62;
     let mY = 380 + math.floor(pitch * 0.35);
     let mLX = 60;
     let mRX = scrW - 60 - mW;
 
-    // Left Mirror Stalk & Housing
     gui.drawRectangle(mLX + mW - 8, mY + mH - 12, 34, 18, carbonDark[0], carbonDark[1], carbonDark[2]);
     gui.drawRectangleLines(mLX + mW - 8, mY + mH - 12, 34, 18, 55, 60, 72);
     gui.drawRectangle(mLX, mY, mW, mH, carbonDark[0], carbonDark[1], carbonDark[2]);
     gui.drawRectangle(mLX, mY, mW, 6, teamCol[0], teamCol[1], teamCol[2]);
     gui.drawRectangleLines(mLX, mY, mW, mH, 65, 72, 85);
-    // Mirror Glass reflection
+
     let gLX = mLX + 5; let gLY = mY + 8; let gW = mW - 10; let gH = mH - 12;
     gui.drawRectangle(gLX, gLY, gW, math.floor(gH * 0.48), 95, 150, 215);
     gui.drawRectangle(gLX, gLY + math.floor(gH * 0.48), gW, math.ceil(gH * 0.52), 52, 56, 65);
@@ -1133,7 +1074,6 @@ export class UIRenderer {
     gui.drawRectangle(gLX + math.floor(gW * 0.5) - 10, gLY + math.floor(gH * 0.48) - 3, 20, 8, 22, 24, 28);
     gui.drawRectangle(gLX + math.floor(gW * 0.5) - 6, gLY + math.floor(gH * 0.48) - 1, 12, 4, 225, 25, 35);
 
-    // Right Mirror Stalk & Housing
     gui.drawRectangle(mRX - 26, mY + mH - 12, 34, 18, carbonDark[0], carbonDark[1], carbonDark[2]);
     gui.drawRectangleLines(mRX - 26, mY + mH - 12, 34, 18, 55, 60, 72);
     gui.drawRectangle(mRX, mY, mW, mH, carbonDark[0], carbonDark[1], carbonDark[2]);
@@ -1146,9 +1086,6 @@ export class UIRenderer {
     gui.drawRectangle(gRX + math.floor(gW * 0.5) - 10, gLY + math.floor(gH * 0.48) - 3, 20, 8, 22, 24, 28);
     gui.drawRectangle(gRX + math.floor(gW * 0.5) - 6, gLY + math.floor(gH * 0.48) - 1, 12, 4, 30, 110, 220);
 
-    // ---------------------------------------------------------------------------
-    // 4. FORMULA 1 STEERING WHEEL WITH AUTHENTIC DRIVER ARMS & GLOVES
-    // ---------------------------------------------------------------------------
     let steerPx = steer * 55.0;
     let steerTilt = steer * 34.0;
     let wcX = cx + vibX + steerPx;
@@ -1159,17 +1096,14 @@ export class UIRenderer {
     let leftGripY = wcY - steerTilt;
     let rightGripY = wcY + steerTilt;
 
-    // Butterfly / Yoke sculpted wheel wings
     let wingSpan = 440.0;
     gui.drawRectangle(math.floor(wcX - wingSpan * 0.5), math.floor(wcY - 48.0), math.floor(wingSpan), 96, carbonDark[0], carbonDark[1], carbonDark[2]);
     gui.drawRectangleLines(math.floor(wcX - wingSpan * 0.5), math.floor(wcY - 48.0), math.floor(wingSpan), 96, 60, 65, 78);
 
-    // Central Hub with Display Screen Housing
     gui.drawRectangle(math.floor(wcX - hubW * 0.5), math.floor(wcY - hubH * 0.5), math.floor(hubW), math.floor(hubH), carbonMid[0], carbonMid[1], carbonMid[2]);
     gui.drawRectangleLines(math.floor(wcX - hubW * 0.5), math.floor(wcY - hubH * 0.5), math.floor(hubW), math.floor(hubH), 72, 78, 92);
     gui.drawRectangle(math.floor(wcX - hubW * 0.5 + 4), math.floor(wcY - hubH * 0.5 + 2), math.floor(hubW - 8), 4, teamCol[0], teamCol[1], teamCol[2]);
 
-    // Ergonomic Molded Side Grips (Alcantara Suede)
     let gripW = 56.0;
     let gripH = 175.0;
     let lGripX = math.floor(wcX - wingSpan * 0.5 - gripW * 0.5 + 10.0);
@@ -1182,18 +1116,16 @@ export class UIRenderer {
     gui.drawRectangle(rGripX, rGripY, math.floor(gripW), math.floor(gripH), 42, 45, 54);
     gui.drawRectangleLines(rGripX, rGripY, math.floor(gripW), math.floor(gripH), 65, 70, 82);
 
-    // VIBRANT DRIVER RACING SUIT SLEEVES IN TEAM COLORS (angled from bottom corners)
     let armBaseLY = lGripY + 85;
     for (let yA = armBaseLY; yA < scrH; yA += 2) {
       let fA = (yA - armBaseLY) / (scrH - armBaseLY + 0.0);
       let aW = gripW + 24.0 + fA * 150.0;
       let aX = lGripX - fA * 210.0;
 
-      // Team racing suit fabric
       gui.drawRectangle(math.floor(aX), yA, math.floor(aW), 2, suitCol[0], suitCol[1], suitCol[2]);
-      // Shadow shading on underside
+
       gui.drawRectangle(math.floor(aX), yA, 8, 2, math.floor(suitCol[0] * 0.7), math.floor(suitCol[1] * 0.7), math.floor(suitCol[2] * 0.7));
-      // White racing sponsor stripe
+
       gui.drawRectangle(math.floor(aX + aW * 0.45), yA, 10, 2, suitTrim[0], suitTrim[1], suitTrim[2]);
       gui.drawRectangle(math.floor(aX + aW * 0.45 + 10), yA, 5, 2, teamTrim[0], teamTrim[1], teamTrim[2]);
     }
@@ -1204,17 +1136,14 @@ export class UIRenderer {
       let aW = gripW + 24.0 + fA * 150.0;
       let aX = rGripX + fA * 90.0;
 
-      // Team racing suit fabric
       gui.drawRectangle(math.floor(aX), yA, math.floor(aW), 2, suitCol[0], suitCol[1], suitCol[2]);
-      // Shadow shading on underside
+
       gui.drawRectangle(math.floor(aX + aW - 8), yA, 8, 2, math.floor(suitCol[0] * 0.7), math.floor(suitCol[1] * 0.7), math.floor(suitCol[2] * 0.7));
-      // White racing sponsor stripe
+
       gui.drawRectangle(math.floor(aX + aW * 0.45), yA, 10, 2, suitTrim[0], suitTrim[1], suitTrim[2]);
       gui.drawRectangle(math.floor(aX + aW * 0.45 + 10), yA, 5, 2, teamTrim[0], teamTrim[1], teamTrim[2]);
     }
 
-    // HIGH-DETAIL DRIVER RACING GLOVES (Puma/Alpinestars F1 Specification)
-    // Left gloved hand
     gui.drawRectangle(lGripX - 8, lGripY + 42, math.floor(gripW + 10), 68, gloveCol[0], gloveCol[1], gloveCol[2]);
     gui.drawRectangle(lGripX - 10, lGripY + 48, 14, 52, teamCol[0], teamCol[1], teamCol[2]);
     gui.drawRectangle(lGripX + 6, lGripY + 50, math.floor(gripW - 14), 28, 28, 30, 36);
@@ -1228,7 +1157,6 @@ export class UIRenderer {
     gui.drawCircle(math.floor(lGripX + gripW - 2), math.floor(lGripY + 58), 7.0, teamCol[0], teamCol[1], teamCol[2]);
     gui.drawCircle(math.floor(lGripX + gripW - 2), math.floor(lGripY + 58), 3.5, 255, 255, 255);
 
-    // Right gloved hand
     gui.drawRectangle(rGripX - 2, rGripY + 42, math.floor(gripW + 10), 68, gloveCol[0], gloveCol[1], gloveCol[2]);
     gui.drawRectangle(rGripX + math.floor(gripW - 4), rGripY + 48, 14, 52, teamCol[0], teamCol[1], teamCol[2]);
     gui.drawRectangle(rGripX + 8, rGripY + 50, math.floor(gripW - 14), 28, 28, 30, 36);
@@ -1242,16 +1170,14 @@ export class UIRenderer {
     gui.drawCircle(math.floor(rGripX + 2), math.floor(rGripY + 58), 7.0, teamCol[0], teamCol[1], teamCol[2]);
     gui.drawCircle(math.floor(rGripX + 2), math.floor(rGripY + 58), 3.5, 255, 255, 255);
 
-    // Multi-Function Buttons on Wheel Wings
-    gui.drawCircle(math.floor(wcX - 160), math.floor(wcY - 24), 8.0, 255, 215, 30); // RADIO (Yellow)
-    gui.drawCircle(math.floor(wcX - 160), math.floor(wcY + 4), 8.0, 0, 230, 255);    // PIT LIMIT (Cyan)
-    gui.drawCircle(math.floor(wcX - 160), math.floor(wcY + 32), 8.0, 40, 240, 90);   // NEUTRAL (Green)
+    gui.drawCircle(math.floor(wcX - 160), math.floor(wcY - 24), 8.0, 255, 215, 30);
+    gui.drawCircle(math.floor(wcX - 160), math.floor(wcY + 4), 8.0, 0, 230, 255);
+    gui.drawCircle(math.floor(wcX - 160), math.floor(wcY + 32), 8.0, 40, 240, 90);
 
-    gui.drawCircle(math.floor(wcX + 160), math.floor(wcY - 24), 8.0, 255, 40, 180);  // DRS (Magenta)
-    gui.drawCircle(math.floor(wcX + 160), math.floor(wcY + 4), 8.0, 235, 35, 45);    // ENGINE (Red)
-    gui.drawCircle(math.floor(wcX + 160), math.floor(wcY + 32), 8.0, 255, 140, 30);  // OVERTAKE (Orange)
+    gui.drawCircle(math.floor(wcX + 160), math.floor(wcY - 24), 8.0, 255, 40, 180);
+    gui.drawCircle(math.floor(wcX + 160), math.floor(wcY + 4), 8.0, 235, 35, 45);
+    gui.drawCircle(math.floor(wcX + 160), math.floor(wcY + 32), 8.0, 255, 140, 30);
 
-    // Rotary Dials on Bottom Hub
     gui.drawCircle(math.floor(wcX - 60), math.floor(wcY + 50), 10.0, 34, 38, 48);
     gui.drawCircleLines(math.floor(wcX - 60), math.floor(wcY + 50), 10.0, 180, 195, 220);
     gui.drawLine(math.floor(wcX - 60), math.floor(wcY + 50), math.floor(wcX - 60), math.floor(wcY + 41), 255, 255, 255);
@@ -1260,7 +1186,6 @@ export class UIRenderer {
     gui.drawCircleLines(math.floor(wcX + 60), math.floor(wcY + 50), 10.0, 180, 195, 220);
     gui.drawLine(math.floor(wcX + 60), math.floor(wcY + 50), math.floor(wcX + 60), math.floor(wcY + 41), 255, 255, 255);
 
-    // 15-LED Shift Light Bar across top rim
     let curRpmRatio = math.abs(player.speed) / player.maxSpeed;
     if (curRpmRatio > 1.0) curRpmRatio = 1.0;
     let isRedline = (curRpmRatio >= 0.94 or player.isBoosting);
@@ -1292,7 +1217,6 @@ export class UIRenderer {
       }
     }
 
-    // OLED DIGITAL TELEMETRY DASH DISPLAY
     let oledW = 160.0;
     let oledH = 82.0;
     let oledX = math.floor(wcX - oledW * 0.5);
@@ -1301,7 +1225,6 @@ export class UIRenderer {
     gui.drawRectangle(oledX, oledY, math.floor(oledW), math.floor(oledH), 8, 12, 18);
     gui.drawRectangleLines(oledX, oledY, math.floor(oledW), math.floor(oledH), 45, 90, 110);
 
-    // Large gear indicator
     let gStr = "1";
     if (player.isReversing or player.speed < -0.5) {
       gStr = "R";
@@ -1318,18 +1241,15 @@ export class UIRenderer {
     }
     gui.drawText(gStr, math.floor(wcX - 9), math.floor(oledY + 12), 38, 255, 255, 255);
 
-    // Speed in KPH
     let kphSpd = math.floor(math.abs(player.speed) * 1.85);
     let spdText = str(kphSpd);
     gui.drawText(spdText, math.floor(wcX - 68), math.floor(oledY + 16), 24, 0, 245, 255);
     gui.drawText("KPH", math.floor(wcX - 68), math.floor(oledY + 44), 11, 140, 180, 205);
 
-    // RPM Readout
     let curRPM = math.floor(4000.0 + curRpmRatio * 8500.0);
     gui.drawText(str(curRPM), math.floor(wcX + 22), math.floor(oledY + 16), 16, 255, 215, 30);
     gui.drawText("RPM", math.floor(wcX + 22), math.floor(oledY + 36), 11, 180, 190, 200);
 
-    // ERS Battery Deployment Bar
     let ersFrac = player.nitro / player.maxNitro;
     gui.drawRectangle(math.floor(wcX - 65), math.floor(oledY + 62), 130, 8, 18, 26, 36);
     let ersW = math.floor(130.0 * ersFrac);

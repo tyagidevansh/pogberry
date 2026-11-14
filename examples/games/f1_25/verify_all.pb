@@ -1,16 +1,15 @@
-// PB SPORTS F1 25, Complete Subsystem Test & Verification
 use "pb_gui" as gui;
-use "constants" as const;
-use "math_util" as mu;
-use "assets" as assets_mod;
-use "camera" as cam_mod;
-use "particles" as part_mod;
-use "track" as track_mod;
-use "car" as car_mod;
-use "ui" as ui_mod;
-use "records" as rec_mod;
-use "track_io" as io;
-use "track_editor" as ed_mod;
+use "data/constants" as const;
+use "data/math_util" as mu;
+use "data/assets" as assets_mod;
+use "core/camera" as cam_mod;
+use "core/particles" as part_mod;
+use "core/track" as track_mod;
+use "core/car" as car_mod;
+use "ui/ui" as ui_mod;
+use "data/records" as rec_mod;
+use "ui/track_io" as io;
+use "ui/track_editor" as ed_mod;
 use "std.math" as math;
 
 gui.initWindow(const.SCREEN_WIDTH, const.SCREEN_HEIGHT, "PB SPORTS // F1 25 : TEST");
@@ -27,7 +26,6 @@ let recordManager = rec_mod.RecordManager("records.txt");
 print("Record test: Track 0 record is: " + str(recordManager.getRecord(0)));
 print("Record manager loaded without mutating the player's saved records.");
 
-// Test all 4 tracks
 for (let tId = 0; tId < const.TOTAL_TRACKS; tId += 1) {
   let track = track_mod.Track(tId);
   track.update(100.0, 0.016);
@@ -37,7 +35,6 @@ for (let tId = 0; tId < const.TOTAL_TRACKS; tId += 1) {
   print("Track " + str(tId) + " (" + const.getTrackSpec(tId)["name"] + ") initialized, curve=" + str(cOffset) + ", hill=" + str(yOffset));
 }
 
-// Test all 4 cars
 for (let cId = 0; cId < 4; cId += 1) {
   let car = car_mod.Vehicle(cId, true, "TEST_CAR", 0.0);
   let trk = track_mod.Track(0);
@@ -47,11 +44,10 @@ for (let cId = 0; cId < 4; cId += 1) {
   print("Car " + str(cId) + " (" + car.spec["name"] + ") updated cleanly, worldX=" + str(car.worldX));
 }
 
-// Test AI Rivals and Traffic
 let rival = car_mod.Vehicle(1, false, "RIVAL", -30.0);
 let trk = track_mod.Track(0);
 rival.updateAi(0.0, 100.0, 0.016, trk);
-// Test overtaking logic when following another vehicle
+
 rival.updateAi(-20.0, 90.0, 0.016, trk);
 print("AI Rival updated cleanly, worldX=" + str(rival.worldX));
 
@@ -60,12 +56,10 @@ traffic.update(100.0, 0.016);
 traffic.syncPosition(trk, 150.0);
 print("TrafficCar updated cleanly, worldX=" + str(traffic.worldX));
 
-// Test Camera lookahead
 cam.setLookCurve(trk.getCurveOffset(-34.0, 150.0));
 cam.updateFollow(0.0, 0.0, 0.0, 80.0, 0.0, 0.1, 0.0, false, 0.016);
 print("ChaseCamera lookahead updated cleanly");
 
-// Test UI screen rendering calls
 gui.beginDrawing();
 ui.updateDimensions();
 ui.drawTitleScreen(0.5, 0, 1, 0);
@@ -74,28 +68,24 @@ ui.drawGarageScreen(0, cSpec, 0.5);
 let tSpec = const.getTrackSpec(0);
 ui.drawTrackSelectScreen(0, tSpec, recordManager, 0.5, 1);
 
-// Test Grand Prix HUD
 ui.setMode(const.MODE_GRAND_PRIX);
 ui.setTrackId(const.TRACK_SUZUKA);
 ui.setBanner("OBJECTIVE: PODIUM FINISH", "TOP 3", 3.0, 255, 220, 40);
 ui.updateBanners(0.016);
 ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 1, 3, 12.4, 88.5, 1, 5, true, 0.5, 200.0, 5807.0, [rival]);
 
-// Test Time Attack HUD
 ui.setMode(const.MODE_TIME_ATTACK);
 ui.setTrackId(const.TRACK_SPA);
 ui.setTimeAttackDelta(-0.45);
 ui.drawHUD(car_mod.Vehicle(0, true, "P", 0.0), 2, 3, 21.0, 102.5, 1, 1, false, 0.5, 800.0, 7004.0, nil);
 ui.drawTimeoutScreen(0.5);
 
-// Test Cockpit In-Car View Overlay
 let testCockpitCar = car_mod.Vehicle(0, true, "TEST_COCKPIT", 0.0);
 testCockpitCar.speed = 175.0;
 testCockpitCar.steerAngle = 0.12;
 ui.drawCockpitView(testCockpitCar, 0.5, 0.016);
 ui.drawHUD(testCockpitCar, 1, 3, 15.0, 0.0, 1, 5, true, 0.5, 500.0, 5807.0, [rival]);
 
-// Test Realistic Mode HUD and Crashed Screen
 ui.setMode(const.MODE_REALISTIC);
 ui.drawHUD(testCockpitCar, 1, 3, 18.2, 0.0, 1, 5, true, 0.5, 600.0, 5807.0, [rival]);
 ui.drawCrashedScreen(0.5);
@@ -105,9 +95,8 @@ ui.drawPauseMenu(0, "COCKPIT (IN-CAR)", "AMATEUR (MEDIUM)");
 ui.drawResultsScreen(1, 5, 41.2, 42.5, true, 0.5);
 ui.drawCrashedScreen(0.5);
 
-// Test 3D rendering pass with rivals and track
 cam.begin3DPass();
-gui.drawPlane3D(0.0, -0.2, 0.0, 4500.0, 4500.0, 10, 12, 18);
+gui.drawPlane3D([0.0, -0.2, 0.0], [4500.0, 4500.0], [10, 12, 18]);
 let trkTest = track_mod.Track(0);
 trkTest.draw(0.0, 100.0, 0.5, assets, cam);
 let rCarTest = car_mod.Vehicle(1, false, "RIVAL", -10.0);
@@ -119,14 +108,13 @@ if (math.abs(dDistTest) < 280.0) {
 }
 cam.end3DPass();
 
-// Test Nitro velocity shader pass
 if (assets.shaderVelocity != nil) {
   gui.setShaderFloat(assets.shaderVelocity, "u_time", 1.0);
   gui.setShaderFloat(assets.shaderVelocity, "u_speed", 0.9);
   gui.setShaderFloat(assets.shaderVelocity, "u_intensity", 1.0);
   gui.setShaderVec2(assets.shaderVelocity, "u_resolution", const.SCREEN_WIDTH, const.SCREEN_HEIGHT);
   gui.beginShaderMode(assets.shaderVelocity);
-  gui.drawRectangle(0, 0, const.SCREEN_WIDTH, const.SCREEN_HEIGHT, 255, 255, 255);
+  gui.drawRectangle([0, 0, const.SCREEN_WIDTH, const.SCREEN_HEIGHT], [255, 255, 255]);
   gui.endShaderMode();
   print("Nitro velocity shader pass rendered cleanly");
 }
@@ -134,7 +122,6 @@ if (assets.shaderVelocity != nil) {
 gui.endDrawing();
 print("All UI state renderers executed without error!");
 
-// Test Track Serialization and Track Editor instantiation
 let exported = io.exportOfficialTrack(0);
 print("Exported official track 0 cleanly: " + exported["name"]);
 let editor = ed_mod.TrackEditor(assets, nil);
@@ -143,15 +130,13 @@ editor.update(0.016);
 editor.draw(0.0);
 print("TrackEditor update and draw passes executed cleanly!");
 
-// Verify Realistic Mode and AI Safety Mechanics
 let testTrk = track_mod.Track(0);
 
-// Test 1: Hard wall collision triggers terminal crash in realistic mode
 let pRealHard = car_mod.Vehicle(0, true, "PLAYER_HARD", 0.0);
 pRealHard.gameMode = const.MODE_REALISTIC;
 pRealHard.speed = 50.0;
 pRealHard.trackDistance = 100.0;
-pRealHard.x = 25.0; // Outside barrier
+pRealHard.x = 25.0;
 pRealHard.updatePlayer(0.016, testTrk, nil, nil);
 if (!pRealHard.isTerminalCrash) {
   print("FAIL: Hard wall impact did not trigger terminal crash in realistic mode");
@@ -159,7 +144,6 @@ if (!pRealHard.isTerminalCrash) {
   print("PASS: Hard wall impact triggered terminal crash in realistic mode");
 }
 
-// Test 2: Gentle wall contact does not trigger terminal crash in realistic mode
 let pRealSoft = car_mod.Vehicle(0, true, "PLAYER_SOFT", 0.0);
 pRealSoft.gameMode = const.MODE_REALISTIC;
 pRealSoft.speed = 8.0;
@@ -173,12 +157,11 @@ if (pRealSoft.isTerminalCrash) {
   print("PASS: Gentle wall contact did not trigger terminal crash");
 }
 
-// Test 3: AI cars never hit wall
 let aiTestCar = car_mod.Vehicle(1, false, "AI_SAFETY_TEST", 0.0);
 aiTestCar.gameMode = const.MODE_REALISTIC;
 aiTestCar.speed = 60.0;
 aiTestCar.trackDistance = 100.0;
-aiTestCar.x = 35.0; // Far outside barrier
+aiTestCar.x = 35.0;
 aiTestCar.updatePlayer(0.016, testTrk, nil, nil);
 let barLimits = testTrk.getBarrierLimits(100.0);
 let maxAllowedX = barLimits[1] - 1.30 - 1.20;
@@ -188,7 +171,6 @@ if (aiTestCar.x > maxAllowedX) {
   print("PASS: AI car safety clamp held inside barrier margins cleanly");
 }
 
-// Test 4: Hard car collision triggers terminal crash in realistic mode
 let pCarCrash = car_mod.Vehicle(0, true, "PLAYER_CAR_CRASH", 0.0);
 pCarCrash.gameMode = const.MODE_REALISTIC;
 pCarCrash.speed = 90.0;
@@ -198,7 +180,7 @@ pCarCrash.x = 0.0;
 let rivalCarCrash = car_mod.Vehicle(1, false, "RIVAL_CRASH", 0.0);
 rivalCarCrash.gameMode = const.MODE_REALISTIC;
 rivalCarCrash.speed = 30.0;
-rivalCarCrash.trackDistance = 152.0; // 2m ahead (closing speed 60 m/s)
+rivalCarCrash.trackDistance = 152.0;
 rivalCarCrash.x = 0.0;
 
 let testCars = [pCarCrash, rivalCarCrash];
@@ -209,7 +191,6 @@ if (!pCarCrash.isTerminalCrash) {
   print("PASS: High-speed car collision triggered terminal crash in realistic mode");
 }
 
-// Test 5: AI avoidance steers away from nearby player
 let aiAvoidCar = car_mod.Vehicle(2, false, "AI_AVOID", 0.0);
 aiAvoidCar.gameMode = const.MODE_REALISTIC;
 aiAvoidCar.speed = 50.0;
@@ -217,7 +198,7 @@ aiAvoidCar.trackDistance = 200.0;
 aiAvoidCar.x = 0.0;
 aiAvoidCar.playerNear = true;
 aiAvoidCar.playerDeltaS = 8.0;
-aiAvoidCar.playerDeltaX = 2.0; // Player is to the right
+aiAvoidCar.playerDeltaX = 2.0;
 aiAvoidCar.updateAi(-8.0, 50.0, 0.016, testTrk);
 let input = aiAvoidCar.inputOverride;
 if (input != nil and input["steer"] < 0.0) {

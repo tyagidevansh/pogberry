@@ -1,7 +1,6 @@
-// PB SPORTS F1 25, 3D Particle Systems
 use "pb_gui" as gui;
 use "std.math" as math;
-use "math_util" as mu;
+use "data/math_util" as mu;
 
 export class ParticleSystem {
   init() {
@@ -11,7 +10,7 @@ export class ParticleSystem {
 
   emit(x, y, z, vx, vy, vz, size, r, g, b, life, kind) {
     if (len(this.particles) >= this.maxParticles) {
-      // Replace oldest
+
       this.particles.pop();
     }
     this.particles.push({
@@ -25,11 +24,11 @@ export class ParticleSystem {
   }
 
   emitNitroFlames(carX, carY, carZ, carSpeed, boostLevel) {
-    // Battery deployment uses F1 hybrid power with zero trailing exhaust flame boxes
+
   }
 
   emitDriftSmoke(carX, carY, carZ, driftSign) {
-    // Tire smoke behind rear tires
+
     let offsetX = 0.85;
     if (driftSign < 0) offsetX = -0.85;
     this.emit(carX + offsetX, carY + 0.15, carZ + 1.2,
@@ -63,12 +62,11 @@ export class ParticleSystem {
         p["y"] = p["y"] + p["vy"] * dt;
         p["z"] = p["z"] + p["vz"] * dt;
 
-        // Smoke expands and rises
         if (p["kind"] == 1) {
           p["size"] = p["size"] + dt * 0.6;
           p["vy"] = p["vy"] + dt * 0.8;
         }
-        // Sparks fall with gravity
+
         else if (p["kind"] == 2) {
           p["vy"] = p["vy"] - dt * 22.0;
         }
@@ -89,13 +87,13 @@ export class ParticleSystem {
       if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;
 
       if (p["kind"] == 0) {
-        // Flame cube
+
         gui.drawCube3D(p["x"], p["y"], p["z"], p["size"], p["size"], p["size"] * 1.6, r, g, b);
       } else if (p["kind"] == 1) {
-        // Smoke sphere
+
         gui.drawSphere3D(p["x"], p["y"], p["z"], p["size"], r, g, b);
       } else {
-        // Spark
+
         gui.drawCube3D(p["x"], p["y"], p["z"], p["size"], p["size"], p["size"], r, g, b);
       }
     }
@@ -105,4 +103,3 @@ export class ParticleSystem {
     this.particles = [];
   }
 }
-

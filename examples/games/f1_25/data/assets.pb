@@ -1,6 +1,5 @@
-// PB SPORTS F1 25, Asset Manager
 use "pb_gui" as gui;
-use "constants" as const;
+use "data/constants" as const;
 
 export class AssetManager {
   init(baseDir) {
@@ -8,7 +7,6 @@ export class AssetManager {
     this.modelsDir = baseDir + "/assets/models";
     this.audioDir = baseDir + "/assets/audio";
 
-    // 3D Model Handles
     this.modelFerrari = 0;
     this.modelRedBull = 0;
     this.modelMercedes = 0;
@@ -53,7 +51,6 @@ export class AssetManager {
     this.modelBillboardDouble = 0;
     this.modelGrandStandAwning = 0;
 
-    // Sound Handles
     this.sndCountdownLow = 0;
     this.sndCountdownHigh = 0;
     this.sndCheckpoint = 0;
@@ -66,20 +63,17 @@ export class AssetManager {
     this.sndWin = 0;
     this.sndEngineStart = 0;
 
-    // Music Handles
     this.musicCruise = 0;
     this.musicClimax = 0;
     this.activeMusic = 0;
     this.musicMuted = false;
 
-    // Post processing shader
     this.shaderVelocity = nil;
   }
 
   loadAll() {
     gui.initAudio();
 
-    // Load 3D Models
     this.modelFerrari = gui.loadModel(this.modelsDir + "/car_ferrari.obj");
     this.modelRedBull = gui.loadModel(this.modelsDir + "/car_redbull.obj");
     this.modelMercedes = gui.loadModel(this.modelsDir + "/car_mercedes.obj");
@@ -97,14 +91,12 @@ export class AssetManager {
     this.modelCone = gui.loadModel(this.modelsDir + "/cone.obj");
     this.modelBox = gui.loadModel(this.modelsDir + "/box.obj");
 
-    // City models
     this.modelBuildingA = gui.loadModel(this.modelsDir + "/building-small-a.glb");
     this.modelBuildingB = gui.loadModel(this.modelsDir + "/building-small-b.glb");
     this.modelBuildingC = gui.loadModel(this.modelsDir + "/building-small-c.glb");
     this.modelBuildingD = gui.loadModel(this.modelsDir + "/building-small-d.glb");
     this.modelGarage = gui.loadModel(this.modelsDir + "/building-garage.glb");
 
-    // Kenney Low-Poly Track & Scenery Models
     this.modelTreeLarge = gui.loadModel(this.modelsDir + "/treeLarge.glb");
     this.modelTreeSmall = gui.loadModel(this.modelsDir + "/treeSmall.glb");
     this.modelGrandStand = gui.loadModel(this.modelsDir + "/grandStand.glb");
@@ -128,7 +120,6 @@ export class AssetManager {
     this.modelBillboardDouble = gui.loadModel(this.modelsDir + "/billboardDouble_exclusive.glb");
     this.modelGrandStandAwning = gui.loadModel(this.modelsDir + "/grandStandAwning.glb");
 
-    // Load Sounds
     this.sndCountdownLow = gui.loadSound(this.audioDir + "/countdown_low.wav");
     this.sndCountdownHigh = gui.loadSound(this.audioDir + "/countdown_high.wav");
     this.sndCheckpoint = gui.loadSound(this.audioDir + "/checkpoint.wav");
@@ -141,7 +132,6 @@ export class AssetManager {
     this.sndWin = gui.loadSound(this.audioDir + "/win.wav");
     this.sndEngineStart = gui.loadSound(this.baseDir + "/assets/engine-start.wav");
 
-    // Volumes
     if (this.sndEngineStart > 0) gui.setSoundVolume(this.sndEngineStart, 0.45);
     if (this.sndNitro > 0) gui.setSoundVolume(this.sndNitro, 0.55);
     if (this.sndSkid > 0) gui.setSoundVolume(this.sndSkid, 0.35);
@@ -152,7 +142,6 @@ export class AssetManager {
     if (this.sndSelect > 0) gui.setSoundVolume(this.sndSelect, 0.40);
     if (this.sndConfirm > 0) gui.setSoundVolume(this.sndConfirm, 0.50);
 
-    // Music
     this.musicCruise = gui.loadMusic(this.baseDir + "/assets/neon-sign-circuit.ogg");
     this.musicClimax = gui.loadMusic(this.baseDir + "/assets/neon-sign-circuit-climax.ogg");
     if (this.musicCruise > 0) {
@@ -164,7 +153,6 @@ export class AssetManager {
       gui.setMusicVolume(this.musicClimax, 0.40);
     }
 
-    // Shader
     this.shaderVelocity = gui.loadShader(nil, this.baseDir + "/assets/velocity.fs");
   }
 
@@ -176,9 +164,9 @@ export class AssetManager {
     else m = this.modelMcLaren;
 
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(m, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + 0.5, z, 1.8, 0.6, 3.2, r, g, b);
+      gui.drawCube3D([x, y + 0.5, z], [1.8, 0.6, 3.2], [r, g, b]);
     }
   }
 
@@ -191,9 +179,9 @@ export class AssetManager {
     else if (typeId == 5) m = this.modelRivalFormula;
 
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+      gui.drawModelRotY(m, [x, y, z], rotY, scale, [r, g, b]);
     } else {
-      gui.drawCube3D(x, y + 0.6, z, 1.9, 0.8, 3.4, r, g, b);
+      gui.drawCube3D([x, y + 0.6, z], [1.9, 0.8, 3.4], [r, g, b]);
     }
   }
 
@@ -204,25 +192,25 @@ export class AssetManager {
     else if (variant == 3) m = this.modelBuildingD;
 
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(m, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + scale * 4.0, z, scale * 3.0, scale * 8.0, scale * 3.0, 40, 45, 65);
+      gui.drawCube3D([x, y + scale * 4.0, z], [scale * 3.0, scale * 8.0, scale * 3.0], [40, 45, 65]);
     }
   }
 
   playHazardCone(x, y, z, scale) {
     if (this.modelCone > 0) {
-      gui.drawModel(this.modelCone, x, y, z, scale, 255, 120, 20);
+      gui.drawModel(this.modelCone, [x, y, z], scale, [255, 120, 20]);
     } else {
-      gui.drawCylinder3D(x, y + 0.5, z, 0.05, 0.4, 0.9, 8, 255, 120, 20);
+      gui.drawCylinder3D([x, y + 0.5, z], [0.05, 0.4, 0.9], 8, [255, 120, 20]);
     }
   }
 
   playHazardBox(x, y, z, scale) {
     if (this.modelBox > 0) {
-      gui.drawModel(this.modelBox, x, y, z, scale, 210, 180, 110);
+      gui.drawModel(this.modelBox, [x, y, z], scale, [210, 180, 110]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.5, z, scale, scale, scale, 210, 180, 110);
+      gui.drawCube3D([x, y + scale * 0.5, z], [scale, scale, scale], [210, 180, 110]);
     }
   }
 
@@ -230,9 +218,9 @@ export class AssetManager {
     let m = this.modelTreeLarge;
     if (variant == 1) m = this.modelTreeSmall;
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(m, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCylinder3D(x, y + scale * 0.5, z, 0.2, scale * 0.4, scale, 6, 20, 80, 30);
+      gui.drawCylinder3D([x, y + scale * 0.5, z], [0.2, scale * 0.4, scale], 6, [20, 80, 30]);
     }
   }
 
@@ -240,58 +228,58 @@ export class AssetManager {
     let m = this.modelGrandStand;
     if (variant == 1) m = this.modelGrandStandCovered;
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+      gui.drawModelRotY(m, [x, y, z], rotY, scale, [r, g, b]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.4, z, scale, scale * 0.8, scale, r, g, b);
+      gui.drawCube3D([x, y + scale * 0.4, z], [scale, scale * 0.8, scale], [r, g, b]);
     }
   }
 
   playBillboard(x, y, z, scale, rotY) {
     if (this.modelBillboard > 0) {
-      gui.drawModelEx(this.modelBillboard, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelBillboard, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.5, z, 0.3, scale, scale * 1.5, 255, 200, 40);
+      gui.drawCube3D([x, y + scale * 0.5, z], [0.3, scale, scale * 1.5], [255, 200, 40]);
     }
   }
 
   playGantry(x, y, z, scale, rotY) {
     if (this.modelOverheadLights > 0) {
       let centeredX = x - 0.50 * scale;
-      gui.drawModelEx(this.modelOverheadLights, centeredX, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelOverheadLights, [centeredX, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + 4.0, z, 16.0, 0.4, 0.4, 180, 190, 210);
+      gui.drawCube3D([x, y + 4.0, z], [16.0, 0.4, 0.4], [180, 190, 210]);
     }
   }
 
   playLightPost(x, y, z, scale, rotY) {
     if (this.modelLightPost > 0) {
-      gui.drawModelEx(this.modelLightPost, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelLightPost, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCylinder3D(x, y + scale * 0.5, z, 0.1, 0.1, scale, 4, 160, 170, 180);
+      gui.drawCylinder3D([x, y + scale * 0.5, z], [0.1, 0.1, scale], 4, [160, 170, 180]);
     }
   }
 
   playPitsGarage(x, y, z, scale, rotY, r, g, b) {
     if (this.modelPitsGarage > 0) {
-      gui.drawModelEx(this.modelPitsGarage, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+      gui.drawModelRotY(this.modelPitsGarage, [x, y, z], rotY, scale, [r, g, b]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.5, z, scale, scale, scale, r, g, b);
+      gui.drawCube3D([x, y + scale * 0.5, z], [scale, scale, scale], [r, g, b]);
     }
   }
 
   playBannerTower(x, y, z, scale, rotY) {
     if (this.modelBannerTower > 0) {
-      gui.drawModelEx(this.modelBannerTower, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelBannerTower, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.5, z, scale * 0.2, scale, scale * 0.2, 220, 30, 40);
+      gui.drawCube3D([x, y + scale * 0.5, z], [scale * 0.2, scale, scale * 0.2], [220, 30, 40]);
     }
   }
 
   playFlagCheckers(x, y, z, scale, rotY) {
     if (this.modelFlagCheckers > 0) {
-      gui.drawModelEx(this.modelFlagCheckers, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelFlagCheckers, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCylinder3D(x, y + scale * 0.5, z, 0.05, 0.05, scale, 4, 255, 255, 255);
+      gui.drawCylinder3D([x, y + scale * 0.5, z], [0.05, 0.05, scale], 4, [255, 255, 255]);
     }
   }
 
@@ -299,25 +287,25 @@ export class AssetManager {
     let m = this.modelTent;
     if (variant == 1) m = this.modelTentLong;
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+      gui.drawModelRotY(m, [x, y, z], rotY, scale, [r, g, b]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.4, z, scale, scale * 0.8, scale, r, g, b);
+      gui.drawCube3D([x, y + scale * 0.4, z], [scale, scale * 0.8, scale], [r, g, b]);
     }
   }
 
   playPitsOffice(x, y, z, scale, rotY, r, g, b) {
     if (this.modelPitsOffice > 0) {
-      gui.drawModelEx(this.modelPitsOffice, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+      gui.drawModelRotY(this.modelPitsOffice, [x, y, z], rotY, scale, [r, g, b]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.6, z, scale, scale * 1.2, scale, r, g, b);
+      gui.drawCube3D([x, y + scale * 0.6, z], [scale, scale * 1.2, scale], [r, g, b]);
     }
   }
 
   playRadar(x, y, z, scale, rotY) {
     if (this.modelRadar > 0) {
-      gui.drawModelEx(this.modelRadar, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelRadar, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.5, z, 0.4, scale, 0.4, 200, 210, 220);
+      gui.drawCube3D([x, y + scale * 0.5, z], [0.4, scale, 0.4], [200, 210, 220]);
     }
   }
 
@@ -325,49 +313,49 @@ export class AssetManager {
     let m = this.modelFlagTankco;
     if (variant == 1) m = this.modelFlagRed;
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(m, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCylinder3D(x, y + scale * 0.5, z, 0.04, 0.04, scale, 4, 255, 40, 50);
+      gui.drawCylinder3D([x, y + scale * 0.5, z], [0.04, 0.04, scale], 4, [255, 40, 50]);
     }
   }
 
   playLargeFloodlight(x, y, z, scale, rotY) {
     if (this.modelLightPostLarge > 0) {
-      gui.drawModelEx(this.modelLightPostLarge, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelLightPostLarge, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCylinder3D(x, y + scale * 0.5, z, 0.15, 0.15, scale, 4, 180, 190, 200);
+      gui.drawCylinder3D([x, y + scale * 0.5, z], [0.15, 0.15, scale], 4, [180, 190, 200]);
     }
   }
 
   playDoubleBillboard(x, y, z, scale, rotY) {
     if (this.modelBillboardDouble > 0) {
-      gui.drawModelEx(this.modelBillboardDouble, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelBillboardDouble, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.5, z, 0.4, scale, scale * 2.0, 255, 220, 50);
+      gui.drawCube3D([x, y + scale * 0.5, z], [0.4, scale, scale * 2.0], [255, 220, 50]);
     }
   }
 
   playGrandstandAwning(x, y, z, scale, rotY, r, g, b) {
     if (this.modelGrandStandAwning > 0) {
-      gui.drawModelEx(this.modelGrandStandAwning, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+      gui.drawModelRotY(this.modelGrandStandAwning, [x, y, z], rotY, scale, [r, g, b]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.4, z, scale, scale * 0.8, scale, r, g, b);
+      gui.drawCube3D([x, y + scale * 0.4, z], [scale, scale * 0.8, scale], [r, g, b]);
     }
   }
 
   playPaddockHauler(x, y, z, scale, rotY, r, g, b) {
     if (this.modelTruck > 0) {
-      gui.drawModelEx(this.modelTruck, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, r, g, b);
+      gui.drawModelRotY(this.modelTruck, [x, y, z], rotY, scale, [r, g, b]);
     } else {
-      gui.drawCube3D(x, y + 1.2, z, 2.2, 2.4, 6.5, r, g, b);
+      gui.drawCube3D([x, y + 1.2, z], [2.2, 2.4, 6.5], [r, g, b]);
     }
   }
 
   playFenceStraight(x, y, z, scale, rotY) {
     if (this.modelFenceStraight > 0) {
-      gui.drawModelEx(this.modelFenceStraight, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(this.modelFenceStraight, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.5, z, scale * 2.0, scale, 0.1, 190, 195, 205);
+      gui.drawCube3D([x, y + scale * 0.5, z], [scale * 2.0, scale, 0.1], [190, 195, 205]);
     }
   }
 
@@ -375,9 +363,9 @@ export class AssetManager {
     let m = this.modelBarrierRed;
     if (variant == 1) m = this.modelBarrierWhite;
     if (m > 0) {
-      gui.drawModelEx(m, x, y, z, 0.0, 1.0, 0.0, rotY, scale, scale, scale, 255, 255, 255);
+      gui.drawModelRotY(m, [x, y, z], rotY, scale, [255, 255, 255]);
     } else {
-      gui.drawCube3D(x, y + scale * 0.4, z, scale * 1.5, scale * 0.8, 0.4, 220, 40, 50);
+      gui.drawCube3D([x, y + scale * 0.4, z], [scale * 1.5, scale * 0.8, 0.4], [220, 40, 50]);
     }
   }
 
@@ -411,7 +399,7 @@ export class AssetManager {
   }
 
   unloadAll() {
-    // Unload Models
+
     if (this.modelFerrari > 0) gui.unloadModel(this.modelFerrari);
     if (this.modelRedBull > 0) gui.unloadModel(this.modelRedBull);
     if (this.modelMercedes > 0) gui.unloadModel(this.modelMercedes);
@@ -456,7 +444,6 @@ export class AssetManager {
     if (this.modelBillboardDouble > 0) gui.unloadModel(this.modelBillboardDouble);
     if (this.modelGrandStandAwning > 0) gui.unloadModel(this.modelGrandStandAwning);
 
-    // Unload Sounds
     if (this.sndCountdownLow > 0) gui.unloadSound(this.sndCountdownLow);
     if (this.sndCountdownHigh > 0) gui.unloadSound(this.sndCountdownHigh);
     if (this.sndCheckpoint > 0) gui.unloadSound(this.sndCheckpoint);
@@ -468,7 +455,6 @@ export class AssetManager {
     if (this.sndWin > 0) gui.unloadSound(this.sndWin);
     if (this.sndEngineStart > 0) gui.unloadSound(this.sndEngineStart);
 
-    // Unload Music & Shader
     if (this.musicCruise > 0) gui.unloadMusic(this.musicCruise);
     if (this.musicClimax > 0) gui.unloadMusic(this.musicClimax);
     if (this.shaderVelocity != nil) gui.unloadShader(this.shaderVelocity);

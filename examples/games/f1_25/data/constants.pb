@@ -1,12 +1,10 @@
-// PB SPORTS F1 25, Game Constants & Configuration
 use "std.math" as math;
-use "f1_data" as f1;
+use "data/f1_data" as f1;
 
 export let SCREEN_WIDTH = 1280;
 export let SCREEN_HEIGHT = 720;
 export let TARGET_FPS = 60;
 
-// Game States
 export let STATE_TITLE = 0;
 export let STATE_GARAGE = 1;
 export let STATE_TRACK_SELECT = 2;
@@ -18,37 +16,33 @@ export let STATE_CRASHED = 7;
 export let STATE_TIMEOUT = 8;
 export let STATE_TRACK_EDITOR = 9;
 
-// Game Modes
 export let MODE_GRAND_PRIX = 0;
 export let MODE_TIME_ATTACK = 1;
 export let MODE_REALISTIC = 2;
 export let MODE_OUTRUN = -1;
 export let TOTAL_MODES = 3;
 
-// AI Difficulty Levels
-export let AI_DIFF_ROOKIE = 0;   // Easy (relaxed pace, gentle cornering)
-export let AI_DIFF_AMATEUR = 1;  // Legacy alias for Medium
-export let AI_DIFF_PRO = 1;      // Medium (former top tier: 85% pace, trail-braking)
-export let AI_DIFF_CHAMPION = 2; // Hard / Legend (100% full throttle, late braking, full nitro)
+export let AI_DIFF_ROOKIE = 0;
+export let AI_DIFF_AMATEUR = 1;
+export let AI_DIFF_PRO = 1;
+export let AI_DIFF_CHAMPION = 2;
 export let TOTAL_AI_DIFFS = 3;
 
-// Vehicle IDs
-export let CAR_VALKYRIE = 0;  // Red Bull Racing RB-20
-export let CAR_SHINOBI = 1;   // Mercedes-AMG Silver Arrow W15
-export let CAR_PHANTOM = 2;   // Scuderia Ferrari SF-24
-export let CAR_VANTA = 3;     // McLaren Papaya Speed MCL38
-export let CAR_BRITISH = 4;   // Aston Martin British Racing AMR24
+export let CAR_VALKYRIE = 0;
+export let CAR_SHINOBI = 1;
+export let CAR_PHANTOM = 2;
+export let CAR_VANTA = 3;
+export let CAR_BRITISH = 4;
 export let TOTAL_CARS = 4;
 
-// Official FIA Formula 1 Track IDs
-export let TRACK_SUZUKA = 0;   // Suzuka International Circuit (Japanese GP // Figure-8 & Esses)
-export let TRACK_SPA = 1;      // Circuit de Spa-Francorchamps (Ardennes GP // Eau Rouge & Kemmel)
-export let TRACK_MONZA = 2;    // Autodromo Nazionale Monza (Italian GP // Temple of Speed & Chicanes)
-export let TRACK_MONACO = 3;   // Circuit de Monaco (Riviera GP // Harbor & Casino Hairpin)
-export let TRACK_SHIBUYA = 0;  // Legacy alias
-export let TRACK_CANYON = 1;   // Legacy alias
-export let TRACK_HYPERION = 2; // Legacy alias
-export let TRACK_SUNSET = 3;   // Legacy alias
+export let TRACK_SUZUKA = 0;
+export let TRACK_SPA = 1;
+export let TRACK_MONZA = 2;
+export let TRACK_MONACO = 3;
+export let TRACK_SHIBUYA = 0;
+export let TRACK_CANYON = 1;
+export let TRACK_HYPERION = 2;
+export let TRACK_SUNSET = 3;
 export let TOTAL_TRACKS = 4;
 
 export fun getTotalTracks() {
@@ -59,8 +53,6 @@ export fun registerCustomTrack(def) {
   return f1.registerCustomTrack(def);
 }
 
-// Machine Specs: [name, subtitle, topSpeed, accel, driftGrip, maxHull, nitroCapacity, modelName, scale]
-// Balanced F1 performance envelope: aggregate performance is nearly equal with subtle personality nuances
 export fun getCarSpec(id) {
   if (id == 0) {
     return {
@@ -78,8 +70,8 @@ export fun getCarSpec(id) {
       "nitroRegen": 13.0,
       "model": "car_redbull.obj",
       "scale": 1.45,
-      "primaryColor": [18, 32, 85],      // Midnight Matte Navy
-      "glowColor": [255, 215, 30]         // Gold
+      "primaryColor": [18, 32, 85],
+      "glowColor": [255, 215, 30]
     };
   }
   if (id == 1) {
@@ -98,8 +90,8 @@ export fun getCarSpec(id) {
       "nitroRegen": 13.0,
       "model": "car_mercedes.obj",
       "scale": 1.45,
-      "primaryColor": [215, 222, 230],   // Mercedes Silver
-      "glowColor": [0, 235, 215]          // Petronas Teal
+      "primaryColor": [215, 222, 230],
+      "glowColor": [0, 235, 215]
     };
   }
   if (id == 2) {
@@ -118,8 +110,8 @@ export fun getCarSpec(id) {
       "nitroRegen": 13.0,
       "model": "car_ferrari.obj",
       "scale": 1.45,
-      "primaryColor": [235, 25, 35],     // Ferrari Red
-      "glowColor": [255, 215, 20]         // Modena Yellow
+      "primaryColor": [235, 25, 35],
+      "glowColor": [255, 215, 20]
     };
   }
   if (id == 3) {
@@ -138,8 +130,8 @@ export fun getCarSpec(id) {
       "nitroRegen": 13.0,
       "model": "car_mclaren.obj",
       "scale": 1.45,
-      "primaryColor": [255, 130, 20],     // Papaya Orange
-      "glowColor": [40, 180, 255]         // Gulf Blue
+      "primaryColor": [255, 130, 20],
+      "glowColor": [40, 180, 255]
     };
   }
   return {
@@ -157,12 +149,11 @@ export fun getCarSpec(id) {
     "nitroRegen": 13.0,
     "model": "race.obj",
     "scale": 1.45,
-    "primaryColor": [0, 110, 68],        // British Racing Green
-    "glowColor": [180, 255, 50]          // Lime Green
+    "primaryColor": [0, 110, 68],
+    "glowColor": [180, 255, 50]
   };
 }
 
-// Track Information
 export fun getTrackSpec(id) {
   if (id == 0) {
     return {
@@ -330,9 +321,6 @@ export fun getTrackSpec(id) {
   };
 }
 
-// -----------------------------------------------------------------------------
-// Official FIA Formula 1 Closed Circuit Geometry (via f1_data.pb)
-// -----------------------------------------------------------------------------
 export fun getTrackWorldPoint(id, s) {
   return f1.getTrackWorldPoint(id, s);
 }
@@ -352,4 +340,3 @@ export fun getTrackCurvature(id, s) {
 export fun getTrackBounds(id) {
   return f1.getF1Bounds(id);
 }
-

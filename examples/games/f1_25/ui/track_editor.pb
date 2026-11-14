@@ -1,13 +1,12 @@
-// PB SPORTS F1 25, Visual In-Game Track Editor
 use "pb_gui" as gui;
 use "std.math" as math;
-use "math_util" as mu;
-use "constants" as const;
-use "f1_data" as f1;
-use "track_io" as io;
-use "track" as track_mod;
-use "car" as car_mod;
-use "camera" as cam_mod;
+use "data/math_util" as mu;
+use "data/constants" as const;
+use "data/f1_data" as f1;
+use "ui/track_io" as io;
+use "core/track" as track_mod;
+use "core/car" as car_mod;
+use "core/camera" as cam_mod;
 
 export fun calculateTrackLength(nodes) {
   let N = len(nodes);
@@ -45,7 +44,7 @@ export class TrackEditor {
     this.panStartPanX = 0.0;
     this.panStartPanZ = 0.0;
 
-    this.activeTab = 0; // 0: CIRCUIT, 1: ELEVATION, 2: TUNNELS, 3: PROPS
+    this.activeTab = 0;
     this.selectedNode = 0;
     this.isDraggingNode = false;
     this.selectedPropType = "grandstandCovered";
@@ -56,14 +55,12 @@ export class TrackEditor {
     this.statusMessage = "Track Editor Ready";
     this.statusTimer = 3.0;
 
-    // Test drive sub-engine
     this.isTestDriving = false;
     this.testTrack = nil;
     this.testCar = nil;
     this.testCam = nil;
     this.testLapTime = 0.0;
 
-    // Initial default blank track
     this.createNewTrack("NEW CIRCUIT");
   }
 
@@ -236,7 +233,6 @@ export class TrackEditor {
       return "TEST_DRIVE";
     }
 
-    // Hotkey actions
     if (gui.isKeyPressed("KEY_T")) {
       this.startTestDrive();
       return "TEST_DRIVE";
@@ -255,9 +251,8 @@ export class TrackEditor {
     let mY = gui.getMouseY();
     let wheel = gui.getMouseWheelMove();
 
-    // Canvas Mouse Interactions
     if (mX < this.canvasW) {
-      // Mouse Wheel Zoom
+
       if (wheel != 0) {
         let prevWorld = this.screenToWorld(mX, mY);
         let factor = 1.0 + wheel * 0.12;
@@ -267,7 +262,6 @@ export class TrackEditor {
         this.panZ = this.panZ - (newWorld[1] - prevWorld[1]);
       }
 
-      // Right Mouse Drag Pan
       if (gui.isMouseButtonPressed("RIGHT")) {
         this.isPanning = true;
         this.panStartMouseX = mX;
@@ -286,7 +280,6 @@ export class TrackEditor {
         }
       }
 
-      // Left Mouse Node Select / Drag
       let nodes = this.trackDef["nodes"];
       if (gui.isMouseButtonPressed("LEFT")) {
         let hitNode = -1;
@@ -303,7 +296,7 @@ export class TrackEditor {
           this.selectedNode = hitNode;
           this.isDraggingNode = true;
         } else if (this.activeTab == 3) {
-          // Prop placement tool in props tab
+
           let wPos = this.screenToWorld(mX, mY);
           this.addPropAtWorldPos(wPos[0], wPos[1]);
         }
@@ -436,28 +429,22 @@ export class TrackEditor {
       return;
     }
 
-    // 1. Canvas Background & Coordinate Grid
     gui.drawRectangle(0, 0, this.canvasW, this.canvasH, 16, 20, 28);
     this.drawGrid();
 
-    // 2. Track Spline (Road, Kerbs, Runoff, Start Line)
     this.drawTrackSpline();
 
-    // 3. Scenery Props on Canvas
     this.drawProps();
 
-    // 4. Control Points (Nodes) & Tangents
     this.drawNodes(t);
 
-    // 5. Canvas Overlay Indicators (Zoom, Scale, Status, Shortcuts)
     this.drawCanvasOverlay();
 
-    // 6. Sidebar Tools & Panels
     this.drawSidebar(t);
   }
 
   drawGrid() {
-    let gridSize = 100.0; // 100 meters
+    let gridSize = 100.0;
     let pMin = this.screenToWorld(0, 0);
     let pMax = this.screenToWorld(this.canvasW, this.canvasH);
 
@@ -513,12 +500,11 @@ export class TrackEditor {
       let spCR = [spCenter[0] + nx * (hw + cw), spCenter[1] + nz * (hw + cw)];
 
       if (prevLeft != nil) {
-        // Road surface
+
         gui.drawLine(spL[0], spL[1], spR[0], spR[1], roadCol[0], roadCol[1], roadCol[2]);
         gui.drawLine(prevLeft[0], prevLeft[1], spL[0], spL[1], 120, 125, 140);
         gui.drawLine(prevRight[0], prevRight[1], spR[0], spR[1], 120, 125, 140);
 
-        // Curbs
         let cPattern = (math.floor(i / 2)) % 2;
         let cR = curbCol[0]; let cG = curbCol[1]; let cB = curbCol[2];
         if (cPattern == 1) { cR = 240; cG = 240; cB = 245; }
@@ -532,7 +518,6 @@ export class TrackEditor {
       prevCurbR = spCR;
     }
 
-    // Start / Finish Line Checkered Bar at s = 0
     let s0Pt = f1.getTrackWorldPoint(this.trackId, 0.0);
     let s0Tan = f1.getTrackTangent(this.trackId, 0.0);
     let s0Mag = math.sqrt(s0Tan[0] * s0Tan[0] + s0Tan[1] * s0Tan[1]);
@@ -544,7 +529,6 @@ export class TrackEditor {
     let barRx = s0Sc[0] + s0Nx * hw; let barRy = s0Sc[1] + s0Nz * hw;
     gui.drawLine(barLx, barLy, barRx, barRy, 255, 235, 40);
 
-    // Forward Direction Arrow
     let arrPt = this.worldToScreen(s0Pt[0] + (s0Tan[0] / s0Mag) * 16.0, s0Pt[1] + (s0Tan[1] / s0Mag) * 16.0);
     gui.drawLine(s0Sc[0], s0Sc[1], arrPt[0], arrPt[1], 0, 240, 255);
     gui.drawCircle(arrPt[0], arrPt[1], 4, 0, 240, 255);
@@ -602,14 +586,13 @@ export class TrackEditor {
   }
 
   drawCanvasOverlay() {
-    // Upper Left status badge
+
     gui.drawRectangleAlpha(16, 16, 380, 72, 12, 16, 24, 220);
     gui.drawRectangleLines(16, 16, 380, 72, 40, 50, 70);
     gui.drawText(this.trackDef["name"], 28, 24, 18, 0, 240, 255);
     gui.drawText("LENGTH: " + str(math.floor(this.trackDef["length"])) + "m  |  NODES: " + str(len(this.trackDef["nodes"])), 28, 48, 13, 180, 195, 215);
     gui.drawText("ZOOM: " + str(math.floor(this.zoom * 100.0)) + "%  |  PAN: (" + str(math.floor(this.panX)) + ", " + str(math.floor(this.panZ)) + ")", 28, 66, 11, 140, 150, 170);
 
-    // Status Message Toast
     if (this.statusTimer > 0.0) {
       let msgW = gui.measureText(this.statusMessage, 14) + 32;
       let toastX = (this.canvasW - msgW) * 0.5;
@@ -618,7 +601,6 @@ export class TrackEditor {
       gui.drawText(this.statusMessage, toastX + 16, this.canvasH - 44, 14, 255, 255, 255);
     }
 
-    // Shortcut reminders at bottom left
     gui.drawRectangleAlpha(16, this.canvasH - 38, 460, 26, 12, 16, 24, 200);
     gui.drawText("R-DRAG: Pan  |  WHEEL: Zoom  |  L-DRAG: Node  |  T: Test Drive  |  S: Save", 24, this.canvasH - 31, 11, 160, 175, 195);
   }
@@ -632,13 +614,11 @@ export class TrackEditor {
     gui.drawRectangle(sX, sY, sW, sH, 20, 24, 34);
     gui.drawLine(sX, 0, sX, sH, 45, 55, 75);
 
-    // Editor Header
     gui.drawRectangle(sX, 0, sW, 48, 14, 18, 26);
     gui.drawText("TRACK EDITOR", sX + 16, 14, 20, 0, 240, 255);
     gui.drawRectangle(sX + sW - 96, 12, 80, 24, 255, 30, 80);
     gui.drawText("CUSTOM", sX + sW - 84, 17, 13, 255, 255, 255);
 
-    // Mode Tabs
     let tabNames = ["CIRCUIT", "ELEVATION", "TUNNELS", "PROPS"];
     let tabW = math.floor(sW / len(tabNames));
     for (let tb = 0; tb < len(tabNames); tb += 1) {
@@ -660,7 +640,6 @@ export class TrackEditor {
       }
     }
 
-    // Active Tab Content
     let bodyY = 92;
     if (this.activeTab == 0) {
       this.drawCircuitTab(sX, bodyY, sW);
@@ -672,23 +651,19 @@ export class TrackEditor {
       this.drawPropsTab(sX, bodyY, sW);
     }
 
-    // Bottom Action Buttons
     let btnH = 38;
     let bY = sH - 180;
     let bW = sW - 32;
     let bX = sX + 16;
 
-    // Test Drive Button (Green)
     if (this.drawButton(bX, bY, bW, btnH, "TEST DRIVE (T)", [20, 160, 90], [255, 255, 255], 16)) {
       this.startTestDrive();
     }
 
-    // Save Button (Blue)
     if (this.drawButton(bX, bY + 46, bW, btnH, "SAVE CIRCUIT", [28, 100, 195], [255, 255, 255], 15)) {
       this.saveTrack();
     }
 
-    // Fork & Center Buttons
     let halfBW = math.floor((bW - 8) * 0.5);
     if (this.drawButton(bX, bY + 92, halfBW, 34, "FORK COPY", [45, 55, 75], [230, 235, 245], 13)) {
       this.forkCurrentTrack();
@@ -697,7 +672,6 @@ export class TrackEditor {
       this.centerView();
     }
 
-    // Exit Button
     if (this.drawButton(bX, bY + 134, bW, 32, "BACK TO MENU (ESC)", [34, 40, 52], [180, 190, 210], 12)) {
       this.stopTestDrive();
     }
@@ -735,7 +709,6 @@ export class TrackEditor {
     gui.drawText("CIRCUIT PROPERTIES", pX, curY, 14, 0, 240, 255);
     curY = curY + 24;
 
-    // Road Width
     gui.drawText("Road Width: " + str(this.trackDef["roadWidth"]) + " m", pX, curY, 13, 200, 215, 230);
     let rwDelta = this.drawStepper(pX + 180, curY - 4);
     if (rwDelta != 0) {
@@ -744,7 +717,6 @@ export class TrackEditor {
     }
     curY = curY + 32;
 
-    // Curb Width
     gui.drawText("Kerb Width: " + str(this.trackDef["curbWidth"]) + " m", pX, curY, 13, 200, 215, 230);
     let cwDelta = this.drawStepper(pX + 180, curY - 4);
     if (cwDelta != 0) {
@@ -753,7 +725,6 @@ export class TrackEditor {
     }
     curY = curY + 32;
 
-    // Runoff Width
     gui.drawText("Runoff Width: " + str(this.trackDef["runoffWidth"]) + " m", pX, curY, 13, 200, 215, 230);
     let roDelta = this.drawStepper(pX + 180, curY - 4);
     if (roDelta != 0) {
@@ -762,7 +733,6 @@ export class TrackEditor {
     }
     curY = curY + 32;
 
-    // Lap Count
     gui.drawText("Race Laps: " + str(this.trackDef["laps"]), pX, curY, 13, 200, 215, 230);
     let lapDelta = this.drawStepper(pX + 180, curY - 4);
     if (lapDelta != 0) {
@@ -771,7 +741,6 @@ export class TrackEditor {
     }
     curY = curY + 44;
 
-    // Node Tools
     gui.drawText("NODE CONTROLS (Node #" + str(this.selectedNode + 1) + ")", pX, curY, 14, 0, 240, 255);
     curY = curY + 22;
 
@@ -807,7 +776,6 @@ export class TrackEditor {
     gui.drawText("TOPOGRAPHY PROFILE", pX, curY, 14, 0, 240, 255);
     curY = curY + 22;
 
-    // Graph viewport
     let gW = sW - 32;
     let gH = 110;
     gui.drawRectangle(pX, curY, gW, gH, 12, 16, 24);
@@ -915,28 +883,24 @@ export class TrackEditor {
   }
 
   drawTestDrive(t) {
-    // 3D Test Drive Viewport
+
     let spd = this.testCar.speed;
     let kph = math.floor(spd * 3.6);
     let dist = this.testCar.trackDistance;
     let lapLen = this.testTrack.spec["length"];
     let pct = math.floor((dist / lapLen) * 100.0);
 
-    // 1. Sky & Track 3D Pass
     gui.clearBackground(this.testTrack.spec["skyBottom"][0], this.testTrack.spec["skyBottom"][1], this.testTrack.spec["skyBottom"][2]);
     this.testTrack.draw(this.testCar.trackDistance, this.testCar.worldX, this.testCar.worldY, this.testCar.worldZ, this.testCam.forwardX, this.testCam.forwardZ, this.assets);
 
-    // 2. Player Vehicle 3D Pass
     this.testCar.draw(this.assets, t);
 
-    // 3. Test Drive HUD Overlay
     gui.drawRectangleAlpha(16, 16, 320, 96, 12, 16, 24, 220);
     gui.drawRectangleLines(16, 16, 320, 96, 0, 240, 255);
     gui.drawText("TEST DRIVE: " + this.trackDef["name"], 28, 26, 16, 0, 240, 255);
     gui.drawText("SPEED: " + str(kph) + " KPH  |  GEAR: " + str(this.testCar.gear), 28, 52, 14, 255, 255, 255);
     gui.drawText("LAP PROGRESS: " + str(pct) + "%  |  TIME: " + str(math.floor(this.testLapTime * 10.0) / 10.0) + "s", 28, 74, 13, 180, 200, 220);
 
-    // Exit prompt
     gui.drawRectangleAlpha(this.w - 240, 16, 224, 36, 12, 16, 24, 220);
     gui.drawText("PRESS [ESC] TO EXIT", this.w - 224, 26, 14, 255, 80, 80);
   }

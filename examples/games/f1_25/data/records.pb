@@ -1,10 +1,9 @@
-// PB SPORTS F1 25, Lap Records & High Score Persistence
 use "pb_file" as file;
 
 export class RecordManager {
   init(filepath) {
     this.path = filepath;
-    // Default best lap times in seconds for each F1 track
+
     this.records = [88.50, 102.50, 78.40, 54.20];
     this.load();
   }
@@ -22,8 +21,7 @@ export class RecordManager {
       let line = lines[i];
       if (line != "" and i < len(this.records)) {
         let val = num(line);
-        // Older builds could save impossible times during test captures.  Do
-        // not let a corrupt ghost record make Time Attack unwinnable.
+
         let minimum = 18.0;
         if (i == 0) minimum = 28.0;
         else if (i == 1) minimum = 34.0;
@@ -57,10 +55,9 @@ export class RecordManager {
       if (time < this.records[trackId]) {
         this.records[trackId] = time;
         this.save();
-        return true; // New record!
+        return true;
       }
     }
     return false;
   }
 }
-

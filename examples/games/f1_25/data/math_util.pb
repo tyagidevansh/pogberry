@@ -1,4 +1,3 @@
-// PB SPORTS F1 25, Math Utilities
 use "std.math" as math;
 
 export fun clamp(v, lo, hi) {
@@ -49,4 +48,3 @@ export fun sign(v) {
 export fun sinWave(t, speed, amplitude) {
   return math.sin(t * speed) * amplitude;
 }
-

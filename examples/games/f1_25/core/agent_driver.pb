@@ -1,14 +1,13 @@
-// PB SPORTS F1 25, Automated AI Agent Driver & Telemetry System
-use "constants" as const;
-use "track" as track_mod;
-use "car" as car_mod;
-use "particles" as part_mod;
-use "math_util" as mu;
+use "data/constants" as const;
+use "core/track" as track_mod;
+use "core/car" as car_mod;
+use "core/particles" as part_mod;
+use "data/math_util" as mu;
 use "std.math" as math;
 
 export class DriverBot {
   init(behaviorMode) {
-    this.mode = behaviorMode; // "NO_STEER", "HUMAN_ARCADE", "PRO_RACER"
+    this.mode = behaviorMode;
     this.driftActive = false;
     this.driftTimer = 0.0;
   }
@@ -23,11 +22,10 @@ export class DriverBot {
     };
 
     if (this.mode == "NO_STEER") {
-      // Just hold throttle, zero steering
+
       return input;
     }
 
-    // Racing line lookahead
     let speed = player.speed;
     let dist = player.trackDistance;
     let lookDist = 26.0 + (speed / 70.0) * 14.0;
@@ -37,7 +35,6 @@ export class DriverBot {
     let lookCurv = track.getCurvature(-lookDist, dist);
     let maxCurv = math.max(math.abs(curv), math.abs(lookCurv));
 
-    // Pure Pursuit towards lookahead track station in 3D world space
     let targetPt = const.getTrackWorldPoint(track.trackId, dist + lookDist);
     let toTgtX = targetPt[0] - player.worldX;
     let toTgtZ = targetPt[1] - player.worldZ;
@@ -49,9 +46,8 @@ export class DriverBot {
     let desiredSteer = mu.clamp(headingError * 2.6, -1.0, 1.0);
     input["steer"] = desiredSteer;
 
-    // Corner braking & trail-braking logic
     if (this.mode == "HUMAN_ARCADE" or this.mode == "PRO_RACER") {
-      // Brake if approaching sharp corner at high speed
+
       let brake = (maxCurv > 0.018 and speed > 62.0) or (maxCurv > 0.028 and speed > 42.0);
       if (brake) {
         input["brake"] = true;
@@ -59,7 +55,6 @@ export class DriverBot {
       }
       this.driftActive = false;
 
-      // Nitro boost on clean straights
       let isStraight = (maxCurv < 0.004 and math.abs(player.x) < 4.5);
       if (isStraight and speed > 50.0 and player.nitro > 15.0) {
         input["boost"] = true;
@@ -90,7 +85,6 @@ export class TelemetryCollector {
     this.finishedLap = false;
     this.lapTime = 0.0;
 
-    // Jitter measurement: track segment vertex positions across consecutive frames
     this.vertexSamples = [];
     this.maxVertexJerk = 0.0;
     this.prevVertexX = 0.0;
@@ -125,14 +119,12 @@ export class TelemetryCollector {
       this.boostTime = this.boostTime + dt;
     }
 
-    // Check lap completion
     let lapLen = track.spec["length"];
     if ((player.completedLaps > 0 or player.trackDistance >= lapLen) and !this.finishedLap) {
       this.finishedLap = true;
       this.lapTime = this.totalTime;
     }
 
-    // Measure road geometry smoothness (mid-distance vertex at 30m ahead)
     let sampleZ = -30.0;
     let vertX = track.getCurveOffset(sampleZ, player.trackDistance);
     if (this.totalFrames > 2) {
