@@ -427,6 +427,8 @@ static const NameCode traceLogLevels[] = {
     {"WARNING", 4}, {"WARN", 4}, {"ERROR", 5}, {"FATAL", 6}, {"NONE", 7},
 };
 
+static bool audioInitialized = false;
+
 
 static int findCode(const NameCode *table, size_t count, const char *name) {
   for (size_t i = 0; i < count; i++) {
@@ -743,10 +745,30 @@ static PbValue guiInitWindow(PbVM *vm, int argCount, const PbValue *args, void *
   return pbNilValue();
 }
 
+static PbValue makeVec2List(PbVM *vm, double x, double y) {
+  PbValue list = pbNewList(vm);
+  pbListAppend(vm, list, pbNumberValue(x));
+  pbListAppend(vm, list, pbNumberValue(y));
+  return list;
+}
+
+static float calculateTextHeight(const char *text, float size, float spacing) {
+  if (text == NULL || text[0] == '\0') return 0.0f;
+  int lines = 1;
+  for (const char *p = text; *p != '\0'; p++) {
+    if (*p == '\n') lines++;
+  }
+  return lines * size + (lines - 1) * spacing;
+}
+
 static PbValue guiCloseWindow(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)args;
   (void)userData;
   if (argCount != 0) return guiError(vm, "closeWindow() takes no arguments.");
+  if (audioInitialized && raylib.closeAudio != NULL) {
+    raylib.closeAudio();
+    audioInitialized = false;
+  }
   raylib.closeWindow();
   return pbNilValue();
 }
@@ -1768,12 +1790,19 @@ static PbValue guiDrawText(PbVM *vm, int argCount, const PbValue *args, void *us
   return pbNilValue();
 }
 
+static PbValue guiMeasureTextFont(PbVM *vm, int argCount, const PbValue *args, void *userData);
+
 static PbValue guiMeasureText(PbVM *vm, int argCount, const PbValue *args, void *userData) {
-  (void)userData;
-  if (argCount != 2 || args[0].type != PB_VALUE_STRING || !numbersFitInt(args + 1, 1) || args[1].as.number <= 0)
-    return guiError(vm, "measureText(text, fontSize) expected.");
-  if (raylib.measureText == NULL) return missingRaylibFunction(vm, "measureText");
-  return pbNumberValue(raylib.measureText(args[0].as.string.chars, (int)args[1].as.number));
+  if (argCount == 2) {
+    if (args[0].type != PB_VALUE_STRING || !numbersFitInt(args + 1, 1) || args[1].as.number <= 0)
+      return guiError(vm, "measureText(text, fontSize) expected.");
+    if (raylib.measureText == NULL) return missingRaylibFunction(vm, "measureText");
+    return pbNumberValue(raylib.measureText(args[0].as.string.chars, (int)args[1].as.number));
+  }
+  if (argCount == 3 || argCount == 4) {
+    return guiMeasureTextFont(vm, argCount, args, userData);
+  }
+  return guiError(vm, "measureText(text, fontSize) or measureText(font, text, size, [spacing]) expected.");
 }
 
 static PbValue guiDrawFPS(PbVM *vm, int argCount, const PbValue *args, void *userData) {
@@ -2236,12 +2265,22 @@ static PbValue guiGetTextureHeight(PbVM *vm, int argCount, const PbValue *args, 
 
 /* Audio: Sound & Music */
 
+static void ensureAudio(void) {
+  if (!audioInitialized && raylib.initAudio != NULL) {
+    raylib.initAudio();
+    audioInitialized = true;
+  }
+}
+
 static PbValue guiInitAudio(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)args;
   (void)userData;
   if (argCount != 0) return guiError(vm, "initAudio() takes no arguments.");
   if (raylib.initAudio == NULL) return missingRaylibFunction(vm, "initAudio");
-  raylib.initAudio();
+  if (!audioInitialized) {
+    raylib.initAudio();
+    audioInitialized = true;
+  }
   return pbNilValue();
 }
 
@@ -2250,13 +2289,17 @@ static PbValue guiCloseAudio(PbVM *vm, int argCount, const PbValue *args, void *
   (void)userData;
   if (argCount != 0) return guiError(vm, "closeAudio() takes no arguments.");
   if (raylib.closeAudio == NULL) return missingRaylibFunction(vm, "closeAudio");
-  raylib.closeAudio();
+  if (audioInitialized) {
+    raylib.closeAudio();
+    audioInitialized = false;
+  }
   return pbNilValue();
 }
 
 static PbValue guiLoadSound(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
   if (argCount != 1 || args[0].type != PB_VALUE_STRING) return guiError(vm, "loadSound(path) expected.");
+  ensureAudio();
   if (raylib.loadSound == NULL) return missingRaylibFunction(vm, "loadSound");
   return pbNumberValue(raylib.loadSound(args[0].as.string.chars));
 }
@@ -2272,6 +2315,7 @@ static PbValue guiUnloadSound(PbVM *vm, int argCount, const PbValue *args, void 
 static PbValue guiPlaySound(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
   if (argCount != 1 || !numbersFitInt(args, 1)) return guiError(vm, "playSound(id) expected.");
+  ensureAudio();
   if (raylib.playSound == NULL) return missingRaylibFunction(vm, "playSound");
   raylib.playSound((int)args[0].as.number);
   return pbNilValue();
@@ -2321,6 +2365,7 @@ static PbValue guiSetMasterVolume(PbVM *vm, int argCount, const PbValue *args, v
 static PbValue guiLoadMusic(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
   if (argCount != 1 || args[0].type != PB_VALUE_STRING) return guiError(vm, "loadMusic(path) expected.");
+  ensureAudio();
   if (raylib.loadMusic == NULL) return missingRaylibFunction(vm, "loadMusic");
   return pbNumberValue(raylib.loadMusic(args[0].as.string.chars));
 }
@@ -2695,14 +2740,67 @@ static PbValue guiDrawTextFont(PbVM *vm, int argCount, const PbValue *args, void
 
 static PbValue guiMeasureTextFont(PbVM *vm, int argCount, const PbValue *args, void *userData) {
   (void)userData;
-  if (argCount != 4 || args[1].type != PB_VALUE_STRING || !numberFitsFloat(args[2]) || args[2].as.number <= 0 ||
-      !numberFitsFloat(args[3]))
-    return guiError(vm, "measureTextFont(font, text, size, spacing) expected.");
+  if (argCount < 3 || argCount > 4 || args[1].type != PB_VALUE_STRING || !numberFitsFloat(args[2]) || args[2].as.number <= 0)
+    return guiError(vm, "measureTextFont(font, text, size, [spacing]) expected.");
+  float spacing = 1.0f;
+  if (argCount == 4) {
+    if (!numberFitsFloat(args[3])) return guiError(vm, "measureTextFont(font, text, size, [spacing]) expected.");
+    spacing = (float)args[3].as.number;
+  }
   int id = 0;
-  if (!fontId(vm, args[0], &id, "measureTextFont(font, text, size, spacing) expected.")) return pbNilValue();
+  if (!fontId(vm, args[0], &id, "measureTextFont(font, text, size, [spacing]) expected.")) return pbNilValue();
   if (raylib.measureTextFont == NULL) return missingRaylibFunction(vm, "measureTextFont");
-  return pbNumberValue(raylib.measureTextFont(id, args[1].as.string.chars, (float)args[2].as.number,
-                                              (float)args[3].as.number));
+  return pbNumberValue(raylib.measureTextFont(id, args[1].as.string.chars, (float)args[2].as.number, spacing));
+}
+
+static PbValue guiMeasureTextHeight(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount == 2) {
+    if (args[0].type != PB_VALUE_STRING || !numberFitsFloat(args[1]) || args[1].as.number <= 0)
+      return guiError(vm, "measureTextHeight(text, fontSize) expected.");
+    return pbNumberValue(calculateTextHeight(args[0].as.string.chars, (float)args[1].as.number, 0.0f));
+  }
+  if (argCount == 3 || argCount == 4) {
+    int id = 0;
+    if (!fontId(vm, args[0], &id, "measureTextHeight(font, text, size, [spacing]) expected.") ||
+        args[1].type != PB_VALUE_STRING || !numberFitsFloat(args[2]) || args[2].as.number <= 0)
+      return guiError(vm, "measureTextHeight(font, text, size, [spacing]) expected.");
+    float spacing = 1.0f;
+    if (argCount == 4) {
+      if (!numberFitsFloat(args[3])) return guiError(vm, "measureTextHeight(font, text, size, [spacing]) expected.");
+      spacing = (float)args[3].as.number;
+    }
+    return pbNumberValue(calculateTextHeight(args[1].as.string.chars, (float)args[2].as.number, spacing));
+  }
+  return guiError(vm, "measureTextHeight(text, fontSize) or measureTextHeight(font, text, size, [spacing]) expected.");
+}
+
+static PbValue guiMeasureTextEx(PbVM *vm, int argCount, const PbValue *args, void *userData) {
+  (void)userData;
+  if (argCount == 2) {
+    if (args[0].type != PB_VALUE_STRING || !numberFitsFloat(args[1]) || args[1].as.number <= 0)
+      return guiError(vm, "measureTextEx(text, fontSize) expected.");
+    if (raylib.measureText == NULL) return missingRaylibFunction(vm, "measureText");
+    float width = (float)raylib.measureText(args[0].as.string.chars, (int)args[1].as.number);
+    float height = calculateTextHeight(args[0].as.string.chars, (float)args[1].as.number, 0.0f);
+    return makeVec2List(vm, width, height);
+  }
+  if (argCount == 3 || argCount == 4) {
+    int id = 0;
+    if (!fontId(vm, args[0], &id, "measureTextEx(font, text, size, [spacing]) expected.") ||
+        args[1].type != PB_VALUE_STRING || !numberFitsFloat(args[2]) || args[2].as.number <= 0)
+      return guiError(vm, "measureTextEx(font, text, size, [spacing]) expected.");
+    float spacing = 1.0f;
+    if (argCount == 4) {
+      if (!numberFitsFloat(args[3])) return guiError(vm, "measureTextEx(font, text, size, [spacing]) expected.");
+      spacing = (float)args[3].as.number;
+    }
+    if (raylib.measureTextFont == NULL) return missingRaylibFunction(vm, "measureTextFont");
+    float width = raylib.measureTextFont(id, args[1].as.string.chars, (float)args[2].as.number, spacing);
+    float height = calculateTextHeight(args[1].as.string.chars, (float)args[2].as.number, spacing);
+    return makeVec2List(vm, width, height);
+  }
+  return guiError(vm, "measureTextEx(text, fontSize) or measureTextEx(font, text, size, [spacing]) expected.");
 }
 
 static PbValue guiReadChar(PbVM *vm, int argCount, const PbValue *args, void *userData) {
@@ -2928,6 +3026,8 @@ static const PbNativeDefinition raylibFunctions[] = {
   {"drawModelRotY", guiDrawModelRotY, NULL},
   {"drawModelWiresRotY", guiDrawModelWiresRotY, NULL},
   {"drawQuadStrip3D", guiDrawQuadStrip3D, NULL},
+  {"measureTextEx", guiMeasureTextEx, NULL},
+  {"measureTextHeight", guiMeasureTextHeight, NULL},
 };
 #undef RAYLIB_NATIVE
 
