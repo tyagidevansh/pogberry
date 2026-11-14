@@ -586,6 +586,57 @@ static bool invokeMatMethod(ObjString *name, int argCount) {
   return true;
 }
 
+static int sortKeyComp(const void *a, const void *b) {
+  Value valA = *(const Value *) a;
+  Value valB = *(const Value *) b;
+  ObjList *listA = AS_LIST(valA);
+  ObjList *listB = AS_LIST(valB);
+
+  Value keyA = listA->items.values[0];
+  Value keyB = listB->items.values[0];
+
+  return Valuecomp(&keyA, &keyB);
+}
+
+static int sortValueComp(const void *a, const void *b) {
+  Value valA = *(const Value *)a;
+  Value valB = *(const Value *)b;
+  ObjList *listA = AS_LIST(valA);
+  ObjList *listB = AS_LIST(valB);
+  
+  Value valItemA = listA->items.values[1];
+  Value valItemB = listB->items.values[1];
+
+  return Valuecomp(&valItemA, &valItemB);
+}
+
+static bool mapSortPairs(ObjString* name, int argCount, int (*comparator)(const void *, const void *)) {
+  if (argCount != 0) {
+    runtimeError("%s() expects 0 arguments but got %d.", name->chars, argCount);
+    return false;
+  }
+
+  ObjHashmap *map = AS_HASHMAP(vm.stackTop[-1]);
+  ObjList *outer = newList();
+  push(OBJ_VAL(outer));
+
+  for (int index = mapFirstEntry(&map->items); index != -1; index = mapNextEntry(&map->items, index)) {
+    MapEntry *entry = mapEntryAt(&map->items, index);
+    ObjList *pair = newList();
+    push(OBJ_VAL(pair));
+    writeValueArray(&pair->items, entry->key);
+    writeValueArray(&pair->items, entry->value);
+    pop();
+    writeValueArray(&outer->items, OBJ_VAL(pair));
+  }
+
+  qsort(outer->items.values, outer->items.count, sizeof(Value), comparator);
+
+  Value listed = pop();
+  vm.stackTop[-1] = listed;
+  return true;
+}
+
 static bool invokeMapMethod(ObjString *name, int argCount) {
   if (name->length == 3 && memcmp(name->chars, "has", 3) == 0) {
     if (argCount != 1) {
@@ -668,6 +719,14 @@ static bool invokeMapMethod(ObjString *name, int argCount) {
     Value listed = pop();
     vm.stackTop[-1] = listed;
     return true;
+  }
+
+  if (name->length == 7 && memcmp(name->chars, "sortKey", 7) == 0) {
+    return mapSortPairs(name, argCount, sortKeyComp);
+  }
+
+  if (name->length == 9 && memcmp(name->chars, "sortValue", 9) == 0) {
+    return mapSortPairs(name, argCount, sortValueComp);
   }
 
   runtimeError("Maps do not have a method named '%s'.", name->chars);
