@@ -9,3 +9,4 @@ pb
 *.md
 docs/
 *.dylib
+records.txt

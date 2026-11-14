@@ -2624,6 +2624,44 @@ PB_API PbValue pbNewList(PbVM *instance) {
   return value;
 }
 
+PB_API bool pbIsList(PbValue value) {
+  return value.type == PB_VALUE_OBJECT && value.as.object != NULL &&
+         ((const Obj *)value.as.object)->type == OBJ_LIST;
+}
+
+PB_API int pbListLength(PbValue value) {
+  if (!pbIsList(value)) return -1;
+  const ObjList *list = (const ObjList *)value.as.object;
+  return list->items.count;
+}
+
+PB_API bool pbListGet(PbVM *instance, PbValue list, int index, PbValue *outValue) {
+  (void)instance;
+  if (outValue != NULL) *outValue = pbNilValue();
+  if (outValue == NULL || !pbIsList(list)) return false;
+  const ObjList *target = (const ObjList *)list.as.object;
+  if (index < 0 || index >= target->items.count) return false;
+  *outValue = valueToHost(target->items.values[index]);
+  return true;
+}
+
+PB_API bool pbListGetNumbers(PbVM *instance, PbValue list, double *outNumbers, int maxCount, int *outCount) {
+  (void)instance;
+  if (outNumbers == NULL || maxCount <= 0) return false;
+  if (outCount != NULL) *outCount = 0;
+  if (!pbIsList(list)) return false;
+  const ObjList *target = (const ObjList *)list.as.object;
+  int count = target->items.count;
+  if (count > maxCount) count = maxCount;
+  for (int i = 0; i < count; i++) {
+    Value element = target->items.values[i];
+    if (!IS_NUMBER(element)) return false;
+    outNumbers[i] = AS_NUMBER(element);
+  }
+  if (outCount != NULL) *outCount = target->items.count;
+  return true;
+}
+
 PB_API bool pbListAppend(PbVM *instance, PbValue list, PbValue item) {
   if (instance == NULL) return false;
   VM *previous = activateVM(instance);

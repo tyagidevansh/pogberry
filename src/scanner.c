@@ -24,6 +24,10 @@ static bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <=
 
 static bool isDigit(char c) { return c >= '0' && c <= '9'; }
 
+static bool isHexDigit(char c) {
+  return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
 static bool isAtEnd() { return *scanner.current == '\0'; }
 
 static char advance() {
@@ -230,6 +234,15 @@ static Token identifier() {
 }
 
 static Token number() {
+  if (scanner.start[0] == '0' && (peek() == 'x' || peek() == 'X')) {
+    advance();
+    if (!isHexDigit(peek())) {
+      return errorToken("Expect hexadecimal digits after '0x'.");
+    }
+    while (isHexDigit(peek())) advance();
+    return makeToken(TOKEN_NUMBER);
+  }
+
   while (isDigit(peek())) advance();
 
   // look for the fractional part
